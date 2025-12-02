@@ -292,13 +292,13 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
 
                                 if (itemsOnDate.length === 0) return <div className="text-center text-slate-500 py-8">No items listed on this date.</div>;
 
-                                const totalNet = itemsOnDate.reduce((sum, i) => sum + i.calculation.netProfit, 0);
+                                const totalGross = itemsOnDate.reduce((sum, i) => sum + i.calculation.soldPrice, 0);
 
                                 return (
                                     <>
-                                        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl flex justify-between items-center">
-                                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Net Profit</span>
-                                            <span className="text-xl font-black text-emerald-600 dark:text-neon-green">${totalNet.toFixed(2)}</span>
+                                        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl flex justify-between items-center">
+                                            <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Total Listing Value</span>
+                                            <span className="text-xl font-black text-blue-600 dark:text-blue-400">${totalGross.toFixed(2)}</span>
                                         </div>
                                         {itemsOnDate.map(item => (
                                             <div key={item.id} className="flex gap-3 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
