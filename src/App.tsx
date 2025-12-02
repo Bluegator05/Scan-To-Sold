@@ -821,7 +821,8 @@ function App() {
                     description: item.generatedListing?.content || item.conditionNotes || item.title,
                     condition: itemCondition, itemSpecifics: item.itemSpecifics || {},
                     ebayShippingPolicyId: item.ebayShippingPolicyId, ebayReturnPolicyId: item.ebayReturnPolicyId, ebayPaymentPolicyId: item.ebayPaymentPolicyId,
-                    weight: item.itemSpecifics?.Weight
+                    weight: item.itemSpecifics?.Weight,
+                    postalCode: localStorage.getItem('sts_default_zip') || "95125"
                 }
             };
             const response = await fetch(`${API_BASE_URL}/api/ebay/draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

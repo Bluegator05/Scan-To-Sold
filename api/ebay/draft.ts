@@ -335,11 +335,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             customSku += `-${item.costCode}`;
         }
 
-        // FIX: Append Date (MMDD)
-        const dateObj = new Date();
-        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-        const day = dateObj.getDate().toString().padStart(2, '0');
-        customSku += `-${month}${day}`;
+        // FIX: Append Date (MMDD-YY) in CST
+        const dateStr = new Date().toLocaleDateString('en-US', {
+            timeZone: 'America/Chicago',
+            year: '2-digit',
+            month: '2-digit',
+            day: '2-digit'
+        }); // Returns "12/01/25"
+        const [mm, dd, yy] = dateStr.split('/');
+        customSku += `-${mm}${dd}-${yy}`;
 
         const postalCode = item.postalCode || "95125";
 
