@@ -50,10 +50,7 @@ export const checkEbayConnection = async (): Promise<boolean> => {
 
   try {
     const response = await fetch(url);
-    if (!response.ok) {
-      alert(`Connection Check Failed: Status ${response.status}`); // DEBUG
-      return false;
-    }
+    if (!response.ok) return false;
 
     const data = await response.json();
 
@@ -63,41 +60,29 @@ export const checkEbayConnection = async (): Promise<boolean> => {
       localStorage.removeItem(EBAY_TOKEN_KEY);
     }
 
-    if (data.debug) {
-      alert(`Debug Status:\nUser: ${data.debug.userIdReceived}\nRows: ${data.debug.rowCount}\nError: ${data.debug.error}`);
-    } else {
-      alert("Debug info missing from backend response"); // DEBUG
-    }
-
     return data.connected;
-  } catch (error: any) {
-    alert(`Connection Check Error: ${error.message}`); // DEBUG
+  } catch (error) {
     console.error("Status check failed", error);
     return false;
   }
 };
 
-export const connectEbayAccount = async (): Promise<void> => {
-  console.log("Attempting to connect eBay...");
+export const connectEbayAccount = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("No user found!"); // DEBUG
+      return;
+    }
 
-  const { data: { user } } = await supabase.auth.getUser();
+    const authUrl = getApiUrl(`/api/ebay/auth?userId=${user.id}&platform=native`);
+    // alert(`Opening Auth URL: ${authUrl}`); // DEBUG
 
-  if (!user || !user.id) {
-    alert("Error: You are not logged in. Please reload the page.");
-    return;
+    await Browser.open({ url: authUrl });
+  } catch (error: any) {
+    alert(`Connect Error: ${error.message}`); // DEBUG
+    console.error("Failed to open eBay auth", error);
   }
-
-  if (API_BASE_URL.includes("PASTE_YOUR")) {
-    alert("⚠️ Backend URL Missing!\n\nPlease open 'src/services/ebayService.ts' and set API_BASE_URL to your actual backend server.");
-    return;
-  }
-
-  const targetUrl = `${API_BASE_URL}/api/ebay/auth?userId=${user.id}&platform=native`;
-
-  alert(`VERIFYING UPDATE: V2\n\nOpening URL: ${targetUrl}`); // DEBUG: Verify the URL
-
-  // Use Capacitor Browser for native OAuth experience
-  await Browser.open({ url: targetUrl });
 };
 
 export const disconnectEbayAccount = async (): Promise<void> => {

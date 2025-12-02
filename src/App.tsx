@@ -1298,7 +1298,17 @@ function App() {
             <div className={`${theme} fixed inset-0 flex flex-col overflow-hidden bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-300`}>
                 {/* Modals remain the same... */}
                 <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} onSuccess={refreshSubscription} />
-                <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} onOpenPricing={() => setIsPricingOpen(true)} onOpenFeedback={() => setIsFeedbackOpen(true)} onOpenPrivacy={() => setIsPrivacyOpen(true)} />
+                <SettingsModal
+                    isOpen={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    onOpenPricing={() => setIsPricingOpen(true)}
+                    onOpenFeedback={() => setIsFeedbackOpen(true)}
+                    onOpenPrivacy={() => setIsPrivacyOpen(true)}
+                    onConnectionChange={(connected) => {
+                        setEbayConnected(connected);
+                        if (connected && user) loadEbayPolicies(user.id);
+                    }}
+                />
                 <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
                 <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
                 <PrivacyPolicyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />

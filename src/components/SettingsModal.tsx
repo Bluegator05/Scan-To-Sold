@@ -10,9 +10,10 @@ interface SettingsModalProps {
   onOpenPricing: () => void;
   onOpenFeedback: () => void;
   onOpenPrivacy: () => void;
+  onConnectionChange?: (connected: boolean) => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPricing, onOpenFeedback, onOpenPrivacy }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPricing, onOpenFeedback, onOpenPrivacy, onConnectionChange }) => {
   const { user, signOut, updatePassword, subscription } = useAuth();
 
   const [newPassword, setNewPassword] = useState('');
@@ -31,14 +32,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
   useEffect(() => {
     if (isOpen) {
       const check = () => {
-        // DEBUG: Show what we are checking
-        if (user) alert(`Checking connection for UserID: ${user.id}`);
-
         setEbayConnected(isEbayConnected());
         checkEbayConnection().then((connected) => {
-          alert(`Connection Result: ${connected}`); // DEBUG
           setEbayConnected(connected);
           setIsConnectingEbay(false);
+          if (onConnectionChange) onConnectionChange(connected);
         });
       };
 
@@ -90,6 +88,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
       await disconnectEbayAccount();
       setEbayConnected(false);
       setIsConnectingEbay(false);
+      if (onConnectionChange) onConnectionChange(false);
     } else {
       setIsConnectingEbay(true);
       await connectEbayAccount();

@@ -4,6 +4,21 @@ import axios from 'axios';
 import { Buffer } from 'buffer';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // Handle OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   const { itemId } = req.query;
 
   if (!itemId) return res.status(400).json({ error: 'Missing Item ID' });
@@ -11,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 1. Get App Token
     const authHeader = Buffer.from(`${process.env.EBAY_APP_ID}:${process.env.EBAY_CERT_ID}`).toString('base64');
-    const tokenRes = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
-      'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope', 
+    const tokenRes = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
+      'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
       {
         headers: {
           'Authorization': `Basic ${authHeader}`,
@@ -37,24 +52,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Map Aspect name/value pairs to a clean object
     const specifics: Record<string, string> = {};
     if (item.localizedAspects) {
-        item.localizedAspects.forEach((aspect: any) => {
-            if (aspect.name && aspect.value) {
-                specifics[aspect.name] = aspect.value;
-            }
-        });
+      item.localizedAspects.forEach((aspect: any) => {
+        if (aspect.name && aspect.value) {
+          specifics[aspect.name] = aspect.value;
+        }
+      });
     }
 
     // Extract Weight
     let weight = "";
     if (item.packageWeightAndSize?.weight) {
-        const w = item.packageWeightAndSize.weight;
-        if (w.unit === 'POUND') weight = `${w.value} lbs`;
-        else if (w.unit === 'OUNCE') weight = `${w.value} oz`;
-        else weight = `${w.value} ${w.unit}`;
+      const w = item.packageWeightAndSize.weight;
+      if (w.unit === 'POUND') weight = `${w.value} lbs`;
+      else if (w.unit === 'OUNCE') weight = `${w.value} oz`;
+      else weight = `${w.value} ${w.unit}`;
     }
     // Fallback to Item Specifics if structured data missing
     if (!weight && specifics['Weight']) {
-        weight = specifics['Weight'];
+      weight = specifics['Weight'];
     }
 
     // Clean description (remove complex HTML wrappers if possible, or just return raw)
