@@ -236,7 +236,7 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950 overflow-y-auto pb-24 text-slate-900 dark:text-white transition-colors">
+        <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950 overflow-y-auto pb-24 text-slate-900 dark:text-white transition-colors pt-safe">
             {/* Goals Editor Modal */}
             {isEditingGoals && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -292,20 +292,30 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
 
                                 if (itemsOnDate.length === 0) return <div className="text-center text-slate-500 py-8">No items listed on this date.</div>;
 
-                                return itemsOnDate.map(item => (
-                                    <div key={item.id} className="flex gap-3 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
-                                        <div className="w-12 h-12 bg-gray-200 dark:bg-slate-800 rounded-lg overflow-hidden shrink-0">
-                                            {item.imageUrl && <img src={item.imageUrl} className="w-full h-full object-cover" />}
+                                const totalNet = itemsOnDate.reduce((sum, i) => sum + i.calculation.netProfit, 0);
+
+                                return (
+                                    <>
+                                        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl flex justify-between items-center">
+                                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Net Profit</span>
+                                            <span className="text-xl font-black text-emerald-600 dark:text-neon-green">${totalNet.toFixed(2)}</span>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate">{item.title}</div>
-                                            <div className="flex justify-between items-center mt-1">
-                                                <span className="text-xs font-mono text-emerald-600 dark:text-neon-green font-bold">${item.calculation.soldPrice}</span>
-                                                <span className="text-[10px] text-slate-400 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700">{item.status}</span>
+                                        {itemsOnDate.map(item => (
+                                            <div key={item.id} className="flex gap-3 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
+                                                <div className="w-12 h-12 bg-gray-200 dark:bg-slate-800 rounded-lg overflow-hidden shrink-0">
+                                                    {item.imageUrl && <img src={item.imageUrl} className="w-full h-full object-cover" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-bold text-sm text-slate-900 dark:text-white truncate">{item.title}</div>
+                                                    <div className="flex justify-between items-center mt-1">
+                                                        <span className="text-xs font-mono text-emerald-600 dark:text-neon-green font-bold">${item.calculation.soldPrice}</span>
+                                                        <span className="text-[10px] text-slate-400 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700">{item.status}</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                ));
+                                        ))}
+                                    </>
+                                );
                             })()}
                         </div>
                     </div>
@@ -543,16 +553,6 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
                             <Activity size={16} className="text-blue-500" /> Revenue (14 Days)
                         </h3>
                         <span className="text-[10px] text-slate-400 font-mono">Last updated: Today</span>
-                    </div>
-
-                    {/* DEBUG: Recent Listings Dates */}
-                    <div className="mb-4 p-2 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-mono text-slate-500 overflow-x-auto">
-                        <strong>Debug Dates (Last 5 Listed):</strong><br />
-                        {inventory.filter(i => i.status === 'LISTED').slice(0, 5).map(i => (
-                            <div key={i.id}>
-                                {i.title.substring(0, 15)}... : {i.ebayListedDate ? new Date(i.ebayListedDate).toLocaleString() : 'No Date'}
-                            </div>
-                        ))}
                     </div>
 
                     {/* Bar Chart Container */}
