@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>ScanToSold OS</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
+            },
+            neon: {
+              green: '#39ff14',
+              red: '#ff073a',
+            }
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top);
+      --sab: env(safe-area-inset-bottom);
+    }
+
+    html {
+      height: 100%;
+      /* overflow: hidden; Removed to allow scrolling */
+    }
+
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      width: 100%;
+      background-color: #0f172a;
+      /* Match Slate 900/950 to prevent gray bars */
+    }
+
+    #root {
+      height: 100%;
+      width: 100%;
+      /* overflow: hidden; Removed to allow scrolling */
+    }
+
+    /* Custom Safe Area Utilities */
+    .pt-safe {
+      padding-top: max(1rem, var(--sat));
+    }
+
+    .pb-safe {
+      padding-bottom: max(1rem, var(--sab));
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    /* Hide scrollbar for horizontal scroll areas */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "@zxing/library": "https://aistudiocdn.com/@zxing/library@^0.21.3",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "@stripe/stripe-js": "https://aistudiocdn.com/@stripe/stripe-js@^4.1.0",
+    "axios": "https://aistudiocdn.com/axios@^1.13.2",
+    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.5.10",
+    "querystring": "https://aistudiocdn.com/querystring@^0.2.1",
+    "fast-xml-parser": "https://aistudiocdn.com/fast-xml-parser@^5.3.2",
+    "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "url": "https://www.scantosold.com",
+      "logo": "https://www.scantosold.com/icon.svg"
+    }
+    </script>
+</body>
+
+</html>

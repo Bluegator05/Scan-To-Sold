@@ -1,0 +1,7 @@
+{
+  "name": "ScanToSold",
+  "description": "A Reseller OS for scouting items, calculating real-time profit, and tracking inventory. Uses Gemini to simulate Vision and Market analysis.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
