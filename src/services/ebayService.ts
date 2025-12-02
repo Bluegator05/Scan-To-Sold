@@ -4,7 +4,7 @@ import { Browser } from '@capacitor/browser';
 
 // --- CONFIGURATION ---
 // REPLACE THIS with your actual backend URL (e.g. https://my-api.render.com or Supabase Edge Function URL)
-const API_BASE_URL = "https://www.scantosold.com";
+export const API_BASE_URL = "https://www.scantosold.com";
 // ---------------------
 
 const EBAY_TOKEN_KEY = 'sts_ebay_connected';

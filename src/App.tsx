@@ -17,7 +17,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
 import { incrementDailyUsage } from './services/paymentService';
-import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps } from './services/ebayService';
+import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, API_BASE_URL } from './services/ebayService';
 import { compressImage, uploadScanImage } from './services/imageService';
 import {
     fetchInventory, addInventoryItem, deleteInventoryItem, updateInventoryItem,
@@ -824,7 +824,7 @@ function App() {
                     weight: item.itemSpecifics?.Weight
                 }
             };
-            const response = await fetch('/api/ebay/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const response = await fetch(`${API_BASE_URL}/api/ebay/draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const data = await response.json();
             if (!response.ok || !data.success) {
                 if (data.actionRequiredUrl) { if (confirm(data.message)) window.open(data.actionRequiredUrl, '_blank'); return; }
