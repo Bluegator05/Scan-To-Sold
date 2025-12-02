@@ -50,7 +50,10 @@ export const checkEbayConnection = async (): Promise<boolean> => {
 
   try {
     const response = await fetch(url);
-    if (!response.ok) return false;
+    if (!response.ok) {
+      alert(`Connection Check Failed: Status ${response.status}`); // DEBUG
+      return false;
+    }
 
     const data = await response.json();
 
@@ -62,10 +65,13 @@ export const checkEbayConnection = async (): Promise<boolean> => {
 
     if (data.debug) {
       alert(`Debug Status:\nUser: ${data.debug.userIdReceived}\nRows: ${data.debug.rowCount}\nError: ${data.debug.error}`);
+    } else {
+      alert("Debug info missing from backend response"); // DEBUG
     }
 
     return data.connected;
-  } catch (error) {
+  } catch (error: any) {
+    alert(`Connection Check Error: ${error.message}`); // DEBUG
     console.error("Status check failed", error);
     return false;
   }
