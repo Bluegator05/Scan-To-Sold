@@ -805,6 +805,8 @@ function App() {
         if (!ebayConnected) { setIsSettingsOpen(true); return; }
         if (!confirm(`List "${item.title}" on eBay?`)) return;
         setIsCreatingDraft(item.id); setLoadingMessage("Listing on eBay...");
+        const zipToSend = localStorage.getItem('sts_default_zip') || "95125";
+        alert(`Debug: Sending Zip Code: ${zipToSend}`);
         try {
             const processedImages: string[] = [];
             const rawImages = [item.imageUrl, ...(item.additionalImages || [])].filter((img): img is string => !!img);
@@ -822,7 +824,7 @@ function App() {
                     condition: itemCondition, itemSpecifics: item.itemSpecifics || {},
                     ebayShippingPolicyId: item.ebayShippingPolicyId, ebayReturnPolicyId: item.ebayReturnPolicyId, ebayPaymentPolicyId: item.ebayPaymentPolicyId,
                     weight: item.itemSpecifics?.Weight,
-                    postalCode: localStorage.getItem('sts_default_zip') || "95125"
+                    postalCode: zipToSend
                 }
             };
             const response = await fetch(`${API_BASE_URL}/api/ebay/draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

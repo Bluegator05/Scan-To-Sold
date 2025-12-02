@@ -343,7 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             day: '2-digit'
         }); // Returns "12/01/25"
         const [mm, dd, yy] = dateStr.split('/');
-        customSku += `-${mm}${dd}-${yy}`;
+        customSku += `-${mm}-${dd}-${yy}`;
 
         const postalCode = item.postalCode || "95125";
 
