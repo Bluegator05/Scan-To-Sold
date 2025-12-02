@@ -39,10 +39,13 @@ const EbayLogo = () => (
     </div>
 );
 
+import LiteView from './components/LiteView';
+
 function App() {
     const { user, loading: authLoading, refreshSubscription } = useAuth();
     const { theme, toggleTheme } = useTheme();
 
+    const [isLiteMode, setIsLiteMode] = useState(false);
     const [view, setView] = useState<'scout' | 'inventory' | 'stats'>('scout');
     const [inventoryTab, setInventoryTab] = useState<'DRAFT' | 'LISTED' | 'SOLD'>('DRAFT');
     const [inventoryViewMode, setInventoryViewMode] = useState<'FOLDERS' | 'FLAT'>('FOLDERS');
@@ -1216,12 +1219,7 @@ function App() {
                                                     </div>
                                                 </div>
                                             ))}
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handlePushToEbay(item); }}
-                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-95 transition-all"
-                                            >
-                                                <Globe size={18} /> List on eBay
-                                            </button>
+
                                         </div>
                                     ) : (
                                         <div className="text-center py-6 px-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
@@ -1302,269 +1300,284 @@ function App() {
         );
     }
 
+    if (isLiteMode) {
+        return <LiteView onExit={() => setIsLiteMode(false)} />;
+    }
+
+    if (!user) {
+        return <AuthScreen onLiteMode={() => setIsLiteMode(true)} />;
+    }
     return (
-        !user ? (<AuthScreen />) :
-            <div className={`${theme} fixed inset-0 flex flex-col overflow-hidden bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-300`}>
-                {/* Modals remain the same... */}
-                <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} onSuccess={refreshSubscription} />
-                <SettingsModal
-                    isOpen={isSettingsOpen}
-                    onClose={() => setIsSettingsOpen(false)}
-                    onOpenPricing={() => setIsPricingOpen(true)}
-                    onOpenFeedback={() => setIsFeedbackOpen(true)}
-                    onOpenPrivacy={() => setIsPrivacyOpen(true)}
-                    onConnectionChange={(connected) => {
-                        setEbayConnected(connected);
-                        if (connected && user) loadEbayPolicies(user.id);
-                    }}
-                />
-                <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
-                <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-                <PrivacyPolicyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
-                {showTos && <DisclaimerModal onAccept={handleAcceptTos} />}
-                {editingItem && isPreviewOpen && (<PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} item={editingItem} />)}
-                {editingItem && viewingImageIndex !== null && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-                        <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
-                            <div className="flex justify-end p-4 border-b border-slate-800 bg-slate-900/50">
-                                <button onClick={() => setViewingImageIndex(null)} className="p-2 rounded-full bg-slate-800 text-white hover:bg-slate-700 border border-slate-600 transition-colors"><X size={20} /></button>
-                            </div>
-                            <div className="flex-1 relative flex items-center justify-center bg-black p-4 overflow-hidden group">
-                                <img src={editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl} className="max-h-full max-w-full object-contain" alt="Full View" />
-                                {isOptimizingImage && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className="flex flex-col items-center gap-4"><Loader2 className="animate-spin text-neon-green" size={48} /><span className="text-white font-mono tracking-widest text-sm animate-pulse">OPTIMIZING AI...</span></div></div>}
+        <div className={`${theme} fixed inset-0 flex flex-col overflow-hidden bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-300`}>
+            {/* Modals remain the same... */}
+            <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} onSuccess={refreshSubscription} />
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                onOpenPricing={() => setIsPricingOpen(true)}
+                onOpenFeedback={() => setIsFeedbackOpen(true)}
+                onOpenPrivacy={() => setIsPrivacyOpen(true)}
+                onConnectionChange={(connected) => {
+                    setEbayConnected(connected);
+                    if (connected && user) loadEbayPolicies(user.id);
+                }}
+            />
+            <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
+            <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+            <PrivacyPolicyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+            {showTos && <DisclaimerModal onAccept={handleAcceptTos} />}
+            {editingItem && isPreviewOpen && (<PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} item={editingItem} />)}
+            {editingItem && viewingImageIndex !== null && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="flex justify-end p-4 border-b border-slate-800 bg-slate-900/50">
+                            <button onClick={() => setViewingImageIndex(null)} className="p-2 rounded-full bg-slate-800 text-white hover:bg-slate-700 border border-slate-600 transition-colors"><X size={20} /></button>
+                        </div>
+                        <div className="flex-1 relative flex items-center justify-center bg-black p-4 overflow-hidden group">
+                            <img src={editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl} className="max-h-full max-w-full object-contain" alt="Full View" />
+                            {isOptimizingImage && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className="flex flex-col items-center gap-4"><Loader2 className="animate-spin text-neon-green" size={48} /><span className="text-white font-mono tracking-widest text-sm animate-pulse">OPTIMIZING AI...</span></div></div>}
 
-                                {/* Navigation Arrows */}
-                                <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('prev'); }} className="pointer-events-auto p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all hover:scale-110"><ChevronLeft size={32} /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('next'); }} className="pointer-events-auto p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all hover:scale-110"><ChevronRight size={32} /></button>
-                                </div>
-                            </div>
-                            <div className="p-6 bg-slate-900 border-t border-slate-800 flex justify-center gap-4">
-                                <button onClick={() => handleOptimizeImage(viewingImageIndex, editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl)} disabled={isOptimizingImage} className="px-8 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50 shadow-lg"><Wand2 size={20} /> Optimize Image</button>
-                                <button onClick={() => setViewingImageIndex(null)} className="px-8 py-3 bg-slate-800 text-white border border-slate-700 rounded-xl font-bold hover:bg-slate-700 transition-colors">Close</button>
+                            {/* Navigation Arrows */}
+                            <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('prev'); }} className="pointer-events-auto p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all hover:scale-110"><ChevronLeft size={32} /></button>
+                                <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('next'); }} className="pointer-events-auto p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all hover:scale-110"><ChevronRight size={32} /></button>
                             </div>
                         </div>
-                    </div>
-                )}
-                {isUnitModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl shadow-black/50 overflow-hidden flex flex-col max-h-[90vh]">
-                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Warehouse className="text-neon-green" size={20} /> {unitForm.id ? 'Edit Source' : 'Add Source'}
-                                </h3>
-                                <button onClick={() => setIsUnitModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
-                            </div>
-                            <div className="p-6 space-y-4 overflow-y-auto">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-mono text-slate-400 uppercase">Source Name / ID</label>
-                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
-                                        <Warehouse size={18} className="text-slate-500" />
-                                        <input type="text" value={unitForm.storeNumber} onChange={e => setUnitForm({ ...unitForm, storeNumber: e.target.value })} placeholder="e.g. Estate Sale, Garage Sale, Unit 55" className="bg-transparent text-white w-full focus:outline-none font-mono" />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-mono text-slate-400 uppercase">Address</label>
-                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
-                                        <MapPin size={18} className="text-slate-500" />
-                                        <input type="text" value={unitForm.address} onChange={e => setUnitForm({ ...unitForm, address: e.target.value })} placeholder="Street address..." className="bg-transparent text-white w-full focus:outline-none" />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-mono text-slate-400 uppercase">Buy Cost</label>
-                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
-                                        <DollarSign size={18} className="text-slate-500" />
-                                        <input type="number" value={unitForm.cost} onChange={e => setUnitForm({ ...unitForm, cost: e.target.value })} placeholder="0.00" className="bg-transparent text-white w-full focus:outline-none font-mono" />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-mono text-slate-400 uppercase">Source Photo</label>
-                                    <div className="flex flex-col gap-3">
-                                        <div className="relative w-full h-40 bg-black rounded-lg border border-slate-800 overflow-hidden group">
-                                            {unitForm.imageUrl ? (
-                                                <img src={unitForm.imageUrl} alt="Preview" className="w-full h-full object-cover opacity-80" />
-                                            ) : (
-                                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-900/50">
-                                                    <ImageIcon size={32} className="mb-2 opacity-50" />
-                                                    <span className="text-[10px] uppercase tracking-wider">No Image</span>
-                                                </div>
-                                            )}
-                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
-                                                <button onClick={() => unitImageInputRef.current?.click()} className="flex flex-col items-center gap-2 text-white hover:text-neon-green transition-colors p-2">
-                                                    <div className="p-3 bg-slate-800 rounded-full border border-slate-600 group-hover:border-neon-green">
-                                                        <Upload size={20} />
-                                                    </div>
-                                                    <span className="text-[10px] font-bold font-mono uppercase tracking-wider">Upload File</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <input type="file" ref={unitImageInputRef} onChange={handleUnitImageUpload} accept="image/*" className="hidden" />
-                                        <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
-                                            <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">OR URL</span>
-                                            <input type="text" value={unitForm.imageUrl} onChange={e => setUnitForm({ ...unitForm, imageUrl: e.target.value })} placeholder="https://..." className="bg-transparent text-white w-full focus:outline-none text-xs font-mono" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-4 border-t border-slate-800 bg-slate-900">
-                                <button onClick={handleSaveUnit} className="w-full py-3 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">SAVE SOURCE</button>
-                            </div>
+                        <div className="p-6 bg-slate-900 border-t border-slate-800 flex justify-center gap-4">
+                            <button onClick={() => handleOptimizeImage(viewingImageIndex, editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl)} disabled={isOptimizingImage} className="px-8 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50 shadow-lg"><Wand2 size={20} /> Optimize Image</button>
+                            <button onClick={() => setViewingImageIndex(null)} className="px-8 py-3 bg-slate-800 text-white border border-slate-700 rounded-xl font-bold hover:bg-slate-700 transition-colors">Close</button>
                         </div>
                     </div>
-                )}
-                {/* ... (keep editingItem && !viewingImageIndex && !isPreviewOpen block) */}
-                {editingItem && !viewingImageIndex && !isPreviewOpen && (
-                    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-                        <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-slate-800">
-                            <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
-                                <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white"><Edit2 className="text-emerald-500 dark:text-neon-green" size={18} /> Edit Draft</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={(e) => handleDeleteItem(e, editingItem.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={20} /></button>
-                                    <button onClick={() => setEditingItem(null)}><X size={24} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" /></button>
+                </div>
+            )}
+            {isUnitModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl shadow-black/50 overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Warehouse className="text-neon-green" size={20} /> {unitForm.id ? 'Edit Source' : 'Add Source'}
+                            </h3>
+                            <button onClick={() => setIsUnitModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                        </div>
+                        <div className="p-6 space-y-4 overflow-y-auto">
+                            <div className="space-y-2">
+                                <label className="text-xs font-mono text-slate-400 uppercase">Source Name / ID</label>
+                                <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                    <Warehouse size={18} className="text-slate-500" />
+                                    <input type="text" value={unitForm.storeNumber} onChange={e => setUnitForm({ ...unitForm, storeNumber: e.target.value })} placeholder="e.g. Estate Sale, Garage Sale, Unit 55" className="bg-transparent text-white w-full focus:outline-none font-mono" />
                                 </div>
                             </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white dark:bg-slate-900">
-                                <div className="grid grid-cols-4 gap-2">
-                                    <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
-                                        <img src={editingItem.imageUrl} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(0); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
-                                        </div>
-                                    </div>
-
-                                    {editingItem.additionalImages?.map((img, i) => (
-                                        <div key={i} className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(i + 1)}>
-                                            <img src={img} className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(i + 1); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(i + 1); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
-                                            </div>
-                                        </div>
-                                    ))}
-
-                                    <button onClick={() => { setCameraMode('EDIT'); setStatus(ScoutStatus.SCANNING); }} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Camera size={18} /><span className="text-[8px] font-bold uppercase mt-1">Photo</span></button>
-                                    <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Upload size={18} /><span className="text-[8px] font-bold uppercase mt-1">File</span></button>
+                            <div className="space-y-2">
+                                <label className="text-xs font-mono text-slate-400 uppercase">Address</label>
+                                <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                    <MapPin size={18} className="text-slate-500" />
+                                    <input type="text" value={unitForm.address} onChange={e => setUnitForm({ ...unitForm, address: e.target.value })} placeholder="Street address..." className="bg-transparent text-white w-full focus:outline-none" />
                                 </div>
-                                <input ref={editImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditImageUpload} />
-                                <input ref={additionalImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAdditionalImageUpload} />
-
-                                <div className="space-y-4">
-                                    <div>
-                                        <div className="flex justify-between items-center mb-1"><label className="text-xs font-mono uppercase text-slate-500">Title</label><div className="flex gap-2"><button onClick={handleOptimizeTitle} className="text-xs flex items-center gap-1 text-blue-500 font-bold hover:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize</button><button onClick={() => toggleRecording('title')} className={`text-xs ${isRecording === 'title' ? 'text-red-500 animate-pulse' : ''}`}><Mic size={14} /></button></div></div>
-                                        <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-24 resize-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all" />
-                                    </div>
-
-                                    {/* --- ITEM SPECIFICS EDITOR --- */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-mono uppercase text-slate-500">Item Specifics</label>
-                                            <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 hover:underline font-bold flex items-center gap-1">+ Add</button>
-                                        </div>
-                                        <div className="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-800 space-y-2 max-h-48 overflow-y-auto">
-                                            {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
-                                                <div key={idx} className="flex gap-2 items-center">
-                                                    <input
-                                                        className="w-1/3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
-                                                        value={key}
-                                                        onChange={(e) => handleRenameSpecific(key, e.target.value)}
-                                                        placeholder="Name"
-                                                        disabled={DEFAULT_SPECIFIC_KEYS.includes(key)}
-                                                    />
-                                                    <input
-                                                        className="flex-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500"
-                                                        value={val}
-                                                        onChange={(e) => handleUpdateSpecific(key, e.target.value)}
-                                                        placeholder="Value"
-                                                    />
-                                                    <button onClick={() => handleDeleteSpecific(key)} className="text-slate-400 hover:text-red-500 p-1"><X size={12} /></button>
-                                                </div>
-                                            ))}
-                                            {(!editingItem.itemSpecifics || Object.keys(editingItem.itemSpecifics).length === 0) && (
-                                                <div className="text-center text-slate-500 text-[10px] py-2">No item specifics added.</div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-xs font-mono uppercase text-slate-500">Description</label>
-                                        <textarea value={editingItem.generatedListing?.content || editingItem.conditionNotes || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm h-32 resize-none focus:border-emerald-500 outline-none transition-all mt-1" placeholder="Item description..." />
-                                        <div className="flex justify-end mt-1"><button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"><Wand2 size={10} /> Auto-Write Description</button></div>
-                                    </div>
-
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editingItem.title)}&LH_Sold=1`} target="_blank" rel="noreferrer" className="py-2 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-[9px] font-bold text-emerald-600 dark:text-neon-green uppercase hover:border-emerald-500">Sold</a>
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editingItem.title)}`} target="_blank" rel="noreferrer" className="py-2 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-[9px] font-bold text-blue-500 uppercase hover:border-blue-500">Active</a>
-                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(editingItem.title)}`} target="_blank" rel="noreferrer" className="py-2 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-[9px] font-bold text-slate-600 dark:text-white uppercase hover:border-slate-400">Google</a>
-                                        <button onClick={() => setIsCompsOpen(true)} className="py-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900 text-center text-[9px] font-bold text-blue-600 dark:text-blue-300 uppercase">Comps</button>
-                                    </div>
-
-                                    <ProfitCalculator estimatedPrice={editingItem.calculation.soldPrice} estimatedShipping={editingItem.calculation.shippingCost} estimatedWeight={editingItem.itemSpecifics?.Weight} onSave={handleUpdateInventoryItem} onPriceChange={setCurrentListingPrice} isScanning={false} />
-
-                                    <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
-                                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-slate-700">
-                                            <div className="flex items-center gap-2"><CreditCard size={16} className="text-blue-500" /><h4 className="text-xs font-bold font-mono uppercase text-slate-600 dark:text-slate-300">Business Policies</h4></div>
-                                            {!ebayConnected && <span className="text-[10px] text-red-500 font-bold">Connect eBay first</span>}
-                                        </div>
-                                        {ebayConnected ? (
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><Truck size={10} /> Shipping Policy</label>
-                                                    <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayShippingPolicyId: val }); if (val) localStorage.setItem('sts_default_shipping_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
-                                                        <option value="">Select Shipping Policy...</option>
-                                                        {ebayPolicies.shippingPolicies.map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name} - {p.description || 'No desc'}</option>))}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><ShieldCheck size={10} /> Return Policy</label>
-                                                    <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayReturnPolicyId: val }); if (val) localStorage.setItem('sts_default_return_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
-                                                        <option value="">Select Return Policy...</option>
-                                                        {ebayPolicies.returnPolicies.map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><CreditCard size={10} /> Payment Policy</label>
-                                                    <select value={editingItem.ebayPaymentPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayPaymentPolicyId: val }); if (val) localStorage.setItem('sts_default_payment_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
-                                                        <option value="">Select Payment Policy...</option>
-                                                        {ebayPolicies.paymentPolicies.map((p: any) => (<option key={p.paymentPolicyId} value={p.paymentPolicyId}>{p.name}</option>))}
-                                                    </select>
-                                                </div>
-                                            </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-mono text-slate-400 uppercase">Buy Cost</label>
+                                <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                    <DollarSign size={18} className="text-slate-500" />
+                                    <input type="number" value={unitForm.cost} onChange={e => setUnitForm({ ...unitForm, cost: e.target.value })} placeholder="0.00" className="bg-transparent text-white w-full focus:outline-none font-mono" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-mono text-slate-400 uppercase">Source Photo</label>
+                                <div className="flex flex-col gap-3">
+                                    <div className="relative w-full h-40 bg-black rounded-lg border border-slate-800 overflow-hidden group">
+                                        {unitForm.imageUrl ? (
+                                            <img src={unitForm.imageUrl} alt="Preview" className="w-full h-full object-cover opacity-80" />
                                         ) : (
-                                            <div className="text-center text-xs text-slate-500 py-4">Connect eBay in Settings to load your Shipping & Return policies.</div>
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-900/50">
+                                                <ImageIcon size={32} className="mb-2 opacity-50" />
+                                                <span className="text-[10px] uppercase tracking-wider">No Image</span>
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                                            <button onClick={() => unitImageInputRef.current?.click()} className="flex flex-col items-center gap-2 text-white hover:text-neon-green transition-colors p-2">
+                                                <div className="p-3 bg-slate-800 rounded-full border border-slate-600 group-hover:border-neon-green">
+                                                    <Upload size={20} />
+                                                </div>
+                                                <span className="text-[10px] font-bold font-mono uppercase tracking-wider">Upload File</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <input type="file" ref={unitImageInputRef} onChange={handleUnitImageUpload} accept="image/*" className="hidden" />
+                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                        <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">OR URL</span>
+                                        <input type="text" value={unitForm.imageUrl} onChange={e => setUnitForm({ ...unitForm, imageUrl: e.target.value })} placeholder="https://..." className="bg-transparent text-white w-full focus:outline-none text-xs font-mono" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-slate-800 bg-slate-900">
+                            <button onClick={handleSaveUnit} className="w-full py-3 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">SAVE SOURCE</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ... (keep editingItem && !viewingImageIndex && !isPreviewOpen block) */}
+            {editingItem && !viewingImageIndex && !isPreviewOpen && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-slate-800">
+                        <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
+                            <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white"><Edit2 className="text-emerald-500 dark:text-neon-green" size={18} /> Edit Draft</h3>
+                            <div className="flex gap-2">
+                                <button onClick={(e) => handleDeleteItem(e, editingItem.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={20} /></button>
+                                <button onClick={() => setEditingItem(null)}><X size={24} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" /></button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white dark:bg-slate-900">
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
+                                    <img src={editingItem.imageUrl} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(0); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
+                                    </div>
+                                </div>
+
+                                {editingItem.additionalImages?.map((img, i) => (
+                                    <div key={i} className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(i + 1)}>
+                                        <img src={img} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(i + 1); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(i + 1); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <button onClick={() => { setCameraMode('EDIT'); setStatus(ScoutStatus.SCANNING); }} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Camera size={18} /><span className="text-[8px] font-bold uppercase mt-1">Photo</span></button>
+                                <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Upload size={18} /><span className="text-[8px] font-bold uppercase mt-1">File</span></button>
+                            </div>
+                            <input ref={editImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditImageUpload} />
+                            <input ref={additionalImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAdditionalImageUpload} />
+
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="flex justify-between items-center mb-1"><label className="text-xs font-mono uppercase text-slate-500">Title</label><div className="flex gap-2"><button onClick={handleOptimizeTitle} className="text-xs flex items-center gap-1 text-blue-500 font-bold hover:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize</button><button onClick={() => toggleRecording('title')} className={`text-xs ${isRecording === 'title' ? 'text-red-500 animate-pulse' : ''}`}><Mic size={14} /></button></div></div>
+                                    <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-24 resize-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all" />
+                                </div>
+
+                                {/* --- ITEM SPECIFICS EDITOR --- */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-mono uppercase text-slate-500">Item Specifics</label>
+                                        <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 hover:underline font-bold flex items-center gap-1">+ Add</button>
+                                    </div>
+                                    <div className="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-800 space-y-2 max-h-48 overflow-y-auto">
+                                        {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
+                                            <div key={idx} className="flex gap-2 items-center">
+                                                <input
+                                                    className="w-1/3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
+                                                    value={key}
+                                                    onChange={(e) => handleRenameSpecific(key, e.target.value)}
+                                                    placeholder="Name"
+                                                    disabled={DEFAULT_SPECIFIC_KEYS.includes(key)}
+                                                />
+                                                <input
+                                                    className="flex-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500"
+                                                    value={val}
+                                                    onChange={(e) => handleUpdateSpecific(key, e.target.value)}
+                                                    placeholder="Value"
+                                                />
+                                                <button onClick={() => handleDeleteSpecific(key)} className="text-slate-400 hover:text-red-500 p-1"><X size={12} /></button>
+                                            </div>
+                                        ))}
+                                        {(!editingItem.itemSpecifics || Object.keys(editingItem.itemSpecifics).length === 0) && (
+                                            <div className="text-center text-slate-500 text-[10px] py-2">No item specifics added.</div>
                                         )}
                                     </div>
+                                </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="col-span-2">
-                                            <label className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Bin / Loc (Custom SKU)</label>
-                                            <div className="flex items-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded px-2 focus-within:border-emerald-500">
-                                                <Box size={14} className="text-slate-400" />
-                                                <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="w-full bg-transparent p-2 text-slate-900 dark:text-white text-sm focus:outline-none" />
+                                <div>
+                                    <label className="text-xs font-mono uppercase text-slate-500">Description</label>
+                                    <textarea value={editingItem.generatedListing?.content || editingItem.conditionNotes || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm h-32 resize-none focus:border-emerald-500 outline-none transition-all mt-1" placeholder="Item description..." />
+                                    <div className="flex justify-end mt-1"><button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"><Wand2 size={10} /> Auto-Write Description</button></div>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-2">
+                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editingItem.title)}&LH_Sold=1`} target="_blank" rel="noreferrer" className="py-2 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-[9px] font-bold text-emerald-600 dark:text-neon-green uppercase hover:border-emerald-500">Sold</a>
+                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editingItem.title)}`} target="_blank" rel="noreferrer" className="py-2 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-[9px] font-bold text-blue-500 uppercase hover:border-blue-500">Active</a>
+                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(editingItem.title)}`} target="_blank" rel="noreferrer" className="py-2 rounded bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-[9px] font-bold text-slate-600 dark:text-white uppercase hover:border-slate-400">Google</a>
+                                    <button onClick={() => setIsCompsOpen(true)} className="py-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900 text-center text-[9px] font-bold text-blue-600 dark:text-blue-300 uppercase">Comps</button>
+                                </div>
+
+                                <ProfitCalculator estimatedPrice={editingItem.calculation.soldPrice} estimatedShipping={editingItem.calculation.shippingCost} estimatedWeight={editingItem.itemSpecifics?.Weight} onSave={handleUpdateInventoryItem} onPriceChange={setCurrentListingPrice} isScanning={false} />
+
+                                <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
+                                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-slate-700">
+                                        <div className="flex items-center gap-2"><CreditCard size={16} className="text-blue-500" /><h4 className="text-xs font-bold font-mono uppercase text-slate-600 dark:text-slate-300">Business Policies</h4></div>
+                                        {!ebayConnected && <span className="text-[10px] text-red-500 font-bold">Connect eBay first</span>}
+                                    </div>
+                                    {ebayConnected ? (
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><Truck size={10} /> Shipping Policy</label>
+                                                <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayShippingPolicyId: val }); if (val) localStorage.setItem('sts_default_shipping_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
+                                                    <option value="">Select Shipping Policy...</option>
+                                                    {ebayPolicies.shippingPolicies.map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name} - {p.description || 'No desc'}</option>))}
+                                                </select>
                                             </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><ShieldCheck size={10} /> Return Policy</label>
+                                                <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayReturnPolicyId: val }); if (val) localStorage.setItem('sts_default_return_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
+                                                    <option value="">Select Return Policy...</option>
+                                                    {ebayPolicies.returnPolicies.map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><CreditCard size={10} /> Payment Policy</label>
+                                                <select value={editingItem.ebayPaymentPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayPaymentPolicyId: val }); if (val) localStorage.setItem('sts_default_payment_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
+                                                    <option value="">Select Payment Policy...</option>
+                                                    {ebayPolicies.paymentPolicies.map((p: any) => (<option key={p.paymentPolicyId} value={p.paymentPolicyId}>{p.name}</option>))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-xs text-slate-500 py-4">Connect eBay in Settings to load your Shipping & Return policies.</div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="col-span-2">
+                                        <label className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Bin / Loc (Custom SKU)</label>
+                                        <div className="flex items-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded px-2 focus-within:border-emerald-500">
+                                            <Box size={14} className="text-slate-400" />
+                                            <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="w-full bg-transparent p-2 text-slate-900 dark:text-white text-sm focus:outline-none" />
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="p-4 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex items-center gap-3">
-                                <button onClick={() => setEditingItem(null)} className="px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-xl uppercase text-xs hover:bg-gray-50 dark:hover:bg-slate-700">Close</button>
-                                <button onClick={() => setIsPreviewOpen(true)} className="px-4 py-3 bg-gray-200 dark:bg-slate-800 text-slate-700 dark:text-white border border-gray-300 dark:border-slate-600 font-bold rounded-xl uppercase text-xs hover:bg-gray-300 dark:hover:bg-slate-700 flex items-center gap-2"><Eye size={16} /> Preview</button>
-                                <button onClick={() => handleUpdateInventoryItem()} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl uppercase text-xs shadow-lg hover:bg-emerald-500 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
-                                {editingItem.status === 'DRAFT' && (<button onClick={() => handlePushToEbay(editingItem)} className="flex-[1.5] py-3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white font-bold rounded-xl uppercase text-xs shadow-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center gap-2">List on <EbayLogo /></button>)}
-                            </div>
                         </div>
+
                     </div>
-                )}
-                {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
+                    <div className="p-4 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex flex-col gap-3">
+                        <div className="flex gap-3">
+                            <button onClick={() => setEditingItem(null)} className="px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-xl uppercase text-xs hover:bg-gray-50 dark:hover:bg-slate-700">Close</button>
+                            <button onClick={() => setIsPreviewOpen(true)} className="px-4 py-3 bg-gray-200 dark:bg-slate-800 text-slate-700 dark:text-white border border-gray-300 dark:border-slate-600 font-bold rounded-xl uppercase text-xs hover:bg-gray-300 dark:hover:bg-slate-700 flex items-center gap-2"><Eye size={16} /> Preview</button>
+                            <button onClick={() => handleUpdateInventoryItem()} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl uppercase text-xs shadow-lg hover:bg-emerald-500 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                        </div>
+                        {editingItem.status === 'DRAFT' && (
+                            <button
+                                onClick={() => handlePushToEbay(editingItem)}
+                                className="w-full py-4 bg-blue-600 text-white font-black rounded-xl uppercase text-sm shadow-lg shadow-blue-600/20 hover:bg-blue-500 flex items-center justify-center gap-2 transition-all active:scale-95"
+                            >
+                                <Globe size={18} /> List on eBay
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+            {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
 
-                <main className="flex-1 relative overflow-hidden flex flex-col">
-                    {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => setStatus(ScoutStatus.IDLE)} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
-                </main>
+            <main className="flex-1 relative overflow-hidden flex flex-col">
+                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => setStatus(ScoutStatus.IDLE)} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
+            </main>
 
-                {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-safe justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
-            </div>
+            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-safe justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
+        </div >
     );
 }
 

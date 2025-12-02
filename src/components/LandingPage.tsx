@@ -6,9 +6,10 @@ interface LandingPageProps {
     onGetStarted: () => void;
     onLogin: () => void;
     onOpenPrivacy: () => void;
+    onLiteMode?: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpenPrivacy }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpenPrivacy, onLiteMode }) => {
 
     // Scroll to Pricing
     const scrollToPricing = () => {
@@ -77,6 +78,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                                 View Pricing
                             </button>
                         </div>
+
+                        {onLiteMode && (
+                            <div className="mt-6 flex justify-center lg:justify-start">
+                                <button onClick={onLiteMode} className="text-sm text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white transition-all">
+                                    Or try "Lite Mode" (Sourcing Tools Only)
+                                </button>
+                            </div>
+                        )}
 
                         <div className="mt-10 flex items-center justify-center lg:justify-start gap-6 text-slate-500 text-xs font-mono uppercase tracking-wider">
                             <div className="flex items-center gap-2">
@@ -228,7 +237,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                             </div>
                             <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-800/50 flex items-end justify-between p-2 gap-1">
                                 {[40, 60, 30, 80, 50, 70, 90].map((h, i) => (
-                                    <div key={i} className="w-full bg-blue-600/50 rounded-t-sm" style={{ height: `${h}%` }}></div>
+                                    <div key={i} className="w-full bg-blue-600/50 rounded-t-sm" style={{ height: h + '%' }}></div>
                                 ))}
                             </div>
                         </div>
@@ -338,14 +347,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
             </div>
 
             <style>{`
-        @keyframes scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .perspective-1000 {
-          perspective: 1000px;
-        }
-      `}</style>
+@keyframes scroll {
+    0 % { transform: translateX(0); }
+    100 % { transform: translateX(-50 %); }
+}
+                .perspective - 1000 {
+    perspective: 1000px;
+}
+`}</style>
         </div>
     );
 };
@@ -367,7 +376,7 @@ const FeatureCard = ({ icon, title, desc }: { icon: any, title: string, desc: st
 );
 
 const CheckItem = ({ text, color = "text-slate-300", crossed = false, highlight = false }: { text: string, color?: string, crossed?: boolean, highlight?: boolean }) => (
-    <li className={`flex items-center gap-3 text-sm ${crossed ? 'text-slate-600 line-through decoration-slate-600' : color} ${highlight ? 'font-bold text-white' : ''}`}>
+    <li className={`flex items-center gap-3 text-sm ${crossed ? 'text-slate-600 line-through decoration-slate-600' : color} ${highlight ? 'font-bold text-white' : ''} `}>
         {highlight ? (
             <div className="p-1 bg-neon-green rounded-full text-slate-950"><Check size={10} strokeWidth={4} /></div>
         ) : (
@@ -387,8 +396,9 @@ const PhoneMockup = ({ children, label, highlight = false }: { children: React.R
                 {children}
             </div>
         </div>
-        <span className={`font-mono text-sm uppercase tracking-widest font-bold ${highlight ? 'text-neon-green' : 'text-slate-500'}`}>{label}</span>
+        <span className={`font-mono text-sm uppercase tracking-widest font-bold ${highlight ? 'text-neon-green' : 'text-slate-500'} `}>{label}</span>
     </div>
 );
 
 export default LandingPage;
+

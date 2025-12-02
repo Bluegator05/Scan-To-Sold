@@ -11,7 +11,7 @@ type AuthMode = 'LOGIN' | 'SIGNUP' | 'MAGIC_LINK';
 import LandingPage from './LandingPage';
 
 // --- MAIN AUTH SCREEN COMPONENT ---
-const AuthScreen: React.FC = () => {
+const AuthScreen: React.FC<{ onLiteMode?: () => void }> = ({ onLiteMode }) => {
   const { signInWithMagicLink, signInWithPassword, signUpWithPassword, signInWithGoogle } = useAuth();
 
   const [showLanding, setShowLanding] = useState(true);
@@ -71,7 +71,12 @@ const AuthScreen: React.FC = () => {
   if (showLanding) {
     return (
       <>
-        <LandingPage onGetStarted={() => setShowLanding(false)} onLogin={() => { setMode('LOGIN'); setShowLanding(false); }} onOpenPrivacy={() => setShowPrivacy(true)} />
+        <LandingPage
+          onGetStarted={() => setShowLanding(false)}
+          onLogin={() => { setMode('LOGIN'); setShowLanding(false); }}
+          onOpenPrivacy={() => setShowPrivacy(true)}
+          onLiteMode={onLiteMode}
+        />
         <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
       </>
     );
