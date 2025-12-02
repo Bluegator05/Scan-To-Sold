@@ -23,6 +23,7 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
     // Calendar State
     const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
     const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
     // Load Goals
     useEffect(() => {
@@ -269,6 +270,48 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
                 </div>
             )}
 
+            {/* Daily Listings Modal */}
+            {selectedDate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedDate(null)}>
+                    <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-800/50">
+                            <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                                <CalendarDays className="text-blue-500" size={20} />
+                                {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                            </h3>
+                            <button onClick={() => setSelectedDate(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={20} /></button>
+                        </div>
+                        <div className="p-4 overflow-y-auto space-y-3">
+                            {(() => {
+                                const dateKey = new Date(selectedDate).toLocaleDateString('en-CA');
+                                // Filter items for this date
+                                const itemsOnDate = inventory.filter(i => {
+                                    const d = i.ebayListedDate ? new Date(i.ebayListedDate) : new Date(i.dateScanned);
+                                    return d.toLocaleDateString('en-CA') === dateKey && (i.status === 'LISTED' || i.status === 'SOLD');
+                                });
+
+                                if (itemsOnDate.length === 0) return <div className="text-center text-slate-500 py-8">No items listed on this date.</div>;
+
+                                return itemsOnDate.map(item => (
+                                    <div key={item.id} className="flex gap-3 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-800">
+                                        <div className="w-12 h-12 bg-gray-200 dark:bg-slate-800 rounded-lg overflow-hidden shrink-0">
+                                            {item.imageUrl && <img src={item.imageUrl} className="w-full h-full object-cover" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate">{item.title}</div>
+                                            <div className="flex justify-between items-center mt-1">
+                                                <span className="text-xs font-mono text-emerald-600 dark:text-neon-green font-bold">${item.calculation.soldPrice}</span>
+                                                <span className="text-[10px] text-slate-400 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-700">{item.status}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                 <div>
@@ -468,7 +511,8 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
                                     return (
                                         <div
                                             key={i}
-                                            className={`aspect-square rounded-xl flex flex-col p-1 relative transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_#39ff14] hover:border-neon-green/50 ${cellClass}`}
+                                            onClick={() => setSelectedDate(date.toISOString())}
+                                            className={`aspect-square rounded-xl flex flex-col p-1 relative transition-all duration-300 hover:scale-110 hover:shadow-[0_0_15px_#39ff14] hover:border-neon-green/50 cursor-pointer ${cellClass}`}
                                         >
                                             <span className={`text-xs font-bold font-mono leading-none absolute top-1.5 left-2 ${dateColor}`}>{date.getDate()}</span>
 

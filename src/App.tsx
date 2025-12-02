@@ -806,7 +806,7 @@ function App() {
         if (!confirm(`List "${item.title}" on eBay?`)) return;
         setIsCreatingDraft(item.id); setLoadingMessage("Listing on eBay...");
         const zipToSend = localStorage.getItem('sts_default_zip') || "95125";
-        alert(`Debug: Sending Zip Code: ${zipToSend}`);
+
         try {
             const processedImages: string[] = [];
             const rawImages = [item.imageUrl, ...(item.additionalImages || [])].filter((img): img is string => !!img);
@@ -953,7 +953,7 @@ function App() {
                     </div>
                     <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={(e) => { e.stopPropagation(); openEditModal(item); }} className="p-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-500 hover:text-blue-600 rounded-lg transition-colors"><Edit2 size={14} /></button>
-                        {item.status === 'DRAFT' && <button onClick={(e) => { e.stopPropagation(); handlePushToEbay(item); }} className="p-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-500 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1 font-bold text-[10px]"><Upload size={14} /> List v1.2</button>}
+                        {item.status === 'DRAFT' && <button onClick={(e) => { e.stopPropagation(); handlePushToEbay(item); }} className="p-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-500 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1 font-bold text-[10px]"><Upload size={14} /> List</button>}
                         <button onClick={(e) => handleDeleteItem(e, item.id)} className="p-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-500 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={14} /></button>
                     </div>
                 </div>
