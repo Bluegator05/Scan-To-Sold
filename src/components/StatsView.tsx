@@ -353,7 +353,7 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 dark:text-neon-green mb-1 flex items-center gap-1">
-                                        <Wallet size={12} /> Total Net Profit
+                                        <Wallet size={12} /> Projected Net Profit
                                     </div>
                                     <div className="text-4xl font-black text-white tracking-tight">
                                         {formatMoney(metrics.totalNet)}

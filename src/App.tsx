@@ -1347,7 +1347,70 @@ function App() {
                     </div>
                 )}
                 {isUnitModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl shadow-black/50 overflow-hidden flex flex-col max-h-[90vh]"><div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900"><h3 className="text-lg font-bold text-white flex items-center gap-2"><Warehouse className="text-neon-green" size={20} /> {unitForm.id ? 'Edit Storage Unit' : 'Add Storage Unit'}</h3><button onClick={() => setIsUnitModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button></div><div className="p-6 space-y-4 overflow-y-auto"><div className="space-y-2"><label className="text-xs font-mono text-slate-400 uppercase">Store Number / ID</label><div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors"><Warehouse size={18} className="text-slate-500" /><input type="text" value={unitForm.storeNumber} onChange={e => setUnitForm({ ...unitForm, storeNumber: e.target.value })} placeholder="e.g. Unit 55 or B-12" className="bg-transparent text-white w-full focus:outline-none font-mono" /></div></div><div className="space-y-2"><label className="text-xs font-mono text-slate-400 uppercase">Address</label><div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors"><MapPin size={18} className="text-slate-500" /><input type="text" value={unitForm.address} onChange={e => setUnitForm({ ...unitForm, address: e.target.value })} placeholder="Street address..." className="bg-transparent text-white w-full focus:outline-none" /></div></div><div className="space-y-2"><label className="text-xs font-mono text-slate-400 uppercase">Monthly Cost</label><div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors"><DollarSign size={18} className="text-slate-500" /><input type="number" value={unitForm.cost} onChange={e => setUnitForm({ ...unitForm, cost: e.target.value })} placeholder="0.00" className="bg-transparent text-white w-full focus:outline-none font-mono" /></div></div><div className="space-y-2"><label className="text-xs font-mono text-slate-400 uppercase">Unit Photo</label><div className="flex flex-col gap-3"><div className="relative w-full h-40 bg-black rounded-lg border border-slate-800 overflow-hidden group">{unitForm.imageUrl ? (<img src={unitForm.imageUrl} alt="Preview" className="w-full h-full object-cover opacity-80" />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-900/50"><ImageIcon size={32} className="mb-2 opacity-50" /><span className="text-[10px] uppercase tracking-wider">No Image</span></div>)}<div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm"><button onClick={() => unitImageInputRef.current?.click()} className="flex flex-col items-center gap-2 text-white hover:text-neon-green transition-colors p-2"><div className="p-3 bg-slate-800 rounded-full border border-slate-600 group-hover:border-neon-green"><Upload size={20} /></div><span className="text-[10px] font-bold font-mono uppercase tracking-wider">Upload File</span></button></div></div><input type="file" ref={unitImageInputRef} onChange={handleUnitImageUpload} accept="image/*" className="hidden" /><div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors"><span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">OR URL</span><input type="text" value={unitForm.imageUrl} onChange={e => setUnitForm({ ...unitForm, imageUrl: e.target.value })} placeholder="https://..." className="bg-transparent text-white w-full focus:outline-none text-xs font-mono" /></div></div></div></div><div className="p-4 border-t border-slate-800 bg-slate-900"><button onClick={handleSaveUnit} className="w-full py-3 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">SAVE STORAGE UNIT</button></div></div></div>
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl shadow-black/50 overflow-hidden flex flex-col max-h-[90vh]">
+                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Warehouse className="text-neon-green" size={20} /> {unitForm.id ? 'Edit Source' : 'Add Source'}
+                                </h3>
+                                <button onClick={() => setIsUnitModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                            </div>
+                            <div className="p-6 space-y-4 overflow-y-auto">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono text-slate-400 uppercase">Source Name / ID</label>
+                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                        <Warehouse size={18} className="text-slate-500" />
+                                        <input type="text" value={unitForm.storeNumber} onChange={e => setUnitForm({ ...unitForm, storeNumber: e.target.value })} placeholder="e.g. Estate Sale, Garage Sale, Unit 55" className="bg-transparent text-white w-full focus:outline-none font-mono" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono text-slate-400 uppercase">Address</label>
+                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                        <MapPin size={18} className="text-slate-500" />
+                                        <input type="text" value={unitForm.address} onChange={e => setUnitForm({ ...unitForm, address: e.target.value })} placeholder="Street address..." className="bg-transparent text-white w-full focus:outline-none" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono text-slate-400 uppercase">Buy Cost</label>
+                                    <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                        <DollarSign size={18} className="text-slate-500" />
+                                        <input type="number" value={unitForm.cost} onChange={e => setUnitForm({ ...unitForm, cost: e.target.value })} placeholder="0.00" className="bg-transparent text-white w-full focus:outline-none font-mono" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono text-slate-400 uppercase">Source Photo</label>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="relative w-full h-40 bg-black rounded-lg border border-slate-800 overflow-hidden group">
+                                            {unitForm.imageUrl ? (
+                                                <img src={unitForm.imageUrl} alt="Preview" className="w-full h-full object-cover opacity-80" />
+                                            ) : (
+                                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-900/50">
+                                                    <ImageIcon size={32} className="mb-2 opacity-50" />
+                                                    <span className="text-[10px] uppercase tracking-wider">No Image</span>
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                                                <button onClick={() => unitImageInputRef.current?.click()} className="flex flex-col items-center gap-2 text-white hover:text-neon-green transition-colors p-2">
+                                                    <div className="p-3 bg-slate-800 rounded-full border border-slate-600 group-hover:border-neon-green">
+                                                        <Upload size={20} />
+                                                    </div>
+                                                    <span className="text-[10px] font-bold font-mono uppercase tracking-wider">Upload File</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input type="file" ref={unitImageInputRef} onChange={handleUnitImageUpload} accept="image/*" className="hidden" />
+                                        <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 focus-within:border-neon-green transition-colors">
+                                            <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">OR URL</span>
+                                            <input type="text" value={unitForm.imageUrl} onChange={e => setUnitForm({ ...unitForm, imageUrl: e.target.value })} placeholder="https://..." className="bg-transparent text-white w-full focus:outline-none text-xs font-mono" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-4 border-t border-slate-800 bg-slate-900">
+                                <button onClick={handleSaveUnit} className="w-full py-3 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">SAVE SOURCE</button>
+                            </div>
+                        </div>
+                    </div>
                 )}
                 {/* ... (keep editingItem && !viewingImageIndex && !isPreviewOpen block) */}
                 {editingItem && !viewingImageIndex && !isPreviewOpen && (
