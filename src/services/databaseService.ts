@@ -40,7 +40,8 @@ export const logScanEvent = async (scan: Partial<ScanLog>, userId: string) => {
       barcode: scan.barcode,
       estimated_value: scan.estimatedValue,
       result_status: scan.resultStatus,
-      created_at: scan.dateScanned || new Date().toISOString()
+      created_at: scan.dateScanned || new Date().toISOString(),
+      token_usage: scan.tokenUsage
     });
   } catch (e) { console.error(e); }
 };
@@ -61,7 +62,8 @@ export const fetchScanHistory = async (userId: string): Promise<ScanLog[]> => {
     title: d.title,
     barcode: d.barcode,
     estimatedValue: d.estimated_value,
-    resultStatus: d.result_status
+    resultStatus: d.result_status,
+    tokenUsage: d.token_usage
   }));
 };
 
@@ -82,8 +84,8 @@ export const fetchStorageUnits = async (): Promise<StorageUnit[]> => {
   return data.map((u: any) => ({
     id: u.id,
     storeNumber: u.name || u.store_number || 'Unknown',
-    address: u.location,
-    cost: u.monthly_cost,
+    address: u.address || u.location,
+    cost: u.cost || u.monthly_cost,
     imageUrl: u.image_url
   }));
 };
@@ -91,21 +93,36 @@ export const fetchStorageUnits = async (): Promise<StorageUnit[]> => {
 export const addStorageUnit = async (unit: StorageUnit, userId: string) => {
   const { error } = await supabase.from('storage_units').insert({
     user_id: userId,
-    name: unit.storeNumber,
-    location: unit.address,
-    monthly_cost: unit.cost,
+    store_number: unit.storeNumber,
+    address: unit.address,
+    cost: unit.cost,
     image_url: unit.imageUrl
   });
   if (error) throw error;
 };
 
-export const updateStorageUnit = async (unit: StorageUnit) => {
+export const updateStorageUnit = async (unit: StorageUnit, oldName?: string) => {
   const { error } = await supabase.from('storage_units').update({
-    name: unit.storeNumber,
-    location: unit.address,
-    monthly_cost: unit.cost,
+    store_number: unit.storeNumber,
+    address: unit.address,
+    cost: unit.cost,
     image_url: unit.imageUrl
   }).eq('id', unit.id);
+  if (error) throw error;
+
+  // Cascade update to inventory items if name changed
+  if (oldName && oldName !== unit.storeNumber) {
+    const { error: cascadeError } = await supabase
+      .from('inventory_items')
+      .update({ storage_unit_id: unit.storeNumber })
+      .eq('storage_unit_id', oldName);
+
+    if (cascadeError) console.error("Error cascading unit name update:", cascadeError);
+  }
+};
+
+export const deleteStorageUnit = async (unitId: string) => {
+  const { error } = await supabase.from('storage_units').delete().eq('id', unitId);
   if (error) throw error;
 };
 
@@ -162,6 +179,7 @@ const mapDbItemToType = (data: any): InventoryItem => ({
   ebayListingId: data.ebay_listing_id,
   ebayStatus: data.ebay_status?.toUpperCase(),
   ebayUrl: data.ebay_url,
+  ebayListedDate: data.ebay_listed_date,
   ebayViews: data.ebay_views,
   ebayWatchers: data.ebay_watchers,
   ebayPrice: data.ebay_price,

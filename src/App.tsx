@@ -21,7 +21,7 @@ import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetai
 import { compressImage, uploadScanImage } from './services/imageService';
 import {
     fetchInventory, addInventoryItem, deleteInventoryItem, updateInventoryItem,
-    fetchStorageUnits, addStorageUnit, updateStorageUnit, batchUpdateUnitItemCosts,
+    fetchStorageUnits, addStorageUnit, updateStorageUnit, deleteStorageUnit, batchUpdateUnitItemCosts,
     logScanEvent
 } from './services/databaseService';
 import { Camera, LayoutDashboard, Package, Settings, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Search as SearchIcon, Upload, Layers, Mic, MicOff, Sun, Moon, ScanLine, Filter, Calendar, RefreshCw, Tag, Wand2, Warehouse, MapPin, DollarSign, ChevronDown as ChevronDownIcon, ChevronUp, Box, Barcode, Globe2, Maximize2, Folder, List as ListIcon, AlertTriangle, Eye, Truck, ShieldCheck, CreditCard, Loader2, ShoppingCart, ExternalLink, BarChart3, HelpCircle, Facebook, ShieldAlert, Zap, Globe, Download, Link as LinkIcon, Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight, Copy } from 'lucide-react';
@@ -339,8 +339,20 @@ function App() {
         try {
             const cachedBase64 = imageCache.current.get(currentUrl);
             const inputForAI = cachedBase64 || currentUrl;
-            const optimizedBase64 = await optimizeProductImage(inputForAI, editingItem.title);
+            const { image: optimizedBase64, tokenUsage } = await optimizeProductImage(inputForAI, editingItem.title);
             if (!optimizedBase64) throw new Error("AI failed to generate image. Please retry.");
+
+            // Log Token Usage
+            if (tokenUsage) {
+                logScanEvent({
+                    imageUrl: currentUrl,
+                    title: `Image Optimization: ${editingItem.title}`,
+                    resultStatus: 'SUCCESS',
+                    dateScanned: new Date().toISOString(),
+                    tokenUsage
+                }, user.id);
+            }
+
             const publicUrl = await uploadScanImage(user.id, optimizedBase64);
             if (!publicUrl) throw new Error("Upload failed");
             imageCache.current.set(publicUrl, optimizedBase64);
@@ -584,12 +596,12 @@ function App() {
             // Log in background
             logScanEvent({
                 dateScanned: new Date().toISOString(),
-                // Use compressed local image if public link isn't ready yet, it's just for history
-                imageUrl: compressed,
+                imageUrl: currentImage,
                 title: result.itemTitle,
-                barcode: barcode,
+                barcode: scannedBarcode || undefined,
                 estimatedValue: result.estimatedSoldPrice,
-                resultStatus: 'SCANNED'
+                resultStatus: 'SUCCESS',
+                tokenUsage: result.tokenUsage
             }, user.id);
         }
     };
@@ -935,10 +947,19 @@ function App() {
 
     const handleSaveUnit = async () => {
         if (!user || !unitForm.storeNumber) return;
-        const newUnitData: StorageUnit = { id: unitForm.id, storeNumber: unitForm.storeNumber, address: unitForm.address, cost: parseFloat(unitForm.cost) || 0, imageUrl: unitForm.imageUrl };
-        if (unitForm.id) await updateStorageUnit(newUnitData);
-        else await addStorageUnit(newUnitData, user.id);
-        setIsUnitModalOpen(false); refreshData();
+        try {
+            const newUnitData: StorageUnit = { id: unitForm.id, storeNumber: unitForm.storeNumber, address: unitForm.address, cost: parseFloat(unitForm.cost) || 0, imageUrl: unitForm.imageUrl };
+            if (unitForm.id) {
+                const oldUnit = storageUnits.find(u => u.id === unitForm.id);
+                await updateStorageUnit(newUnitData, oldUnit?.storeNumber);
+            } else {
+                await addStorageUnit(newUnitData, user.id);
+            }
+            setIsUnitModalOpen(false); refreshData();
+        } catch (e: any) {
+            console.error("Failed to save unit:", e);
+            alert(`Failed to save source: ${e.message || e.error_description || JSON.stringify(e)}`);
+        }
     };
 
     const toggleUnitExpanded = (unitId: string) => {
@@ -1169,7 +1190,10 @@ function App() {
                                                     <div className="text-[9px] text-slate-500">${unit.cost} Cost</div>
                                                 </div>
                                             </div>
-                                            {stats.isBreakEven && <span className="text-[8px] bg-emerald-100 dark:bg-neon-green/20 text-emerald-700 dark:text-neon-green px-1.5 py-0.5 rounded font-bold uppercase">Profitable</span>}
+                                            <div className="flex items-center gap-2">
+                                                {stats.isBreakEven && <span className="text-[8px] bg-emerald-100 dark:bg-neon-green/20 text-emerald-700 dark:text-neon-green px-1.5 py-0.5 rounded font-bold uppercase">Profitable</span>}
+                                                <button onClick={(e) => { e.stopPropagation(); setIsUnitModalOpen(true); setUnitForm({ id: unit.id, storeNumber: unit.storeNumber, address: unit.address, cost: String(unit.cost), imageUrl: unit.imageUrl || '' }); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-emerald-500 dark:hover:text-neon-green transition-colors"><Edit2 size={12} /></button>
+                                            </div>
                                         </div>
                                         <div className="w-full bg-gray-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                                             <div className={`h-full rounded-full transition-all duration-1000 ${stats.isBreakEven ? 'bg-emerald-500 dark:bg-neon-green' : 'bg-blue-500'}`} style={{ width: `${stats.progressPercent}%` }}></div>
@@ -1384,7 +1408,7 @@ function App() {
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
             <PrivacyPolicyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
             {showTos && <DisclaimerModal onAccept={handleAcceptTos} />}
-            {editingItem && isPreviewOpen && (<PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} item={editingItem} />)}
+            {editingItem && isPreviewOpen && (<PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} item={editingItem} onImageClick={(index) => setViewingImageIndex(index)} />)}
             {editingItem && viewingImageIndex !== null && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
@@ -1468,14 +1492,28 @@ function App() {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-4 border-t border-slate-800 bg-slate-900">
-                            <button onClick={handleSaveUnit} className="w-full py-3 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">SAVE SOURCE</button>
+                        <div className="p-4 border-t border-slate-800 bg-slate-900 flex gap-3">
+                            {unitForm.id && (
+                                <button onClick={async () => {
+                                    if (confirm("Are you sure you want to delete this source? Items in this source will be hidden from the folder view.")) {
+                                        try {
+                                            await deleteStorageUnit(unitForm.id!);
+                                            setIsUnitModalOpen(false);
+                                            refreshData();
+                                        } catch (e: any) {
+                                            alert(`Failed to delete source: ${e.message}`);
+                                        }
+                                    }
+                                }} className="px-4 py-3 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold rounded-xl transition-colors border border-red-500/50"><Trash2 size={20} /></button>
+                            )}
+                            <button onClick={handleSaveUnit} className="flex-1 py-3 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">SAVE SOURCE</button>
                         </div>
                     </div>
                 </div>
             )}
             {/* ... (keep editingItem && !viewingImageIndex && !isPreviewOpen block) */}
-            {editingItem && !viewingImageIndex && !isPreviewOpen && (
+            {/* Edit Draft Modal - Only show if NOT viewing full image and NOT in preview */}
+            {editingItem && viewingImageIndex === null && !isPreviewOpen && (
                 <div className="fixed inset-0 z-[9999] animate-in fade-in">
                     {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setEditingItem(null)} />
@@ -1659,7 +1697,7 @@ function App() {
                 {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => setStatus(ScoutStatus.IDLE)} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
             </main>
 
-            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-safe-bottom justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
+            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
         </div >
     );
 }

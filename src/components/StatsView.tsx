@@ -77,7 +77,8 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
 
         listedItems.forEach(item => {
             const dateObj = item.ebayListedDate ? new Date(item.ebayListedDate) : new Date(item.dateScanned);
-            const dateKey = dateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const dateKey = dateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD in Local Time
+            const todayKey = new Date().toLocaleDateString('en-CA');
 
             if (!stats[dateKey]) stats[dateKey] = { count: 0, value: 0, profit: 0 };
 
@@ -88,17 +89,24 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
             stats[dateKey].value += val;
             stats[dateKey].profit += profit;
 
-            const time = dateObj.getTime();
-
-            if (timeframe === 'DAY' && time >= startOfDay) {
-                progressCount++;
-                progressValue += val;
-            } else if (timeframe === 'WEEK' && time >= startOfWeek) {
-                progressCount++;
-                progressValue += val;
-            } else if (timeframe === 'MONTH' && time >= startOfMonth) {
-                progressCount++;
-                progressValue += val;
+            // Progress Tracking
+            if (timeframe === 'DAY') {
+                if (dateKey === todayKey) {
+                    progressCount++;
+                    progressValue += val;
+                }
+            } else if (timeframe === 'WEEK') {
+                const time = dateObj.getTime();
+                if (time >= startOfWeek) {
+                    progressCount++;
+                    progressValue += val;
+                }
+            } else if (timeframe === 'MONTH') {
+                const time = dateObj.getTime();
+                if (time >= startOfMonth) {
+                    progressCount++;
+                    progressValue += val;
+                }
             }
         });
 
@@ -120,18 +128,39 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
             if (dayStat.value > maxChartValue) maxChartValue = dayStat.value;
         }
 
-        // Calculate Streak (Consecutive days meeting listing goal)
+        // Streak Calculation (Consecutive days with at least 1 listing)
+        const sortedDates = Object.keys(stats).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
         let currentStreak = 0;
-        for (let i = 0; i < 365; i++) {
-            const d = new Date();
-            d.setDate(today.getDate() - i);
-            const key = d.toLocaleDateString('en-CA');
-            const dayCount = stats[key]?.count || 0;
-            if (dayCount >= goals.dailyCount) {
+
+        // Check if we listed today
+        const listedToday = stats[new Date().toLocaleDateString('en-CA')]?.count > 0;
+
+        // If listed today, start streak at 1. If not, streak is 0 (unless we check yesterday, but let's keep it simple: strict streak)
+        // Actually, users prefer if streak doesn't break until the day is OVER. 
+        // So if listed today, count it. If not, check yesterday.
+
+        let streakDate = new Date();
+        // Check today
+        if (stats[streakDate.toLocaleDateString('en-CA')]?.count > 0) {
+            currentStreak++;
+            streakDate.setDate(streakDate.getDate() - 1);
+        } else {
+            // If nothing today, check yesterday. If yesterday has data, streak is alive but waiting for today.
+            // If yesterday is empty, streak is broken (0).
+            streakDate.setDate(streakDate.getDate() - 1);
+            if (stats[streakDate.toLocaleDateString('en-CA')]?.count > 0) {
+                // Streak continues from yesterday
+            } else {
+                // Streak broken
+            }
+        }
+
+        // Simple loop for past days
+        while (true) {
+            const dateKey = streakDate.toLocaleDateString('en-CA');
+            if (stats[dateKey]?.count > 0) {
                 currentStreak++;
-            } else if (i === 0 && dayCount < goals.dailyCount) {
-                // If today isn't done yet, check yesterday to keep streak alive
-                continue;
+                streakDate.setDate(streakDate.getDate() - 1);
             } else {
                 break;
             }
@@ -166,9 +195,18 @@ const StatsView: React.FC<StatsViewProps> = ({ inventory, onSettings }) => {
 
         return {
             metrics: {
-                totalItems, totalValue, totalNet, listedCount, topSources, avgProfit,
-                draftCount, draftValue,
-                progressCount, progressValue, targetCount, targetValue
+                totalItems,
+                totalValue,
+                totalNet,
+                listedCount,
+                topSources,
+                avgProfit,
+                draftCount,
+                draftValue,
+                progressCount,
+                progressValue,
+                targetCount,
+                targetValue
             },
             dailyStats: stats,
             chartData: { data: chart, max: maxChartValue > 0 ? maxChartValue : 100 },

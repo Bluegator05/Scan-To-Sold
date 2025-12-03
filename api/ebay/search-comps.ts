@@ -64,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: {
         'Authorization': `Bearer ${appToken}`,
         'Content-Type': 'application/json',
-        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+        'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
       },
       params: {
         q: query,

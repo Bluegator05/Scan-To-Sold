@@ -147,21 +147,30 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
       });
     }
 
+    const usage = response.usageMetadata;
+    const tokenUsage = usage ? {
+      input: usage.promptTokenCount || 0,
+      output: usage.candidatesTokenCount || 0,
+      total: usage.totalTokenCount || 0
+    } : undefined;
+
     return {
       itemTitle: result.itemTitle || "Unknown Item",
-      searchQuery: result.searchQuery || result.itemTitle, // Fallback
-      condition: result.condition || 'USED',
-      estimatedSoldPrice: result.estimatedSoldPrice || 0,
-      estimatedShippingCost: result.estimatedShippingCost || 10,
-      estimatedWeight: String(result.estimatedWeight || "1 lb"),
-      priceSourceUri: listingSources[0]?.uri,
-      confidence: result.confidence || 80,
-      description: result.description || "No description",
+      searchQuery: result.searchQuery,
+      estimatedSoldPrice: typeof result.estimatedSoldPrice === 'number' ? result.estimatedSoldPrice : 0,
+      estimatedShippingCost: typeof result.estimatedShippingCost === 'number' ? result.estimatedShippingCost : 0,
+      estimatedWeight: result.estimatedWeight,
+      estimatedDimensions: result.estimatedDimensions,
+      dimensionReasoning: result.dimensionReasoning,
+      marketDemand: result.marketDemand,
+      condition: result.condition,
+      confidence: result.confidence || 85,
+      description: result.description || "No description generated.",
       listingSources,
+      itemSpecifics: result.itemSpecifics,
+      tokenUsage,
       barcode: result.barcode || barcode,
       isBulkLot: isBulkMode,
-      marketDemand: result.marketDemand || 'MEDIUM',
-      itemSpecifics: result.itemSpecifics || {}
     };
 
   } catch (error: any) {
@@ -423,8 +432,8 @@ export const generateListingDescription = async (title: string, notes: string, p
   return text.trim();
 };
 
-export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?: string): Promise<string | null> => {
-  if (!apiKey) return null;
+export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?: string): Promise<{ image: string | null, tokenUsage?: { input: number, output: number, total: number } }> => {
+  if (!apiKey) return { image: null };
   try {
     let base64Data = imageUrlOrBase64;
 
@@ -448,21 +457,21 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
     const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
     const prompt = `
-            Task: Optimize this product image for a professional listing.
+            Task: Optimize this product image for an e-commerce listing.
             Target Item: "${itemTitle || "The main central object"}".
             
             INSTRUCTIONS:
-            1. Identify the Target Item. Isolate it from the background clutter.
-            2. Replace the background with pure white (#FFFFFF).
-            3. Center the item and zoom/crop so it fills approx 80% of the frame.
-            4. Adjust GLOBAL lighting and contrast for a professional studio look.
+            1. REMOVE BACKGROUND: Replace the background with pure white (#FFFFFF).
+            2. CENTER & CROP: Center the item and crop so it fills approx 80% of the frame.
+            3. LIGHTING: Improve lighting ONLY to make the item clearly visible.
             
-            CRITICAL PRESERVATION RULES (DO NOT IGNORE):
-            - **DO NOT ROTATE.** MAINTAIN THE ORIGINAL ORIENTATION AND ANGLE OF THE ITEM.
-            - DO NOT REPAIR DEFECTS. Scratches, dents, dust, wear, and tear MUST remain visible to show the item's true condition.
-            - DO NOT CHANGE TEXTURES. Maintain the original surface look (e.g. if it's dirty, keep it dirty; if it's scratched, keep scratches).
-            - DO NOT HALLUCINATE FEATURES. Do not add accessories, cords, or parts that are not present in the source image.
-            - DO NOT CUT OFF PARTS. Ensure the ENTIRE item is visible with padding around the edges.
+            CRITICAL PRESERVATION RULES (STRICT):
+            - **DO NOT ALTER THE ITEM'S APPEARANCE.**
+            - **DO NOT DISTRESS, AGE, OR ADD WEAR.** The item must look EXACTLY as it does in the original photo.
+            - **DO NOT SMOOTH TEXTURES.** If the item has scratches, dust, or wear, KEEP THEM. The buyer needs to see the true condition.
+            - **DO NOT CHANGE COLORS.** Maintain accurate colors.
+            - **DO NOT ROTATE.** Keep original orientation.
+            - **DO NOT HALLUCINATE.** Do not add or remove parts.
             
             Return ONLY the generated image.
         `;
@@ -478,11 +487,21 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
       }
     });
 
+    const usage = response.usageMetadata;
+    const tokenUsage = usage ? {
+      input: usage.promptTokenCount || 0,
+      output: usage.candidatesTokenCount || 0,
+      total: usage.totalTokenCount || 0
+    } : undefined;
+
     // Iterate through parts to find the image
     if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) {
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          return {
+            image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+            tokenUsage
+          };
         }
       }
     }
@@ -492,7 +511,7 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
       throw new Error("AI refused to process image. Quota limit or filter.");
     }
 
-    return null;
+    return { image: null, tokenUsage };
   } catch (e: any) {
     console.error("Image Optimization Error:", e);
     // Detect Quota Error (429)

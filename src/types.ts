@@ -15,6 +15,7 @@ export interface ScoutResult {
   estimatedShippingCost?: number;
   estimatedWeight?: string;
   estimatedDimensions?: string; // New: L x W x H
+  dimensionReasoning?: string; // New: Reasoning for dimensions
   priceSourceUri?: string;
   confidence: number; // 0-100
   description: string;
@@ -26,6 +27,11 @@ export interface ScoutResult {
   }[];
   isBulkLot?: boolean;
   itemSpecifics?: ItemSpecifics; // New: Auto-detected specifics
+  tokenUsage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
 }
 
 export interface Comp {
@@ -51,13 +57,7 @@ export interface ProfitCalculation {
 }
 
 export interface ItemSpecifics {
-  Brand?: string;
-  Model?: string;
-  MPN?: string;
-  UPC?: string;
-  Type?: string;
-  CountryRegionOfManufacture?: string;
-  [key: string]: string | undefined;
+  [key: string]: string;
 }
 
 export interface InventoryItem {
