@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Scanner from './components/Scanner';
 import ProfitCalculator from './components/ProfitCalculator';
-import PricingModal from './components/PricingModal';
+import PricingModal from './components/SubscriptionModal';
 import SettingsModal from './components/SettingsModal';
 import FeedbackModal from './components/FeedbackModal';
 import StatsView from './components/StatsView';

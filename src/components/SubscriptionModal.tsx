@@ -4,13 +4,13 @@ import { Check, X, Star, Zap, Shield, Rocket, Layers } from 'lucide-react';
 import { startStripeCheckout } from '../services/paymentService';
 import { useAuth } from '../contexts/AuthContext';
 
-interface PricingModalProps {
+interface SubscriptionModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
 }
 
-const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onSuccess }) => {
+const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, onSuccess }) => {
     const { user, subscription } = useAuth();
     const [loading, setLoading] = useState<'PLUS' | 'PRO' | null>(null);
     const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
@@ -36,10 +36,9 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onSuccess 
     const currentPlanStyle = "bg-slate-950/50 border-2 border-slate-700 text-slate-500 cursor-not-allowed shadow-none hover:bg-slate-950/50";
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
             {/* Modal Container */}
-            <div className="relative w-full max-w-5xl bg-slate-900 border-4 border-red-500 rounded-3xl shadow-2xl scale-100 animate-in zoom-in-95 duration-300 my-8 overflow-hidden">
-                <div className="absolute top-0 left-0 bg-red-500 text-white text-xs font-bold px-2 py-1 z-50">DEBUG MODE ACTIVE</div>
+            <div className="relative w-full max-w-5xl bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl scale-100 animate-in zoom-in-95 duration-300 my-8 md:my-0 overflow-hidden">
 
                 {/* Header Background */}
                 <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-neon-green/5 to-transparent pointer-events-none"></div>
@@ -168,4 +167,4 @@ const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onSuccess 
     );
 };
 
-export default PricingModal;
+export default SubscriptionModal;

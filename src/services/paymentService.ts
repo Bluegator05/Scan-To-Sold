@@ -7,11 +7,11 @@ import { SubscriptionStatus, SubscriptionTier } from "../types";
 
 // 1. LINKS FOR PRO TIER ($29/mo or $299/yr)
 export const STRIPE_PAYMENT_LINK_PRO_MONTHLY = "https://buy.stripe.com/test_9B63cu9A1b9k19L1En8so00";
-export const STRIPE_PAYMENT_LINK_PRO_YEARLY = ""; // ACTION: Paste Yearly Link Here
+export const STRIPE_PAYMENT_LINK_PRO_YEARLY = "https://buy.stripe.com/5kQaEWaEq7rm17e3N61ck03";
 
 // 2. LINKS FOR PLUS TIER ($9.99/mo or $99/yr)
 export const STRIPE_PAYMENT_LINK_PLUS_MONTHLY = "https://buy.stripe.com/cNicN427U3b617ecjC1ck01";
-export const STRIPE_PAYMENT_LINK_PLUS_YEARLY = ""; // ACTION: Paste Yearly Link Here
+export const STRIPE_PAYMENT_LINK_PLUS_YEARLY = "https://buy.stripe.com/aFa3cubIucLGcPWcjC1ck02";
 
 // ---------------------
 
