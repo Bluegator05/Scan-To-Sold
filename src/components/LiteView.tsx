@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Scanner from './Scanner';
 import { analyzeItemImage, analyzeItemText } from '../services/geminiService';
-import { compressImage } from '../services/imageService';
+import { compressImage, compressImageLite } from '../services/imageService';
 import { ArrowLeft, Search, ExternalLink, Loader2, Camera, ScanBarcode, ShoppingBag, Globe } from 'lucide-react';
 
 interface LiteViewProps {
@@ -11,7 +11,8 @@ interface LiteViewProps {
 const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
     const [isScanning, setIsScanning] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
-    const [result, setResult] = useState<{ title: string, price?: number, image: string } | null>(null);
+    const [result, setResult] = useState<{ title: string, searchQuery?: string, price?: number, image: string } | null>(null);
+    const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [error, setError] = useState<string>("");
 
     const handleCapture = async (imageData: string, barcode?: string) => {
@@ -20,17 +21,21 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
         setError("");
 
         try {
-            const compressed = await compressImage(imageData);
+            // Optimistic UI: Show image immediately
+            setCapturedImage(imageData);
+
+            const compressed = await compressImageLite(imageData);
             let analysis;
 
             if (barcode) {
                 analysis = await analyzeItemText(barcode);
             } else {
-                analysis = await analyzeItemImage(compressed, undefined, false);
+                analysis = await analyzeItemImage(compressed, undefined, false, true);
             }
 
             setResult({
                 title: analysis.itemTitle,
+                searchQuery: analysis.searchQuery,
                 price: analysis.estimatedSoldPrice,
                 image: compressed
             });
@@ -63,7 +68,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
     return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col">
             {/* Header */}
-            <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 flex items-center justify-between pt-safe">
+            <div className="p-4 pt-[calc(env(safe-area-inset-top)+1rem)] border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 flex items-center justify-between">
                 <button onClick={() => setIsScanning(true)} className="p-2 -ml-2 text-slate-400 hover:text-white">
                     <ArrowLeft size={24} />
                 </button>
@@ -73,9 +78,16 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
 
             <div className="flex-1 overflow-y-auto p-6">
                 {analyzing ? (
-                    <div className="flex flex-col items-center justify-center h-64 space-y-4">
-                        <Loader2 className="w-12 h-12 text-neon-green animate-spin" />
-                        <p className="text-slate-400 font-mono animate-pulse">ANALYZING ITEM...</p>
+                    <div className="space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
+                        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative">
+                            <div className="aspect-square w-full relative bg-black">
+                                {capturedImage && <img src={capturedImage} alt="Analyzing" className="w-full h-full object-cover opacity-50" />}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <Loader2 className="w-12 h-12 text-neon-green animate-spin mb-4" />
+                                    <p className="text-white font-mono font-bold animate-pulse tracking-widest">ANALYZING...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 ) : result ? (
                     <div className="space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
@@ -101,7 +113,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
 
                             <div className="grid grid-cols-1 gap-3">
                                 <button
-                                    onClick={() => openLink(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.title)}&_sacat=0&LH_ItemCondition=3000`)}
+                                    onClick={() => openLink(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.searchQuery || result.title)}&_sacat=0&LH_ItemCondition=3000`)}
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-blue-500 hover:bg-slate-800 transition-all group"
                                 >
                                     <div className="flex items-center gap-4">
@@ -117,7 +129,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
                                 </button>
 
                                 <button
-                                    onClick={() => openLink(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.title)}&_sacat=0&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`)}
+                                    onClick={() => openLink(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.searchQuery || result.title)}&_sacat=0&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`)}
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-neon-green hover:bg-slate-800 transition-all group"
                                 >
                                     <div className="flex items-center gap-4">
@@ -133,7 +145,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
                                 </button>
 
                                 <button
-                                    onClick={() => openLink(`https://www.google.com/search?q=${encodeURIComponent(result.title)}`)}
+                                    onClick={() => openLink(`https://www.google.com/search?q=${encodeURIComponent(result.searchQuery || result.title)}`)}
                                     // Better fallback for web: Google Image Search query
                                     // Actually, let's use Google Search for the title
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-yellow-500 hover:bg-slate-800 transition-all group"

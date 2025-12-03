@@ -316,12 +316,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let specificsXml = '<ItemSpecifics>';
         for (const [key, val] of Object.entries(specifics)) {
-            if (key !== 'Weight' && val && typeof val === 'string' && val.trim() !== '') {
-                specificsXml += `
+            // Skip Weight as it's handled separately
+            if (key === 'Weight') continue;
+
+            let cleanVal = val;
+            if (typeof val === 'string') {
+                // Fix "Unknown" values which eBay rejects for MPN/UPC
+                if (val.toLowerCase() === 'unknown') {
+                    if (key.toUpperCase() === 'MPN' || key.toUpperCase() === 'UPC') {
+                        cleanVal = "Does Not Apply";
+                    } else {
+                        continue; // Skip other unknown specifics
+                    }
+                }
+
+                if (cleanVal.trim() !== '') {
+                    specificsXml += `
             <NameValueList>
                 <Name>${escapeXml(key)}</Name>
-                <Value>${escapeXml(val)}</Value>
+                <Value>${escapeXml(cleanVal)}</Value>
             </NameValueList>`;
+                }
             }
         }
         specificsXml += '</ItemSpecifics>';
@@ -347,6 +362,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const postalCode = item.postalCode || "95125";
 
+        // Parse Dimensions
+        let dimL = 0, dimW = 0, dimH = 0;
+        if (item.dimensions) {
+            const parts = item.dimensions.toLowerCase().split('x').map((s: string) => s.trim().replace(/[^0-9.]/g, ''));
+            if (parts.length >= 3) {
+                dimL = parseFloat(parts[0]) || 0;
+                dimW = parseFloat(parts[1]) || 0;
+                dimH = parseFloat(parts[2]) || 0;
+            }
+        }
+
         const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
     <AddFixedPriceItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
         <ErrorLanguage>en_US</ErrorLanguage>
@@ -366,9 +392,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ${pictureDetailsBlock}
             ${specificsXml}
             <ShippingPackageDetails>
-                <ShippingPackage>PackageThickEnvelope</ShippingPackage>
+                <ShippingPackage>${(dimL > 0 || dimW > 0 || dimH > 0) ? 'Package' : 'PackageThickEnvelope'}</ShippingPackage>
                 <WeightMajor unit="lbs">${major}</WeightMajor>
                 <WeightMinor unit="oz">${minor}</WeightMinor>
+                ${dimL > 0 ? `<PackageLength unit="in">${dimL}</PackageLength>` : ''}
+                ${dimW > 0 ? `<PackageWidth unit="in">${dimW}</PackageWidth>` : ''}
+                ${dimH > 0 ? `<PackageDepth unit="in">${dimH}</PackageDepth>` : ''}
             </ShippingPackageDetails>
             <ShipToLocations>US</ShipToLocations>
             <PostalCode>${escapeXml(postalCode)}</PostalCode>
@@ -407,19 +436,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const errs = result.AddFixedPriceItemResponse?.Errors;
             const msg = Array.isArray(errs) ? errs[0].LongMessage : errs?.LongMessage;
 
-            if (msg && msg.includes('agreement')) {
-                return res.status(200).json({
-                    success: false,
-                    actionRequiredUrl: 'https://useragreement.ebay.com/usragmt/agreement/APM_USER_AGREEMENT?ru=http%3A%2F%2Fmy.ebay.com%2Fws%2FeBayISAPI.dll%3FMyEbay&fId=4',
-                    message: "You must accept the eBay User Agreement."
-                });
-            }
-
-            throw new Error(msg || "eBay API Error");
+            // Return detailed error for debugging
+            return res.status(400).json({
+                success: false,
+                error: msg || "eBay API Error",
+                details: errs
+            });
         }
 
     } catch (error: any) {
         console.error("Listing Error:", error.message, error.response?.data);
-        res.status(500).json({ error: `Action Failed: ${error.message}` });
+        res.status(500).json({ error: `Action Failed: ${error.message}`, details: error.response?.data });
     }
 }

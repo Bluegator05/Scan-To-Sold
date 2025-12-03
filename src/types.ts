@@ -13,8 +13,9 @@ export interface ScoutResult {
   barcode?: string;
   estimatedSoldPrice: number;
   estimatedShippingCost?: number;
-  estimatedWeight?: string; 
-  priceSourceUri?: string; 
+  estimatedWeight?: string;
+  estimatedDimensions?: string; // New: L x W x H
+  priceSourceUri?: string;
   confidence: number; // 0-100
   description: string;
   marketDemand?: 'HIGH' | 'MEDIUM' | 'LOW'; // New: Sell-through indicator
@@ -70,17 +71,18 @@ export interface InventoryItem {
   imageUrl?: string;
   additionalImages?: string[];
   status: 'DRAFT' | 'LISTED' | 'SOLD';
-  
-  binLocation?: string; 
-  conditionNotes?: string; 
+
+  binLocation?: string;
+  conditionNotes?: string;
   itemSpecifics?: ItemSpecifics; // New field for eBay specifics
+  dimensions?: string; // New: Package dimensions
   postalCode?: string; // New: Item location zip code
 
-  generatedListing?: { 
+  generatedListing?: {
     platform: 'EBAY' | 'FACEBOOK';
     content: string;
   };
-  
+
   ebayListingId?: string;
   ebayListedDate?: string; // Track when it went live
   ebayStatus?: 'ACTIVE' | 'ENDED' | 'SOLD' | 'SOLD_ON_EBAY';
@@ -110,11 +112,11 @@ export type SourceType = 'STORAGE_UNIT' | 'GARAGE_SALE' | 'THRIFT_STORE' | 'RETA
 
 export interface StorageUnit {
   id: string;
-  storeNumber: string; 
-  address: string; 
+  storeNumber: string;
+  address: string;
   cost: number;
   imageUrl?: string;
-  type?: SourceType; 
+  type?: SourceType;
 }
 
 export interface UserSettings {

@@ -28,7 +28,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
             </div>
 
             {/* Navbar */}
-            <nav className="flex justify-between items-center p-6 relative z-50 max-w-7xl mx-auto w-full pt-safe">
+            <nav className="flex justify-between items-center p-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] relative z-50 max-w-7xl mx-auto w-full">
                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                     <Logo className="w-10 h-10 drop-shadow-[0_0_15px_rgba(57,255,20,0.3)]" />
                     <span className="font-bold text-xl tracking-tight">Scan<span className="text-neon-green">To</span>Sold</span>

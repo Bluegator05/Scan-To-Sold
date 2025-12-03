@@ -36,6 +36,11 @@ export const compressImage = (base64Str: string, maxWidth = 720, quality = 0.5):
   });
 };
 
+// EXTREME SPEED OPTIMIZATION: 480px width, 0.4 quality
+export const compressImageLite = (base64Str: string): Promise<string> => {
+  return compressImage(base64Str, 480, 0.4);
+};
+
 export const dataURLtoFile = (dataurl: string, filename: string): File => {
   const arr = dataurl.split(',');
   if (arr.length < 2) {

@@ -47,6 +47,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to scan barcodes and items.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone for voice commands.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

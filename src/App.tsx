@@ -646,7 +646,9 @@ function App() {
 
     const handleSellSimilar = (importedData: any) => {
         const newPrice = importedData.price ? parseFloat(importedData.price) : 0;
-        const newWeight = importedData.weight || "";
+        // Robust weight extraction: check direct property, itemSpecifics, or shipping object
+        const newWeight = importedData.weight || importedData.itemSpecifics?.Weight || importedData.shipping?.weight || "";
+        const newDims = importedData.dimensions || importedData.shipping?.dimensions || "";
 
         if (editingItem) {
             // Merge imported data into existing item
@@ -783,24 +785,64 @@ function App() {
         } catch (e: any) { alert("Failed to save: " + e.message); } finally { setIsSaving(false); }
     };
 
-    const handleUpdateInventoryItem = async (newCalc?: ProfitCalculation, newCostCode?: string, newItemCost?: number, newWeight?: string) => {
+    const handleEstimateWeight = async () => {
+        if (!editingItem || !editingItem.imageUrl) return;
+        setIsGeneratingListing(true);
+        try {
+            // Fetch image and convert to base64 if needed
+            let base64Image = editingItem.imageUrl;
+            if (base64Image.startsWith('http') || base64Image.startsWith('blob:')) {
+                const response = await fetch(base64Image);
+                const blob = await response.blob();
+                base64Image = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            // Call Gemini with weight/dims focus (re-using analyzeItemImage)
+            const analysis = await analyzeItemImage(base64Image, undefined, false, true);
+
+            // Update editing item with new weight and dims
+            const newWeight = analysis.estimatedWeight || "";
+            const newDims = analysis.estimatedDimensions || "";
+
+            setEditingItem(prev => prev ? ({
+                ...prev,
+                itemSpecifics: { ...prev.itemSpecifics, Weight: newWeight },
+                dimensions: newDims
+            }) : null);
+
+            alert(`Estimated: ${newWeight} | ${newDims || "No Dims Found"}`);
+        } catch (e) {
+            console.error("Weight estimation failed:", e);
+            alert("Failed to estimate weight/dims. Please try again.");
+        } finally {
+            setIsGeneratingListing(false);
+        }
+    };
+
+    const handleUpdateInventoryItem = async (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string, dimensions?: string) => {
         if (!editingItem) return;
         try {
-            let updatedItem: InventoryItem = { ...editingItem };
-            if (newCalc) updatedItem.calculation = newCalc;
-            else {
-                const soldPrice = editingItem.calculation.soldPrice;
-                const itemCost = editingItem.calculation.itemCost;
-                const shippingCost = editingItem.calculation.shippingCost;
-                const fees = (soldPrice * 0.1325) + 0.30;
-                const net = soldPrice - fees - shippingCost - itemCost;
-                updatedItem.calculation = { ...editingItem.calculation, platformFees: fees, netProfit: net, isProfitable: net >= 15 };
-            }
-            if (newWeight) updatedItem.itemSpecifics = { ...updatedItem.itemSpecifics, Weight: newWeight };
-            await updateInventoryItem(updatedItem);
+            const updatedItem: InventoryItem = {
+                ...editingItem,
+                calculation: calc,
+                costCode,
+                itemSpecifics: { ...editingItem.itemSpecifics, Weight: weight },
+                dimensions: dimensions || editingItem.dimensions
+            };
+
+            // Optimistic update
             setInventory(prev => prev.map(item => item.id === editingItem.id ? updatedItem : item));
+            setEditingItem(updatedItem);
+
+            await updateInventoryItem(updatedItem);
             alert("Updated.");
-        } catch (e: any) { alert("Failed: " + e.message); }
+        } catch (e: any) {
+            alert("Failed: " + e.message);
+        }
     };
 
     const handlePushToEbay = async (item: InventoryItem) => {
@@ -824,9 +866,16 @@ function App() {
                     ...item, imageUrl: processedImages[0], additionalImages: processedImages.slice(1),
                     price: currentListingPrice || item.calculation.soldPrice,
                     description: item.generatedListing?.content || item.conditionNotes || item.title,
-                    condition: itemCondition, itemSpecifics: item.itemSpecifics || {},
+                    condition: itemCondition,
+                    itemSpecifics: Object.fromEntries(Object.entries(item.itemSpecifics || {}).map(([k, v]) => {
+                        if (typeof v === 'string' && v.toLowerCase() === 'unknown' && (k.toUpperCase() === 'MPN' || k.toUpperCase() === 'UPC')) {
+                            return [k, "Does Not Apply"];
+                        }
+                        return [k, v];
+                    })),
                     ebayShippingPolicyId: item.ebayShippingPolicyId, ebayReturnPolicyId: item.ebayReturnPolicyId, ebayPaymentPolicyId: item.ebayPaymentPolicyId,
                     weight: item.itemSpecifics?.Weight,
+                    dimensions: item.dimensions,
                     postalCode: zipToSend
                 }
             };
@@ -834,7 +883,9 @@ function App() {
             const data = await response.json();
             if (!response.ok || !data.success) {
                 if (data.actionRequiredUrl) { if (confirm(data.message)) window.open(data.actionRequiredUrl, '_blank'); return; }
-                throw new Error(data.message || "Listing Failed");
+                // Enhanced Error Reporting
+                const errorMsg = data.error || data.message || "Listing Failed";
+                throw new Error(errorMsg);
             }
             alert(data.message);
             const updatedItem: InventoryItem = { ...item, status: 'LISTED', ebayListingId: data.itemId, ebayListedDate: new Date().toISOString(), ebayUrl: data.inventoryUrl, ebayStatus: 'ACTIVE', ebayPrice: payload.item.price };
@@ -1144,7 +1195,7 @@ function App() {
                         {scanMode === 'LENS' && <span className="text-xs font-mono bg-blue-500/20 backdrop-blur px-2 py-1 rounded text-blue-400 border border-blue-500/30 font-bold">VISUAL SEARCH</span>}
                     </div>)}
                 </div>
-                {status === ScoutStatus.COMPLETE && (<button onClick={handleStartScan} className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/70 transition-colors pt-safe"><Camera size={20} /></button>)}
+                {status === ScoutStatus.COMPLETE && (<button onClick={handleStartScan} className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/70 transition-colors"><Camera size={20} /></button>)}
             </div>
 
             <div className="flex-1 p-4 space-y-6">
@@ -1321,6 +1372,7 @@ function App() {
                     setEbayConnected(connected);
                     if (connected && user) loadEbayPolicies(user.id);
                 }}
+                onSwitchToLiteMode={() => setIsLiteMode(true)}
             />
             <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
             <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
@@ -1418,16 +1470,31 @@ function App() {
             )}
             {/* ... (keep editingItem && !viewingImageIndex && !isPreviewOpen block) */}
             {editingItem && !viewingImageIndex && !isPreviewOpen && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200 dark:border-slate-800">
-                        <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
+                <div className="fixed inset-0 z-[9999] animate-in fade-in">
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setEditingItem(null)} />
+
+                    {/* Modal Content - Full Screen Mobile, Centered Desktop */}
+                    <div className="absolute inset-0 w-full h-full bg-white dark:bg-slate-900 flex flex-col overflow-hidden md:relative md:inset-auto md:m-auto md:w-[95vw] md:h-[90vh] md:max-w-4xl md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 md:dark:border-slate-800 md:top-1/2 md:-translate-y-1/2">
+                        <div className="p-4 pt-[calc(env(safe-area-inset-top)+1rem)] md:p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
                             <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white"><Edit2 className="text-emerald-500 dark:text-neon-green" size={18} /> Edit Draft</h3>
                             <div className="flex gap-2">
                                 <button onClick={(e) => handleDeleteItem(e, editingItem.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={20} /></button>
                                 <button onClick={() => setEditingItem(null)}><X size={24} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" /></button>
                             </div>
                         </div>
-
+                        <div className="p-4 border-t border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900 rounded-b-2xl">
+                            <button onClick={() => handleDeleteItem(null as any, editingItem.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors"><Trash2 size={20} /></button>
+                            <div className="flex gap-3">
+                                <button onClick={() => setEditingItem(null)} className="px-6 py-2 font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors">Cancel</button>
+                                <button onClick={() => handlePushToEbay(editingItem)} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center gap-2">
+                                    List to eBay
+                                </button>
+                                <button onClick={() => handleUpdateInventoryItem(editingItem.calculation, editingItem.costCode, editingItem.calculation.itemCost, editingItem.itemSpecifics?.Weight || "", editingItem.dimensions)} className="px-8 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+                                    Save Draft
+                                </button>
+                            </div>
+                        </div>
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white dark:bg-slate-900">
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
@@ -1504,7 +1571,17 @@ function App() {
                                     <button onClick={() => setIsCompsOpen(true)} className="py-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900 text-center text-[9px] font-bold text-blue-600 dark:text-blue-300 uppercase">Comps</button>
                                 </div>
 
-                                <ProfitCalculator estimatedPrice={editingItem.calculation.soldPrice} estimatedShipping={editingItem.calculation.shippingCost} estimatedWeight={editingItem.itemSpecifics?.Weight} onSave={handleUpdateInventoryItem} onPriceChange={setCurrentListingPrice} isScanning={false} />
+                                <ProfitCalculator
+                                    estimatedPrice={editingItem.calculation.soldPrice}
+                                    estimatedShipping={editingItem.calculation.shippingCost}
+                                    estimatedWeight={editingItem.itemSpecifics?.Weight}
+                                    estimatedDimensions={editingItem.dimensions}
+                                    onSave={handleUpdateInventoryItem}
+                                    onPriceChange={setCurrentListingPrice}
+                                    onEstimate={handleEstimateWeight}
+                                    isScanning={false}
+                                    isLoading={isGeneratingListing}
+                                />
 
                                 <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
                                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-slate-700">
@@ -1576,7 +1653,7 @@ function App() {
                 {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => setStatus(ScoutStatus.IDLE)} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
             </main>
 
-            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-safe justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
+            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-safe-bottom justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
         </div >
     );
 }

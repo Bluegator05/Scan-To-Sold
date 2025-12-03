@@ -17,7 +17,7 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose }) => {
   const [detectedBarcode, setDetectedBarcode] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [autoScanEnabled, setAutoScanEnabled] = useState(true); // Default to Auto Scan (UPC)
+  const [autoScanEnabled, setAutoScanEnabled] = useState(false); // Default to Photo Mode (Manual)
   const [isMuted, setIsMuted] = useState(false);
 
   // Use Ref to lock capture logic and prevent effect cleanup cancellations
@@ -193,7 +193,7 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose }) => {
       </div>
 
       {/* Header Layer */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pb-20">
+      <div className="absolute top-0 left-0 right-0 p-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] flex justify-between items-start z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pb-20">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 mb-1">
             <div className={`w-2 h-2 rounded-full ${detectedBarcode ? 'bg-neon-green animate-ping' : (autoScanEnabled ? 'bg-neon-green' : 'bg-yellow-500')}`}></div>

@@ -11,9 +11,10 @@ interface SettingsModalProps {
   onOpenFeedback: () => void;
   onOpenPrivacy: () => void;
   onConnectionChange?: (connected: boolean) => void;
+  onSwitchToLiteMode: () => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPricing, onOpenFeedback, onOpenPrivacy, onConnectionChange }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPricing, onOpenFeedback, onOpenPrivacy, onConnectionChange, onSwitchToLiteMode }) => {
   const { user, signOut, updatePassword, subscription } = useAuth();
 
   const [newPassword, setNewPassword] = useState('');
@@ -152,6 +153,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* App Mode */}
+          <div className="space-y-2">
+            <label className="text-xs font-mono text-slate-500 uppercase tracking-widest">App Mode</label>
+            <button
+              onClick={() => { onClose(); onSwitchToLiteMode(); }}
+              className="w-full bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between hover:bg-slate-700 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-neon-green/10 flex items-center justify-center text-neon-green group-hover:scale-110 transition-transform">
+                  <Loader2 size={24} className="animate-pulse" />
+                </div>
+                <div className="text-left">
+                  <div className="text-white font-bold text-sm">Lite Mode</div>
+                  <div className="text-[10px] text-slate-400">Simplified scanner for quick lookups</div>
+                </div>
+              </div>
+              <ExternalLink size={16} className="text-slate-500 group-hover:text-white" />
+            </button>
           </div>
 
           {/* Listing Defaults */}
