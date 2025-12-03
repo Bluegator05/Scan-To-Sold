@@ -280,6 +280,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                         <p className="text-slate-400">Start for free, upgrade when you scale.</p>
                     </div>
 
+                    {/* Pricing Toggle */}
+                    <div className="flex justify-center mb-12">
+                        <div className="inline-flex bg-slate-900 p-1 rounded-xl border border-slate-800 relative">
+                            <button
+                                onClick={() => setBillingInterval('MONTHLY')}
+                                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${billingInterval === 'MONTHLY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Monthly
+                            </button>
+                            <button
+                                onClick={() => setBillingInterval('YEARLY')}
+                                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${billingInterval === 'YEARLY' ? 'bg-neon-green text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Yearly <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-current">SAVE 20%</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
                         {/* Starter */}
                         <div className="bg-slate-950 border border-slate-800 rounded-3xl p-8 flex flex-col relative overflow-hidden group hover:border-slate-600 transition-colors h-full">
@@ -298,70 +316,48 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                         </div>
 
                         {/* Plus */}
-                        {/* Pricing Toggle */}
-                        <div className="flex justify-center mb-12">
-                            <div className="inline-flex bg-slate-900 p-1 rounded-xl border border-slate-800 relative">
-                                <button
-                                    onClick={() => setBillingInterval('MONTHLY')}
-                                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${billingInterval === 'MONTHLY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    Monthly
-                                </button>
-                                <button
-                                    onClick={() => setBillingInterval('YEARLY')}
-                                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${billingInterval === 'YEARLY' ? 'bg-neon-green text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    Yearly <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-current">SAVE 20%</span>
-                                </button>
+                        <div className="bg-slate-950 border border-blue-900/50 rounded-3xl p-8 flex flex-col relative overflow-hidden group hover:border-blue-500 transition-colors shadow-lg shadow-blue-900/10 h-full transform md:-translate-y-4">
+                            <div className="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Value</div>
+                            <div className="mb-6">
+                                <span className="text-blue-400 font-mono text-xs uppercase font-bold tracking-wider">Plus</span>
+                                <div className="text-4xl font-black text-white mt-2 mb-1">
+                                    {billingInterval === 'MONTHLY' ? '$9.99' : '$99'}
+                                    <span className="text-lg font-normal text-slate-500">/{billingInterval === 'MONTHLY' ? 'mo' : 'yr'}</span>
+                                </div>
+                                <p className="text-slate-400 text-sm">For part-time flippers.</p>
                             </div>
+                            <ul className="space-y-4 mb-8 flex-1">
+                                <CheckItem text="30 AI Scans per day" color="text-blue-400" />
+                                <CheckItem text="Profit Calculator" color="text-blue-400" />
+                                <CheckItem text="Unlimited Inventory" color="text-blue-400" />
+                                <CheckItem text="Bulk Mode" crossed />
+                            </ul>
+                            <button onClick={onGetStarted} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20">Get Plus</button>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-center">
-                            {/* Plus */}
-                            <div className="bg-slate-950 border border-blue-900/50 rounded-3xl p-8 flex flex-col relative overflow-hidden group hover:border-blue-500 transition-colors shadow-lg shadow-blue-900/10 h-full transform md:-translate-y-4">
-                                <div className="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Value</div>
-                                <div className="mb-6">
-                                    <span className="text-blue-400 font-mono text-xs uppercase font-bold tracking-wider">Plus</span>
-                                    <div className="text-4xl font-black text-white mt-2 mb-1">
-                                        {billingInterval === 'MONTHLY' ? '$9.99' : '$99'}
-                                        <span className="text-lg font-normal text-slate-500">/{billingInterval === 'MONTHLY' ? 'mo' : 'yr'}</span>
-                                    </div>
-                                    <p className="text-slate-400 text-sm">For part-time flippers.</p>
+                        {/* Pro */}
+                        <div className="bg-slate-950 border-2 border-neon-green rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-[0_0_30px_rgba(57,255,20,0.15)] transform md:-translate-y-8 transition-transform duration-300 h-full">
+                            <div className="absolute top-0 right-0 bg-neon-green text-slate-950 text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Most Popular</div>
+                            <div className="mb-6">
+                                <span className="text-neon-green font-mono text-xs uppercase font-bold tracking-wider flex items-center gap-1"><Star size={12} fill="currentColor" /> Pro Reseller</span>
+                                <div className="text-4xl font-black text-white mt-2 mb-1">
+                                    {billingInterval === 'MONTHLY' ? '$29' : '$299'}
+                                    <span className="text-lg font-normal text-slate-500">/{billingInterval === 'MONTHLY' ? 'mo' : 'yr'}</span>
                                 </div>
-                                <ul className="space-y-4 mb-8 flex-1">
-                                    <CheckItem text="30 AI Scans per day" color="text-blue-400" />
-                                    <CheckItem text="Profit Calculator" color="text-blue-400" />
-                                    <CheckItem text="Unlimited Inventory" color="text-blue-400" />
-                                    <CheckItem text="Bulk Mode" crossed />
-                                </ul>
-                                <button onClick={onGetStarted} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20">Get Plus</button>
+                                <p className="text-slate-400 text-sm">For volume sellers.</p>
                             </div>
-
-                            {/* Pro */}
-                            <div className="bg-slate-950 border-2 border-neon-green rounded-3xl p-8 flex flex-col relative overflow-hidden shadow-[0_0_30px_rgba(57,255,20,0.15)] transform md:-translate-y-8 transition-transform duration-300 h-full">
-                                <div className="absolute top-0 right-0 bg-neon-green text-slate-950 text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Most Popular</div>
-                                <div className="mb-6">
-                                    <span className="text-neon-green font-mono text-xs uppercase font-bold tracking-wider flex items-center gap-1"><Star size={12} fill="currentColor" /> Pro Reseller</span>
-                                    <div className="text-4xl font-black text-white mt-2 mb-1">
-                                        {billingInterval === 'MONTHLY' ? '$29' : '$299'}
-                                        <span className="text-lg font-normal text-slate-500">/{billingInterval === 'MONTHLY' ? 'mo' : 'yr'}</span>
-                                    </div>
-                                    <p className="text-slate-400 text-sm">For volume sellers.</p>
-                                </div>
-                                <ul className="space-y-4 mb-8 flex-1">
-                                    <CheckItem text="Unlimited AI Scans" highlight />
-                                    <CheckItem text="Bulk 'Death Pile' Mode" highlight />
-                                    <CheckItem text="AI Listing Generator" highlight />
-                                    <CheckItem text="CSV Ledger Export" highlight />
-                                    <CheckItem text="Priority Support" highlight />
-                                </ul>
-                                <button onClick={onGetStarted} className="w-full py-3 bg-neon-green text-slate-950 font-black rounded-xl hover:bg-neon-green/90 transition-colors shadow-lg shadow-neon-green/20">Upgrade Now</button>
-                            </div>
+                            <ul className="space-y-4 mb-8 flex-1">
+                                <CheckItem text="Unlimited AI Scans" highlight />
+                                <CheckItem text="Bulk 'Death Pile' Mode" highlight />
+                                <CheckItem text="AI Listing Generator" highlight />
+                                <CheckItem text="CSV Ledger Export" highlight />
+                                <CheckItem text="Priority Support" highlight />
+                            </ul>
+                            <button onClick={onGetStarted} className="w-full py-3 bg-neon-green text-slate-950 font-black rounded-xl hover:bg-neon-green/90 transition-colors shadow-lg shadow-neon-green/20">Upgrade Now</button>
                         </div>
                     </div>
                 </div>
             </div>
-
             {/* Footer CTA */}
             <div className="p-8 pb-16 text-center max-w-2xl mx-auto relative z-10">
                 <h3 className="text-3xl font-bold text-white mb-6">Ready to clear the pile?</h3>
@@ -383,7 +379,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
     perspective: 1000px;
 }
 `}</style>
-        </div>
+        </div >
     );
 };
 
