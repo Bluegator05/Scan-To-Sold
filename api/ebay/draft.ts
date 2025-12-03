@@ -392,7 +392,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ${pictureDetailsBlock}
             ${specificsXml}
             <ShippingPackageDetails>
-                <ShippingPackage>${(dimL > 0 || dimW > 0 || dimH > 0) ? 'Package' : 'PackageThickEnvelope'}</ShippingPackage>
+                <ShippingPackage>PackageThickEnvelope</ShippingPackage>
                 <WeightMajor unit="lbs">${major}</WeightMajor>
                 <WeightMinor unit="oz">${minor}</WeightMinor>
                 ${dimL > 0 ? `<PackageLength unit="in">${dimL}</PackageLength>` : ''}

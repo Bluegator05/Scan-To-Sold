@@ -806,7 +806,13 @@ function App() {
 
             // Update editing item with new weight and dims
             const newWeight = analysis.estimatedWeight || "";
-            const newDims = analysis.estimatedDimensions || "";
+            let newDims = analysis.estimatedDimensions;
+            let dimMsg = newDims;
+
+            if (!newDims) {
+                newDims = "12 x 10 x 8";
+                dimMsg = "12 x 10 x 8 (Defaulted - AI Unsure)";
+            }
 
             setEditingItem(prev => prev ? ({
                 ...prev,
@@ -814,7 +820,7 @@ function App() {
                 dimensions: newDims
             }) : null);
 
-            alert(`Estimated: ${newWeight} | ${newDims || "No Dims Found"}`);
+            alert(`Estimated: ${newWeight} | ${dimMsg}`);
         } catch (e) {
             console.error("Weight estimation failed:", e);
             alert("Failed to estimate weight/dims. Please try again.");
