@@ -24,6 +24,9 @@ import {
     fetchStorageUnits, addStorageUnit, updateStorageUnit, deleteStorageUnit, batchUpdateUnitItemCosts,
     logScanEvent
 } from './services/databaseService';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 import { Camera, LayoutDashboard, Package, Settings, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Search as SearchIcon, Upload, Layers, Mic, MicOff, Sun, Moon, ScanLine, Filter, Calendar, RefreshCw, Tag, Wand2, Warehouse, MapPin, DollarSign, ChevronDown as ChevronDownIcon, ChevronUp, Box, Barcode, Globe2, Maximize2, Folder, List as ListIcon, AlertTriangle, Eye, Truck, ShieldCheck, CreditCard, Loader2, ShoppingCart, ExternalLink, BarChart3, HelpCircle, Facebook, ShieldAlert, Zap, Globe, Download, Link as LinkIcon, Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight, Copy } from 'lucide-react';
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -1064,6 +1067,85 @@ function App() {
                             </button>
                             <button onClick={() => { setIsUnitModalOpen(true); setUnitForm({ id: '', storeNumber: '', address: '', cost: '', imageUrl: '' }); }} className="p-2 bg-emerald-100 dark:bg-neon-green/20 text-emerald-700 dark:text-neon-green rounded-lg hover:bg-emerald-200 dark:hover:bg-neon-green/30 border border-emerald-200 dark:border-neon-green/30">
                                 <Plus size={18} />
+                            </button>
+                            <button onClick={async () => {
+                                try {
+                                    const csvContent = [
+                                        ['Date Scanned', 'Title', 'Status', 'Sold Price', 'Item Cost', 'Shipping Cost', 'Fees', 'Net Profit', 'Storage Unit', 'Cost Code'].join(','),
+                                        ...inventory.map(item => [
+                                            new Date(item.dateScanned).toLocaleDateString(),
+                                            `"${item.title.replace(/"/g, '""')}"`,
+                                            item.status,
+                                            item.calculation.soldPrice.toFixed(2),
+                                            item.calculation.itemCost.toFixed(2),
+                                            item.calculation.shippingCost.toFixed(2),
+                                            item.calculation.platformFees.toFixed(2),
+                                            item.calculation.netProfit.toFixed(2),
+                                            item.storageUnitId,
+                                            item.costCode
+                                        ].join(','))
+                                    ].join('\n');
+
+                                    const fileName = `inventory_export_${new Date().toISOString().split('T')[0]}.csv`;
+                                    const file = new File([csvContent], fileName, { type: 'text/csv' });
+
+                                    // 1. Try Web Share API (Works on iOS 15+)
+                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                        try {
+                                            await navigator.share({
+                                                files: [file],
+                                                title: 'Export Inventory',
+                                            });
+                                            return; // Success!
+                                        } catch (shareErr) {
+                                            console.warn("Web Share failed", shareErr);
+                                        }
+                                    }
+
+                                    // 2. Try Native Capacitor Plugin (if installed)
+                                    if (Capacitor.isNativePlatform()) {
+                                        try {
+                                            const result = await Filesystem.writeFile({
+                                                path: fileName,
+                                                data: csvContent,
+                                                directory: Directory.Documents,
+                                                encoding: Encoding.UTF8
+                                            });
+
+                                            await Share.share({
+                                                title: 'Export Inventory',
+                                                text: 'Here is your inventory export.',
+                                                url: result.uri,
+                                                dialogTitle: 'Export Inventory CSV'
+                                            });
+                                        } catch (nativeErr: any) {
+                                            console.error("Native export failed", nativeErr);
+
+                                            // 3. Fallback to Clipboard
+                                            try {
+                                                await navigator.clipboard.writeText(csvContent);
+                                                alert("Could not save file (System missing CocoaPods).\n\nFALLBACK: CSV data copied to Clipboard!");
+                                            } catch (clipErr) {
+                                                alert(`Export failed completely: ${nativeErr.message}`);
+                                            }
+                                        }
+                                    } else {
+                                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                        const link = document.createElement('a');
+                                        const url = URL.createObjectURL(blob);
+                                        link.setAttribute('href', url);
+                                        link.setAttribute('download', fileName);
+                                        link.style.visibility = 'hidden';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }
+                                } catch (e) {
+                                    console.error("Export failed", e);
+                                    alert("Export failed. Please try again.");
+                                }
+                            }} className="p-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-900/30">
+                                <Download size={18} />
                             </button>
                         </div>
                     </div>

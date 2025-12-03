@@ -5,20 +5,19 @@ import { SubscriptionStatus, SubscriptionTier } from "../types";
 
 // --- CONFIGURATION ---
 
-// 1. LINK FOR PRO TIER ($29/mo)
-// This is your existing link.
-export const STRIPE_PAYMENT_LINK_PRO = "https://buy.stripe.com/test_9B63cu9A1b9k19L1En8so00"; 
+// 1. LINKS FOR PRO TIER ($29/mo or $299/yr)
+export const STRIPE_PAYMENT_LINK_PRO_MONTHLY = "https://buy.stripe.com/test_9B63cu9A1b9k19L1En8so00";
+export const STRIPE_PAYMENT_LINK_PRO_YEARLY = ""; // ACTION: Paste Yearly Link Here
 
-// 2. LINK FOR PLUS TIER ($9.99/mo)
-// ACTION REQUIRED: Paste your $9.99 Stripe Payment Link below.
-// It should look like: "https://buy.stripe.com/..."
-export const STRIPE_PAYMENT_LINK_PLUS = "https://buy.stripe.com/cNicN427U3b617ecjC1ck01"; 
+// 2. LINKS FOR PLUS TIER ($9.99/mo or $99/yr)
+export const STRIPE_PAYMENT_LINK_PLUS_MONTHLY = "https://buy.stripe.com/cNicN427U3b617ecjC1ck01";
+export const STRIPE_PAYMENT_LINK_PLUS_YEARLY = ""; // ACTION: Paste Yearly Link Here
 
 // ---------------------
 
 // OPTION 2: ADVANCED (Edge Function API)
 // Only required if you are NOT using Payment Links above.
-const STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_WITH_YOUR_KEY"; 
+const STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_WITH_YOUR_KEY";
 const PRICE_ID_PRO = "price_REPLACE_WITH_PRO_ID";
 const PRICE_ID_PLUS = "price_REPLACE_WITH_PLUS_ID";
 
@@ -73,7 +72,7 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
     }
 
     const tier = (data.tier as SubscriptionTier) || 'FREE';
-    
+
     let maxScans = 3;
     if (tier === 'PLUS') maxScans = 30;
     if (tier === 'PRO') maxScans = Infinity;
@@ -92,16 +91,22 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
 };
 
 // Handles the logic to send user to Stripe
-export const startStripeCheckout = async (userId: string, email: string, tier: 'PLUS' | 'PRO') => {
+export const startStripeCheckout = async (userId: string, email: string, tier: 'PLUS' | 'PRO', interval: 'MONTHLY' | 'YEARLY' = 'MONTHLY') => {
   try {
     // METHOD A: Payment Link (No-Code / Low-Code)
-    const linkToUse = tier === 'PRO' ? STRIPE_PAYMENT_LINK_PRO : STRIPE_PAYMENT_LINK_PLUS;
+    let linkToUse = '';
+
+    if (tier === 'PRO') {
+      linkToUse = interval === 'YEARLY' ? STRIPE_PAYMENT_LINK_PRO_YEARLY : STRIPE_PAYMENT_LINK_PRO_MONTHLY;
+    } else {
+      linkToUse = interval === 'YEARLY' ? STRIPE_PAYMENT_LINK_PLUS_YEARLY : STRIPE_PAYMENT_LINK_PLUS_MONTHLY;
+    }
 
     if (linkToUse && linkToUse.startsWith('http') && !linkToUse.includes('REPLACE_WITH')) {
       // We append client_reference_id so Stripe knows WHO paid (via webhook later)
       const separator = linkToUse.includes('?') ? '&' : '?';
       const checkoutUrl = `${linkToUse}${separator}client_reference_id=${userId}&prefilled_email=${encodeURIComponent(email)}`;
-      
+
       window.location.href = checkoutUrl;
       return true;
     }
@@ -115,11 +120,11 @@ export const startStripeCheckout = async (userId: string, email: string, tier: '
 
     // Call Supabase Edge Function 'checkout'
     const { data, error } = await supabase.functions.invoke('checkout', {
-      body: { 
-        price_id: priceId, 
+      body: {
+        price_id: priceId,
         user_id: userId,
         email: email,
-        return_url: window.location.origin 
+        return_url: window.location.origin
       }
     });
 
@@ -143,7 +148,7 @@ export const openCustomerPortal = async () => {
     const { data, error } = await supabase.functions.invoke('portal', {
       body: { return_url: window.location.origin }
     });
-    
+
     if (error) throw error;
     if (data?.url) window.location.href = data.url;
   } catch (e) {
