@@ -1332,7 +1332,7 @@ function App() {
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">DAILY GOAL</span>
                         <div className="flex items-center gap-3">
                             <span className="w-3 h-3 bg-neon-green rounded-full animate-pulse shadow-[0_0_10px_#39ff14]"></span>
-                            <span className="text-3xl font-black text-white tracking-tight">{listedTodayCount} Listed</span>
+                            <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{listedTodayCount} Listed</span>
                         </div>
                     </div>
 
