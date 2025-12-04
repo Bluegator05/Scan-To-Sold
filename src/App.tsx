@@ -1928,7 +1928,7 @@ function App() {
 
             {/* Loading Overlay */}
             {loadingMessage && (
-                <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full text-center">
                         <div className="relative">
                             <div className="w-16 h-16 border-4 border-slate-700 border-t-neon-green rounded-full animate-spin"></div>
