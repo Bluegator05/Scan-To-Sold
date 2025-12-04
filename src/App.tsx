@@ -1328,7 +1328,7 @@ function App() {
                     </div>
 
                     {/* Daily Progress Badge - Moved into flow to prevent overlap */}
-                    <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl px-6 py-3 flex flex-col items-center gap-1 shadow-2xl animate-in slide-in-from-top-4 duration-700 mt-10">
+                    <div className="glass-panel rounded-2xl px-6 py-3 flex flex-col items-center gap-1 animate-in slide-in-from-top-4 duration-700 mt-10">
                         <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">DAILY GOAL</span>
                         <div className="flex items-center gap-3">
                             <span className="w-3 h-3 bg-neon-green rounded-full animate-pulse shadow-[0_0_10px_#39ff14]"></span>
@@ -1337,14 +1337,14 @@ function App() {
                     </div>
 
                     {/* Mode Toggle */}
-                    <div className="flex bg-gray-200 dark:bg-slate-800 p-1 rounded-xl mb-2 shadow-inner">
+                    <div className="flex glass-panel p-1 rounded-xl mb-2">
                         <button onClick={() => setScanMode('AI')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${scanMode === 'AI' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-neon-green' : 'text-slate-500 dark:text-slate-400'}`}><Zap size={14} fill={scanMode === 'AI' ? 'currentColor' : 'none'} /> AI Premium</button>
                         <button onClick={() => setScanMode('LENS')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${scanMode === 'LENS' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-500 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'}`}><Globe size={14} /> Free Search</button>
                     </div>
 
                     <div className="relative group cursor-pointer" onClick={handleStartScan}>
                         <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-500 ${scanMode === 'AI' ? 'bg-emerald-500/20 dark:bg-neon-green/20 group-hover:bg-emerald-500/30 dark:group-hover:bg-neon-green/30' : 'bg-blue-500/20 dark:bg-blue-400/20 group-hover:bg-blue-500/30 dark:group-hover:bg-blue-400/30'}`}></div>
-                        <div className={`w-40 h-40 rounded-full bg-white dark:bg-slate-900 border-4 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.1)] dark:shadow-[0_0_50px_rgba(57,255,20,0.1)] relative z-10 group-hover:scale-105 transition-transform duration-300 ${scanMode === 'AI' ? 'border-gray-200 dark:border-slate-800 group-hover:border-emerald-500/50 dark:group-hover:border-neon-green/50' : 'border-blue-200 dark:border-blue-900 group-hover:border-blue-500/50'}`}>
+                        <div className={`w-40 h-40 rounded-full glass-orb flex flex-col items-center justify-center relative z-10 group-hover:scale-105 transition-transform duration-300 ${scanMode === 'AI' ? 'border-emerald-500/30' : 'border-blue-500/30'}`}>
                             <div className="absolute inset-2 border border-gray-200 dark:border-slate-700 rounded-full border-dashed animate-[spin_10s_linear_infinite] opacity-50"></div>
                             {scanMode === 'AI' ? (<Aperture size={64} className="text-neon-green drop-shadow-[0_0_15px_rgba(57,255,20,0.5)] mb-1" />) : (<CameraIcon size={64} className="text-blue-500 dark:text-blue-400 drop-shadow-md mb-1" />)}
                             <div className={`text-[10px] font-bold tracking-widest opacity-80 ${scanMode === 'AI' ? 'text-emerald-600 dark:text-neon-green' : 'text-blue-600 dark:text-blue-400'}`}>{scanMode === 'AI' ? 'START SCAN' : 'OPEN CAMERA'}</div>
@@ -1369,7 +1369,7 @@ function App() {
 
                     <div className="flex flex-col w-full max-w-xs gap-4 relative z-10">
                         <div className="flex gap-2">
-                            <input ref={scoutInputRef} type="text" value={manualQuery} onChange={(e) => setManualQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()} placeholder="Manual Lookup (Name or UPC)" className="flex-1 bg-white dark:bg-slate-900/80 border border-gray-200 dark:border-slate-700 rounded-xl px-4 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green placeholder-slate-400 dark:placeholder-slate-600 h-12 shadow-sm" />
+                            <input ref={scoutInputRef} type="text" value={manualQuery} onChange={(e) => setManualQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()} placeholder="Manual Lookup (Name or UPC)" className="flex-1 glass-panel rounded-xl px-4 text-sm text-white focus:outline-none focus:border-neon-green placeholder-slate-400 h-12" />
                             <button onClick={handleManualSearch} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-neon-green text-slate-900 dark:text-white w-12 rounded-xl flex items-center justify-center shadow-sm"><SearchIcon size={20} /></button>
                             <div className="relative">
                                 <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -1394,7 +1394,7 @@ function App() {
                             {storageUnits.map(unit => {
                                 const stats = getUnitStats(unit.storeNumber, unit.cost);
                                 return (
-                                    <div key={unit.id} onClick={() => setActiveUnit(unit.storeNumber)} className={`bg-white dark:bg-slate-900 border ${activeUnit === unit.storeNumber ? 'border-emerald-500 dark:border-neon-green shadow-sm' : 'border-gray-200 dark:border-slate-800'} rounded-xl p-3 cursor-pointer transition-all hover:scale-[1.02]`}>
+                                    <div key={unit.id} onClick={() => setActiveUnit(unit.storeNumber)} className={`glass-panel rounded-xl p-3 cursor-pointer transition-all hover:scale-[1.02] ${activeUnit === unit.storeNumber ? 'border-neon-green/50 shadow-[0_0_15px_rgba(57,255,20,0.1)]' : ''}`}>
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">

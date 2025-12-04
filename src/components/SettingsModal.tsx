@@ -105,10 +105,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="glass-panel rounded-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden">
 
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-transparent">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <UserIcon className="text-slate-400" size={20} /> Settings
           </h3>
@@ -122,7 +122,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
           {/* Account Info */}
           <div className="space-y-2">
             <label className="text-xs font-mono text-slate-500 uppercase tracking-widest">Account</label>
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center gap-4">
+            <div className="glass-panel p-4 rounded-xl flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300">
                 <span className="font-bold text-lg">{user?.email?.charAt(0).toUpperCase()}</span>
               </div>
@@ -143,7 +143,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
                 </button>
               )}
             </div>
-            <div className={`p-4 rounded-xl border flex justify-between items-center ${subscription.tier === 'PRO' ? 'bg-slate-800/50 border-neon-green/30' : 'bg-slate-800 border-slate-700'}`}>
+            <div className={`p-4 rounded-xl border flex justify-between items-center glass-panel ${subscription.tier === 'PRO' ? 'border-neon-green/30' : 'border-white/10'}`}>
               <div className="flex items-center gap-3">
                 <Shield size={20} className={subscription.tier === 'PRO' ? 'text-neon-green' : 'text-slate-400'} />
                 <div>
@@ -161,7 +161,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
             <label className="text-xs font-mono text-slate-500 uppercase tracking-widest">App Mode</label>
             <button
               onClick={() => { onClose(); onSwitchToLiteMode(); }}
-              className="w-full bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between hover:bg-slate-700 transition-colors group"
+              className="w-full glass-panel p-4 rounded-xl flex items-center justify-between hover:bg-white/5 transition-colors group"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-neon-green/10 flex items-center justify-center text-neon-green group-hover:scale-110 transition-transform">
@@ -179,7 +179,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
           {/* Listing Defaults */}
           <div className="space-y-2">
             <label className="text-xs font-mono text-slate-500 uppercase tracking-widest">Listing Defaults</label>
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div className="glass-panel p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <MapPin size={20} className="text-slate-400" />
                 <div className="flex-1">
@@ -193,7 +193,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
                   value={defaultZip}
                   onChange={(e) => setDefaultZip(e.target.value)}
                   placeholder="e.g. 76028"
-                  className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon-green"
+                  className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-neon-green"
                 />
                 <button onClick={handleSaveZip} className="bg-slate-700 hover:bg-slate-600 text-white px-3 rounded-lg"><Save size={16} /></button>
               </div>
