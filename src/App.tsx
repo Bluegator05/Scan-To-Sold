@@ -8,6 +8,7 @@ import StatsView from './components/StatsView';
 import CompsModal from './components/CompsModal';
 import PreviewModal from './components/PreviewModal';
 import HelpModal from './components/HelpModal';
+import OnboardingTour from './components/OnboardingTour';
 import DisclaimerModal from './components/DisclaimerModal';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import Logo from './components/Logo';
@@ -27,7 +28,7 @@ import {
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
-import { Camera, LayoutDashboard, Package, Settings, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Search as SearchIcon, Upload, Layers, Mic, MicOff, Sun, Moon, ScanLine, Filter, Calendar, RefreshCw, Tag, Wand2, Warehouse, MapPin, DollarSign, ChevronDown as ChevronDownIcon, ChevronUp, Box, Barcode, Globe2, Maximize2, Folder, List as ListIcon, AlertTriangle, Eye, Truck, ShieldCheck, CreditCard, Loader2, ShoppingCart, ExternalLink, BarChart3, HelpCircle, Facebook, ShieldAlert, Zap, Globe, Download, Link as LinkIcon, Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight, Copy } from 'lucide-react';
+import { Camera, LayoutDashboard, Package, Settings, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Search as SearchIcon, Upload, Layers, Mic, MicOff, Sun, Moon, ScanLine, Filter, Calendar, RefreshCw, Tag, Wand2, Warehouse, MapPin, DollarSign, ChevronDown as ChevronDownIcon, ChevronUp, Box, Barcode, Globe2, Maximize2, Folder, List as ListIcon, AlertTriangle, Eye, Aperture, Truck, ShieldCheck, CreditCard, Loader2, ShoppingCart, ExternalLink, BarChart3, HelpCircle, Facebook, ShieldAlert, Zap, Globe, Download, Link as LinkIcon, Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight, Copy } from 'lucide-react';
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -99,10 +100,25 @@ function App() {
     const [isPricingOpen, setIsPricingOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [bulkSessionCount, setBulkSessionCount] = useState(0);
+
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('sts_has_seen_onboarding');
+        if (!hasSeen && user) {
+            setShowOnboarding(true);
+        }
+    }, [user]);
+
+
+    const handleCompleteOnboarding = () => {
+        localStorage.setItem('sts_has_seen_onboarding', 'true');
+        setShowOnboarding(false);
+    };
     const [isCompsOpen, setIsCompsOpen] = useState(false);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
-    const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
     const [showTos, setShowTos] = useState(false);
 
@@ -516,6 +532,64 @@ function App() {
                 });
             }
             setStatus(ScoutStatus.IDLE);
+            return;
+        }
+
+        // BULK / DEATH PILE MODE LOGIC
+        if (isBulkMode) {
+            // 1. Create Draft Item (Optimistic)
+            const tempId = crypto.randomUUID();
+            const bulkItem: InventoryItem = {
+                id: tempId,
+                userId: user?.id || 'offline',
+                title: `Death Pile Item ${new Date().toLocaleTimeString()}`,
+                description: "Scanned in Bulk Mode. Needs analysis.",
+                status: 'DRAFT',
+                dateScanned: new Date().toISOString(),
+                imageUrl: compressed, // Use local base64 immediately
+                images: [],
+                additionalImages: [],
+                costCode: '',
+                storageUnitId: activeUnit,
+                calculation: {
+                    soldPrice: 0,
+                    shippingCost: 0,
+                    itemCost: 0,
+                    platformFees: 0,
+                    netProfit: 0,
+                    roi: 0
+                },
+                itemSpecifics: ensureDefaultSpecifics({}),
+                listingUrl: '',
+                quantity: 1,
+                condition: 'USED'
+            };
+
+            // 2. Update UI Immediately
+            setInventory(prev => [bulkItem, ...prev]);
+            setBulkSessionCount(prev => prev + 1);
+            // DO NOT RESET STATUS - Keep Scanner Open!
+
+            // 3. Background Upload & Save (Fire-and-forget)
+            if (user) {
+                (async () => {
+                    try {
+                        // Upload Image
+                        const uploadedUrl = await uploadScanImage(user.id, compressed);
+
+                        // Update Item with real URL
+                        const finalItem = { ...bulkItem, imageUrl: uploadedUrl || bulkItem.imageUrl };
+
+                        // Save to DB
+                        await addInventoryItem(finalItem, user.id);
+
+                        // Update local state with confirmed save (optional, but good for consistency)
+                        setInventory(prev => prev.map(i => i.id === tempId ? finalItem : i));
+                    } catch (e) {
+                        console.error("Background save failed for bulk item", e);
+                    }
+                })();
+            }
             return;
         }
 
@@ -948,6 +1022,65 @@ function App() {
         }
     };
 
+    const handleAnalyzeDraft = async () => {
+        if (!editingItem || !editingItem.imageUrl) return;
+
+        setLoadingMessage("Analyzing Draft...");
+
+        try {
+            let base64Image = editingItem.imageUrl;
+
+            // If it's a remote URL, fetch and convert to Base64
+            if (editingItem.imageUrl.startsWith('http')) {
+                try {
+                    const response = await fetch(editingItem.imageUrl);
+                    const blob = await response.blob();
+                    base64Image = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch (fetchErr) {
+                    console.error("Failed to fetch image for analysis", fetchErr);
+                    alert("Could not download image for analysis. Please try again.");
+                    setLoadingMessage("");
+                    return;
+                }
+            }
+
+            const result = await analyzeItemImage(base64Image);
+
+            setEditingItem(prev => {
+                if (!prev) return null;
+
+                // Merge Item Specifics
+                const newSpecifics = { ...ensureDefaultSpecifics(result.itemSpecifics) };
+                if (result.estimatedWeight) newSpecifics.Weight = result.estimatedWeight;
+
+                return {
+                    ...prev,
+                    title: result.itemTitle,
+                    description: result.description,
+                    itemSpecifics: newSpecifics,
+                    dimensions: result.estimatedDimensions || prev.dimensions,
+                    calculation: {
+                        ...prev.calculation,
+                        soldPrice: result.estimatedSoldPrice,
+                        shippingCost: result.estimatedShippingCost,
+                        itemCost: prev.calculation.itemCost,
+                        netProfit: result.estimatedSoldPrice - result.estimatedShippingCost - prev.calculation.itemCost - (result.estimatedSoldPrice * 0.1325)
+                    }
+                };
+            });
+            setLoadingMessage(""); // Clear loading
+            alert("Analysis Complete! Updated Title, Price, Weight, Dimensions, and Specifics.");
+        } catch (e) {
+            console.error("Draft analysis failed", e);
+            setLoadingMessage("");
+            alert("Analysis failed. Please try again.");
+        }
+    };
+
     const handleSaveUnit = async () => {
         if (!user || !unitForm.storeNumber) return;
         try {
@@ -1211,10 +1344,10 @@ function App() {
 
                     <div className="relative group cursor-pointer" onClick={handleStartScan}>
                         <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-500 ${scanMode === 'AI' ? 'bg-emerald-500/20 dark:bg-neon-green/20 group-hover:bg-emerald-500/30 dark:group-hover:bg-neon-green/30' : 'bg-blue-500/20 dark:bg-blue-400/20 group-hover:bg-blue-500/30 dark:group-hover:bg-blue-400/30'}`}></div>
-                        <div className={`w-40 h-40 rounded-full bg-white dark:bg-slate-900 border-4 flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.1)] dark:shadow-[0_0_50px_rgba(57,255,20,0.1)] relative z-10 group-hover:scale-105 transition-transform duration-300 ${scanMode === 'AI' ? 'border-gray-200 dark:border-slate-800 group-hover:border-emerald-500/50 dark:group-hover:border-neon-green/50' : 'border-blue-200 dark:border-blue-900 group-hover:border-blue-500/50'}`}>
+                        <div className={`w-40 h-40 rounded-full bg-white dark:bg-slate-900 border-4 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.1)] dark:shadow-[0_0_50px_rgba(57,255,20,0.1)] relative z-10 group-hover:scale-105 transition-transform duration-300 ${scanMode === 'AI' ? 'border-gray-200 dark:border-slate-800 group-hover:border-emerald-500/50 dark:group-hover:border-neon-green/50' : 'border-blue-200 dark:border-blue-900 group-hover:border-blue-500/50'}`}>
                             <div className="absolute inset-2 border border-gray-200 dark:border-slate-700 rounded-full border-dashed animate-[spin_10s_linear_infinite] opacity-50"></div>
-                            {scanMode === 'AI' ? (<Logo className="w-20 h-20 drop-shadow-[0_0_15px_rgba(57,255,20,0.5)]" />) : (<CameraIcon size={64} className="text-blue-500 dark:text-blue-400 drop-shadow-md" />)}
-                            <div className={`absolute bottom-8 text-[10px] font-bold tracking-widest opacity-80 ${scanMode === 'AI' ? 'text-emerald-600 dark:text-neon-green' : 'text-blue-600 dark:text-blue-400'}`}>{scanMode === 'AI' ? 'START SCAN' : 'OPEN CAMERA'}</div>
+                            {scanMode === 'AI' ? (<Aperture size={64} className="text-neon-green drop-shadow-[0_0_15px_rgba(57,255,20,0.5)] mb-1" />) : (<CameraIcon size={64} className="text-blue-500 dark:text-blue-400 drop-shadow-md mb-1" />)}
+                            <div className={`text-[10px] font-bold tracking-widest opacity-80 ${scanMode === 'AI' ? 'text-emerald-600 dark:text-neon-green' : 'text-blue-600 dark:text-blue-400'}`}>{scanMode === 'AI' ? 'START SCAN' : 'OPEN CAMERA'}</div>
                         </div>
                     </div>
 
@@ -1477,9 +1610,10 @@ function App() {
             <SettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
-                onOpenPricing={() => setIsPricingOpen(true)}
-                onOpenFeedback={() => setIsFeedbackOpen(true)}
-                onOpenPrivacy={() => setIsPrivacyOpen(true)}
+                onOpenPricing={() => { setIsSettingsOpen(false); setIsPricingOpen(true); }}
+                onOpenFeedback={() => { setIsSettingsOpen(false); setIsFeedbackOpen(true); }}
+                onOpenPrivacy={() => { setIsSettingsOpen(false); setIsPrivacyOpen(true); }}
+                onOpenHelp={() => { setIsSettingsOpen(false); setIsHelpOpen(true); }}
                 onConnectionChange={(connected) => {
                     setEbayConnected(connected);
                     if (connected && user) loadEbayPolicies(user.id);
@@ -1626,7 +1760,7 @@ function App() {
                                 <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
                                     <img src={editingItem.imageUrl} className="w-full h-full object-cover" />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                        <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="View"><Eye size={14} /></button>
                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(0); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
                                     </div>
                                 </div>
@@ -1649,7 +1783,14 @@ function App() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <div className="flex justify-between items-center mb-1"><label className="text-xs font-mono uppercase text-slate-500">Title</label><div className="flex gap-2"><button onClick={handleOptimizeTitle} className="text-xs flex items-center gap-1 text-blue-500 font-bold hover:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize</button><button onClick={() => toggleRecording('title')} className={`text-xs ${isRecording === 'title' ? 'text-red-500 animate-pulse' : ''}`}><Mic size={14} /></button></div></div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-xs font-mono uppercase text-slate-500">Title</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={handleAnalyzeDraft} className="text-xs flex items-center gap-1 text-slate-950 font-bold hover:bg-neon-green/90 bg-neon-green px-2 py-0.5 rounded transition-all shadow-sm"><Wand2 size={12} /> Analyze Image</button>
+                                            <button onClick={handleOptimizeTitle} className="text-xs flex items-center gap-1 text-blue-500 font-bold hover:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize Text</button>
+                                            <button onClick={() => toggleRecording('title')} className={`text-xs ${isRecording === 'title' ? 'text-red-500 animate-pulse' : ''}`}><Mic size={14} /></button>
+                                        </div>
+                                    </div>
                                     <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-24 resize-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all" />
                                 </div>
 
@@ -1657,7 +1798,10 @@ function App() {
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
                                         <label className="text-xs font-mono uppercase text-slate-500">Item Specifics</label>
-                                        <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 hover:underline font-bold flex items-center gap-1">+ Add</button>
+                                        <div className="flex gap-3">
+                                            <button onClick={handleAnalyzeDraft} className="text-[10px] text-neon-green hover:underline font-bold flex items-center gap-1"><Wand2 size={10} /> Auto-Fill (AI)</button>
+                                            <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 hover:underline font-bold flex items-center gap-1">+ Add</button>
+                                        </div>
                                     </div>
                                     <div className="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-800 space-y-2 max-h-48 overflow-y-auto">
                                         {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
@@ -1776,11 +1920,30 @@ function App() {
             {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
 
             <main className="flex-1 relative overflow-hidden flex flex-col">
-                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => setStatus(ScoutStatus.IDLE)} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
+                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
             </main>
 
             {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
-        </div >
+            {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
+
+            {/* Loading Overlay */}
+            {loadingMessage && (
+                <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full text-center">
+                        <div className="relative">
+                            <div className="w-16 h-16 border-4 border-slate-700 border-t-neon-green rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Zap size={24} className="text-neon-green animate-pulse" />
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white mb-1">AI Working...</h3>
+                            <p className="text-slate-400 text-sm">{loadingMessage}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 

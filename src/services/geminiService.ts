@@ -88,6 +88,10 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
           10. EXTRACT ITEM SPECIFICS:
              - Identify Brand, Model, MPN (Manufacturer Part Number), UPC (if visible), Type, and Country of Manufacture.
              - Return as an object 'itemSpecifics'. Use "Unbranded" or "Unknown" if not found.
+          11. WRITE A SELLING DESCRIPTION:
+             - Write a professional, persuasive eBay description (approx 50-75 words).
+             - Highlight key features, condition, and any flaws visible.
+             - Use bullet points or clear sentences.
     
           Output JSON (Do not add markdown formatting):
           {
@@ -99,7 +103,6 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
             "estimatedWeight": "string",
             "estimatedDimensions": "string",
             "dimensionReasoning": "string",
-            "marketDemand": "HIGH" | "MEDIUM" | "LOW",
             "marketDemand": "HIGH" | "MEDIUM" | "LOW",
             "itemSpecifics": {
                 "Brand": "string",

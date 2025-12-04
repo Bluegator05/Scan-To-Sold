@@ -6,9 +6,10 @@ import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/
 interface ScannerProps {
   onCapture: (imageData: string, barcode?: string) => void;
   onClose: () => void;
+  bulkSessionCount?: number;
 }
 
-const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose }) => {
+const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount = 0 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -201,6 +202,12 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose }) => {
               {detectedBarcode ? 'TARGET LOCKED' : (autoScanEnabled ? 'SCANNING UPC...' : 'PHOTO MODE')}
             </h2>
           </div>
+          {bulkSessionCount > 0 && (
+            <div className="mt-2 bg-purple-500/20 border border-purple-500/50 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              <span className="text-purple-200 font-mono text-xs font-bold">{bulkSessionCount} ITEMS SCANNED</span>
+            </div>
+          )}
 
           {/* Toggle Switch */}
           <button
@@ -219,8 +226,8 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose }) => {
               {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
             </button>
           )}
-          <button onClick={onClose} className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-slate-700 border border-white/10">
-            <X size={24} />
+          <button onClick={onClose} className={`p-3 backdrop-blur-md rounded-full text-white hover:bg-slate-700 border border-white/10 ${bulkSessionCount > 0 ? 'bg-neon-green text-slate-950 font-bold px-6' : 'bg-black/40'}`}>
+            {bulkSessionCount > 0 ? "DONE" : <X size={24} />}
           </button>
         </div>
       </div>

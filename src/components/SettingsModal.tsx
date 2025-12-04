@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, LogOut, Check, AlertTriangle, User as UserIcon, Shield, CreditCard, MessageSquare, Link as LinkIcon, ExternalLink, Loader2, MapPin, Save, FileText } from 'lucide-react';
+import { X, Lock, LogOut, Check, AlertTriangle, User as UserIcon, Shield, CreditCard, MessageSquare, Link as LinkIcon, ExternalLink, Loader2, MapPin, Save, FileText, HelpCircle, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isEbayConnected, connectEbayAccount, disconnectEbayAccount, checkEbayConnection } from '../services/ebayService';
 import { App } from '@capacitor/app';
@@ -10,11 +10,12 @@ interface SettingsModalProps {
   onOpenPricing: () => void;
   onOpenFeedback: () => void;
   onOpenPrivacy: () => void;
+  onOpenHelp: () => void;
   onConnectionChange?: (connected: boolean) => void;
   onSwitchToLiteMode: () => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPricing, onOpenFeedback, onOpenPrivacy, onConnectionChange, onSwitchToLiteMode }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPricing, onOpenFeedback, onOpenPrivacy, onOpenHelp, onConnectionChange, onSwitchToLiteMode }) => {
   const { user, signOut, updatePassword, subscription } = useAuth();
 
   const [newPassword, setNewPassword] = useState('');
@@ -250,6 +251,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
           {/* Feedback Button */}
           <div className="space-y-2">
             <label className="text-xs font-mono text-slate-500 uppercase tracking-widest">Support</label>
+            <button
+              onClick={() => { onClose(); onOpenHelp(); }}
+              className="w-full flex items-center justify-between p-4 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors group border border-slate-700"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                  <HelpCircle size={20} />
+                </div>
+                <div className="text-left">
+                  <div className="font-bold text-white">Help & Instructions</div>
+                  <div className="text-xs text-slate-400">Guides, FAQs, and Tips</div>
+                </div>
+              </div>
+              <ChevronRight size={20} className="text-slate-500 group-hover:text-white transition-colors" />
+            </button>
+
             <button
               onClick={() => { onClose(); onOpenFeedback(); }}
               className="w-full p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:border-slate-500 transition-all flex items-center justify-between text-left group"
