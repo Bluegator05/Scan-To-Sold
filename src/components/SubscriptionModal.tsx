@@ -81,10 +81,10 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                             </div>
                             <div className="w-full h-px bg-slate-800 mb-6"></div>
                             <ul className="space-y-3 flex-1">
-                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 3 Scans / Day</li>
-                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Profit Calculator</li>
+                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Unlimited Scans (Lens Mode)</li>
+                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 5 Image Optimizations / Day</li>
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Basic Inventory</li>
-                                <li className="text-xs text-slate-600 flex items-center gap-2"><X size={14} /> No Bulk Mode</li>
+                                <li className="text-xs text-slate-600 flex items-center gap-2"><X size={14} /> No AI Magic Description</li>
                             </ul>
                             <div className="mt-6">
                                 <button
@@ -109,8 +109,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                             </div>
                             <div className="w-full h-px bg-slate-700 mb-6"></div>
                             <ul className="space-y-3 flex-1">
-                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> 30 Scans / Day</li>
-                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Profit Calculator</li>
+                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Unlimited Scans</li>
+                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> 50 Image Optimizations / Day</li>
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Unlimited Inventory</li>
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Priority Support</li>
                                 <li className="text-xs text-slate-500 flex items-center gap-2"><X size={14} /> No Bulk Mode</li>
@@ -139,9 +139,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                             </div>
                             <div className="w-full h-px bg-slate-700 mb-6"></div>
                             <ul className="space-y-3 flex-1">
-                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-neon-green" /> Unlimited Scans</li>
+                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-neon-green" /> Unlimited Scans + Optimizations</li>
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-neon-green" /> Death Pile (Bulk) Mode</li>
-                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-neon-green" /> AI Listing Generator</li>
+                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-neon-green" /> AI Magic Description</li>
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-neon-green" /> CSV Ledger Export</li>
                             </ul>
                             <div className="mt-6">

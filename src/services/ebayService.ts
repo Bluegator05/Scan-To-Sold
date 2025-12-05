@@ -141,7 +141,8 @@ export const searchEbayByImage = async (imageBase64: string): Promise<any[]> => 
 };
 
 export const fetchEbayItemDetails = async (itemId: string): Promise<any> => {
-  const url = getApiUrl(`/api/ebay/fetch-item?itemId=${encodeURIComponent(itemId)}`);
+  // Request ItemSpecifics explicitly (Standard eBay Shopping API parameter)
+  const url = getApiUrl(`/api/ebay/fetch-item?itemId=${encodeURIComponent(itemId)}&IncludeSelector=ItemSpecifics,Details,TextDescription`);
   if (!url) throw new Error("Backend URL not configured");
 
   try {

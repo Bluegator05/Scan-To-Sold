@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "sync": "npm run build && npx cap sync",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -16,6 +17,8 @@
     "@capacitor/core": "^7.4.4",
     "@capacitor/filesystem": "^7.1.5",
     "@capacitor/ios": "^7.4.4",
+    "@capacitor/local-notifications": "^7.0.3",
+    "@capacitor/push-notifications": "^7.0.3",
     "@capacitor/share": "^7.0.2",
     "@google/genai": "*",
     "@stripe/stripe-js": "^3.0.0",

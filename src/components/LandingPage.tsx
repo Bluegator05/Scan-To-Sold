@@ -80,13 +80,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                             </button>
                         </div>
 
-                        {onLiteMode && (
-                            <div className="mt-6 flex justify-center lg:justify-start">
-                                <button onClick={onLiteMode} className="text-sm text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white transition-all">
-                                    Or try "Lite Mode" (Sourcing Tools Only)
-                                </button>
-                            </div>
-                        )}
+
 
                         <div className="mt-10 flex items-center justify-center lg:justify-start gap-6 text-slate-500 text-xs font-mono uppercase tracking-wider">
                             <div className="flex items-center gap-2">

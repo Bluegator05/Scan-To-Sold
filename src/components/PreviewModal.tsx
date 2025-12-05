@@ -130,7 +130,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({ isOpen, onClose, item, onIm
 
                         <h2 className="text-lg font-bold mb-4">Item description</h2>
                         <div className="bg-white border border-gray-200 p-6 rounded-lg min-h-[200px] whitespace-pre-wrap font-sans text-gray-800">
-                            {item.generatedListing?.content || item.conditionNotes || "No description provided."}
+                            {item.generatedListing?.content || "No description provided."}
                         </div>
                     </div>
                 </div>

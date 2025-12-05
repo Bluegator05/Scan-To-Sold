@@ -7,9 +7,10 @@ interface ScannerProps {
   onCapture: (imageData: string, barcode?: string) => void;
   onClose: () => void;
   bulkSessionCount?: number;
+  feedbackMessage?: string;
 }
 
-const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount = 0 }) => {
+const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount = 0, feedbackMessage }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -181,7 +182,7 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
   };
 
   return (
-    <div className="fixed inset-0 bg-black z-50 overflow-hidden">
+    <div className="fixed inset-0 bg-black z-[10000] overflow-hidden">
 
       {/* Video Layer */}
       <div className="absolute inset-0 z-0 bg-black">
@@ -300,6 +301,16 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
           <div className={`w-16 h-16 rounded-full transition-colors ${detectedBarcode ? 'bg-neon-green' : (autoScanEnabled ? 'bg-white' : 'bg-yellow-400')}`}></div>
         </button>
       </div>
+
+      {/* Feedback Toast */}
+      {feedbackMessage && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] animate-in zoom-in fade-in duration-300">
+          <div className="bg-black/80 backdrop-blur-md text-white px-6 py-3 rounded-full border border-white/20 shadow-2xl flex items-center gap-3">
+            <div className="w-2 h-2 bg-neon-green rounded-full animate-pulse"></div>
+            <span className="font-bold font-mono tracking-wider">{feedbackMessage}</span>
+          </div>
+        </div>
+      )}
 
       <canvas ref={canvasRef} className="hidden" />
 

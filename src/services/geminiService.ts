@@ -32,7 +32,13 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
   if (!apiKey) return createErrorResult("Missing API Key");
 
   try {
-    const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+    // Ensure we have a valid string
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      throw new Error("Invalid image data provided.");
+    }
+
+    // Robust Base64 cleaning: Remove ANY data URI scheme prefix
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
 
     let prompt;
     if (isLiteMode) {
@@ -89,9 +95,14 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
              - Identify Brand, Model, MPN (Manufacturer Part Number), UPC (if visible), Type, and Country of Manufacture.
              - Return as an object 'itemSpecifics'. Use "Unbranded" or "Unknown" if not found.
           11. WRITE A SELLING DESCRIPTION:
-             - Write a professional, persuasive eBay description (approx 50-75 words).
-             - Highlight key features, condition, and any flaws visible.
-             - Use bullet points or clear sentences.
+             - Write a FACTUAL, CONCISE, and EASY TO READ description.
+             - Use BULLET POINTS for key features.
+             - NO fluff, NO marketing speak. Just facts.
+             - Format:
+               * [Key Feature 1]
+               * [Key Feature 2]
+               * [Condition Note]
+               * [Flaws if any]
     
           Output JSON (Do not add markdown formatting):
           {
@@ -460,21 +471,23 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
     const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
     const prompt = `
-            Task: Optimize this product image for an e-commerce listing.
+            TASK: STRICT BACKGROUND REMOVAL & CENTERING.
             Target Item: "${itemTitle || "The main central object"}".
             
-            INSTRUCTIONS:
-            1. REMOVE BACKGROUND: Replace the background with pure white (#FFFFFF).
-            2. CENTER & CROP: Center the item and crop so it fills approx 80% of the frame.
-            3. LIGHTING: Improve lighting ONLY to make the item clearly visible.
+            ACTION PLAN:
+            1. CUT OUT the target item precisely.
+            2. PLACE it on a pure white background (#FFFFFF).
+            3. CENTER the item in the frame with balanced padding.
+            4. LIGHTING: NEUTRAL, FLAT lighting only. Do not add dramatic shadows or highlights.
             
-            CRITICAL PRESERVATION RULES (STRICT):
-            - **DO NOT ALTER THE ITEM'S APPEARANCE.**
-            - **DO NOT DISTRESS, AGE, OR ADD WEAR.** The item must look EXACTLY as it does in the original photo.
-            - **DO NOT SMOOTH TEXTURES.** If the item has scratches, dust, or wear, KEEP THEM. The buyer needs to see the true condition.
-            - **DO NOT CHANGE COLORS.** Maintain accurate colors.
-            - **DO NOT ROTATE.** Keep original orientation.
-            - **DO NOT HALLUCINATE.** Do not add or remove parts.
+            CRITICAL "DO NOT TOUCH" RULES (ZERO TOLERANCE):
+            - **PRESERVE PIXELS:** The item itself must remain 100% IDENTICAL to the original.
+            - **NO REPAIRS:** Do NOT fix scratches, dents, dust, rust, or tears. This is a USED item for sale; flaws MUST be visible.
+            - **NO GENERATIVE FILL:** Do NOT generate new parts of the item. If a part is cut off, leave it cut off.
+            - **NO COLOR GRADING:** Do not change the color temperature or saturation of the item.
+            - **NO TEXTURE SMOOTHING:** Do not apply "beauty filters" to the object.
+            
+            SUMMARY: Change the background to white. Move the item to the center. DO NOT TOUCH THE ITEM OTHERWISE.
             
             Return ONLY the generated image.
         `;

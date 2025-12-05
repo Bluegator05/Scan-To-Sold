@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, LogOut, Check, AlertTriangle, User as UserIcon, Shield, CreditCard, MessageSquare, Link as LinkIcon, ExternalLink, Loader2, MapPin, Save, FileText, HelpCircle, ChevronRight } from 'lucide-react';
+import { X, Lock, LogOut, Check, AlertTriangle, User as UserIcon, Shield, CreditCard, MessageSquare, Link as LinkIcon, ExternalLink, Loader2, MapPin, Save, FileText, HelpCircle, ChevronRight, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isEbayConnected, connectEbayAccount, disconnectEbayAccount, checkEbayConnection } from '../services/ebayService';
+import { requestNotificationPermissions, scheduleGoalReminder, NotificationSettings } from '../services/notificationService';
 import { App } from '@capacitor/app';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,6 +30,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
 
   // Defaults
   const [defaultZip, setDefaultZip] = useState('');
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({ enabled: false, frequency: '4h' });
+  const [showDangerZone, setShowDangerZone] = useState(false);
 
   // ...
 
@@ -43,7 +47,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
       };
 
       check();
+      check();
       setDefaultZip(localStorage.getItem('sts_default_zip') || '');
+      const savedNotif = localStorage.getItem('sts_notification_settings');
+      if (savedNotif) {
+        setNotificationSettings(JSON.parse(savedNotif));
+      } else {
+        // Check if permissions are already granted at system level
+        LocalNotifications.checkPermissions().then(perm => {
+          if (perm.display === 'granted') {
+            setNotificationSettings(prev => ({ ...prev, enabled: true }));
+          }
+        });
+      }
 
       // Listen for app resume (returning from Safari)
       const listener = App.addListener('appStateChange', (state) => {
@@ -82,6 +98,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (confirm("DANGER: Are you sure you want to delete your account? This will wipe all data from this device and sign you out. This action cannot be undone.")) {
+      if (confirm("Please confirm one last time: DELETE ACCOUNT & WIPE DATA?")) {
+        try {
+          // 1. Wipe Local Storage
+          localStorage.clear();
+          // 2. Sign Out
+          await signOut();
+          // 3. Close Modal
+          onClose();
+          // 4. Reload to clear state
+          window.location.reload();
+        } catch (e) {
+          alert("Failed to delete account data. Please try again.");
+        }
+      }
+    }
+  };
+
   const handleEbayToggle = async () => {
     if (!user) return;
 
@@ -101,6 +136,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
   const handleSaveZip = () => {
     localStorage.setItem('sts_default_zip', defaultZip);
     alert("Default Zip Code saved.");
+  };
+
+  const handleNotificationToggle = async () => {
+    try {
+      const newState = !notificationSettings.enabled;
+      if (newState) {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          alert("Permission denied. Please enable notifications in system settings.");
+          return;
+        }
+      }
+      const newSettings: NotificationSettings = { ...notificationSettings, enabled: newState };
+      setNotificationSettings(newSettings);
+      localStorage.setItem('sts_notification_settings', JSON.stringify(newSettings));
+    } catch (error) {
+      console.error("Toggle error:", error);
+      alert("Failed to update settings. Please try again.");
+    }
+  };
+
+  const handleFrequencyChange = (freq: '2h' | '4h' | 'daily') => {
+    const newSettings: NotificationSettings = { ...notificationSettings, frequency: freq };
+    setNotificationSettings(newSettings);
+    localStorage.setItem('sts_notification_settings', JSON.stringify(newSettings));
   };
 
   return (
@@ -174,6 +234,45 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
               </div>
               <ExternalLink size={16} className="text-slate-500 group-hover:text-white" />
             </button>
+          </div>
+
+          {/* Notifications */}
+          <div className="space-y-2">
+            <label className="text-xs font-mono text-slate-500 uppercase tracking-widest">Notifications</label>
+            <div className="glass-panel p-4 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Bell size={20} className={notificationSettings.enabled ? "text-neon-green" : "text-slate-400"} />
+                  <div>
+                    <div className="text-white font-bold text-sm">Goal Reminders</div>
+                    <div className="text-[10px] text-slate-400">Get reminded to hit your daily goal</div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleNotificationToggle}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${notificationSettings.enabled ? 'bg-neon-green' : 'bg-slate-700'}`}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${notificationSettings.enabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </button>
+              </div>
+
+              {notificationSettings.enabled && (
+                <div className="pt-2 border-t border-white/10">
+                  <label className="text-[10px] text-slate-400 mb-2 block">Frequency</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['2h', '4h', 'daily'] as const).map((freq) => (
+                      <button
+                        key={freq}
+                        onClick={() => handleFrequencyChange(freq)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-all ${notificationSettings.frequency === freq ? 'bg-neon-green/20 border-neon-green text-neon-green' : 'bg-black/20 border-transparent text-slate-400 hover:bg-white/5'}`}
+                      >
+                        {freq === 'daily' ? 'Daily (6PM)' : `Every ${freq}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Listing Defaults */}
@@ -323,10 +422,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
 
           <button
             onClick={() => { signOut(); onClose(); }}
-            className="w-full py-4 bg-slate-800 hover:bg-red-900/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-900/50 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
           >
             <LogOut size={18} /> LOG OUT
           </button>
+
+          {/* Danger Zone */}
+          <div className="pt-8 border-t border-slate-800">
+            <button
+              onClick={() => setShowDangerZone(!showDangerZone)}
+              className="w-full flex justify-between items-center py-2 text-xs font-mono text-red-500 uppercase tracking-widest mb-2 hover:text-red-400 transition-colors"
+            >
+              <span>Danger Zone</span>
+              <span>{showDangerZone ? 'Hide' : 'Show'}</span>
+            </button>
+
+            {showDangerZone && (
+              <div className="animate-in slide-in-from-top-2 duration-200">
+                <button
+                  onClick={handleDeleteAccount}
+                  className="w-full py-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  <AlertTriangle size={18} /> DELETE ACCOUNT
+                </button>
+                <p className="text-[10px] text-slate-500 text-center mt-2">
+                  This will permanently delete your local data and sign you out.
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="text-center">
             <p className="text-[10px] text-slate-600 font-mono">ScanToSold v1.1.0</p>

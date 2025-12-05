@@ -51,6 +51,8 @@
 	<string>We need access to your camera to scan barcodes and items.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need access to your microphone for voice commands.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>We use notifications to remind you of your daily listing goals.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
