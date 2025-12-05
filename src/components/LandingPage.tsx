@@ -301,7 +301,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                                 <p className="text-slate-400 text-sm">Perfect for hobbyists.</p>
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
-                                <CheckItem text="3 AI Scans per day" />
+                                <CheckItem text="Unlimited Scans (Lens Mode)" />
+                                <CheckItem text="5 AI Optimizations / Day" />
                                 <CheckItem text="Profit Calculator" />
                                 <CheckItem text="Inventory Tracking" />
                                 <CheckItem text="Bulk Mode" crossed />
@@ -321,7 +322,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                                 <p className="text-slate-400 text-sm">For part-time flippers.</p>
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
-                                <CheckItem text="30 AI Scans per day" color="text-blue-400" />
+                                <CheckItem text="Unlimited AI Scans" color="text-blue-400" />
+                                <CheckItem text="50 AI Optimizations / Day" color="text-blue-400" />
                                 <CheckItem text="Profit Calculator" color="text-blue-400" />
                                 <CheckItem text="Unlimited Inventory" color="text-blue-400" />
                                 <CheckItem text="Bulk Mode" crossed />
@@ -341,7 +343,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                                 <p className="text-slate-400 text-sm">For volume sellers.</p>
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
-                                <CheckItem text="Unlimited AI Scans" highlight />
+                                <CheckItem text="Unlimited Scans + Optimizations" highlight />
                                 <CheckItem text="Bulk 'Death Pile' Mode" highlight />
                                 <CheckItem text="AI Listing Generator" highlight />
                                 <CheckItem text="CSV Ledger Export" highlight />
