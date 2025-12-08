@@ -26,7 +26,7 @@ const PRICE_ID_PLUS = "price_REPLACE_WITH_PLUS_ID";
 const SCAN_LIMIT_KEY = 'sts_scan_limit_';
 
 // Hardcoded Admin Emails (Temporary Override)
-const ADMIN_EMAILS = ['bluegator05@gmail.com'];
+const ADMIN_EMAILS = ['bluegator05@gmail.com', 'apple_test@scantosold.com'];
 
 export const getDailyUsage = (): number => {
   const today = new Date().toLocaleDateString();
@@ -74,7 +74,7 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
     const tier = (data.tier as SubscriptionTier) || 'FREE';
 
     let maxScans = 3;
-    if (tier === 'PLUS') maxScans = 30;
+    if (tier === 'PLUS') maxScans = 20;
     if (tier === 'PRO') maxScans = Infinity;
 
     return {

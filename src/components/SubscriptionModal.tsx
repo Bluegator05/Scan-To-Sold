@@ -82,7 +82,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                             <div className="w-full h-px bg-slate-800 mb-6"></div>
                             <ul className="space-y-3 flex-1">
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Unlimited Scans (Lens Mode)</li>
-                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 5 Image Optimizations / Day</li>
+                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 3 Image Optimizations / Day</li>
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Basic Inventory</li>
                                 <li className="text-xs text-slate-600 flex items-center gap-2"><X size={14} /> No AI Magic Description</li>
                             </ul>
@@ -110,7 +110,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                             <div className="w-full h-px bg-slate-700 mb-6"></div>
                             <ul className="space-y-3 flex-1">
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Unlimited Scans</li>
-                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> 50 Image Optimizations / Day</li>
+                                <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> 20 Image Optimizations / Day</li>
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Unlimited Inventory</li>
                                 <li className="text-xs text-white flex items-center gap-2"><Check size={14} className="text-blue-400" /> Priority Support</li>
                                 <li className="text-xs text-slate-500 flex items-center gap-2"><X size={14} /> No Bulk Mode</li>

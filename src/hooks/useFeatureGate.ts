@@ -1,6 +1,6 @@
 import { useAuth } from '../contexts/AuthContext';
 
-export type Feature = 'BULK_MODE' | 'AI_GENERATOR' | 'CSV_EXPORT' | 'UNLIMITED_SCANS';
+export type Feature = 'BULK_MODE' | 'AI_GENERATOR' | 'CSV_EXPORT' | 'UNLIMITED_SCANS' | 'AI_SCAN';
 export type Limit = 'DAILY_SCANS' | 'DAILY_OPTIMIZATIONS';
 
 export const useFeatureGate = () => {
@@ -13,6 +13,8 @@ export const useFeatureGate = () => {
                 return tier === 'PRO'; // Only Pro has Bulk
             case 'AI_GENERATOR':
                 return tier === 'PRO'; // Only Pro has Magic Description / AI
+            case 'AI_SCAN':
+                return tier === 'PRO'; // Only Pro has AI Scan Mode
             case 'CSV_EXPORT':
                 return tier === 'PRO'; // Only Pro has CSV
             case 'UNLIMITED_SCANS':

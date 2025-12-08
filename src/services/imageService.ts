@@ -70,9 +70,17 @@ export const uploadScanImage = async (userId: string, imageBase64: string): Prom
 
     // Upload to 'scans' bucket
     const fileName = `${userId}/${Date.now()}.jpg`;
-    const { data, error } = await supabase.storage
+
+    // Add 30s Timeout to Upload
+    const uploadPromise = supabase.storage
       .from('scans')
       .upload(fileName, file, { upsert: true });
+
+    const timeoutPromise = new Promise<{ data: any, error: any }>((_, reject) =>
+      setTimeout(() => reject(new Error("Upload Timed Out")), 30000)
+    );
+
+    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
 
     if (error) throw error;
 

@@ -209,7 +209,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
                 <div>
                   <div className="text-white font-bold">{subscription.tier} TIER</div>
                   <div className="text-[10px] text-slate-400">
-                    {subscription.tier === 'PRO' ? 'Unlimited Access' : `${subscription.scansToday} / ${subscription.maxDailyScans} Scans Today`}
+                    {subscription.tier === 'PRO' ? (
+                      'Unlimited Access'
+                    ) : (
+                      (() => {
+                        // Use user-specific key to avoid leaking counts between accounts on same device
+                        const todayKey = `opt_count_${user?.id}_${new Date().toDateString()}`;
+                        const count = parseInt(localStorage.getItem(todayKey) || '0');
+                        // Assuming the limit from feature gate is 5 for free tier, hardcoding for display consistency with App.tsx limit default
+                        const limit = subscription.maxDailyScans;
+                        return `${count} / ${limit} Daily Optimizations`;
+                      })()
+                    )}
                   </div>
                 </div>
               </div>
@@ -421,7 +432,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPr
           </div>
 
           <button
-            onClick={() => { signOut(); onClose(); }}
+            onClick={async () => { await signOut(); onClose(); }}
             className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
           >
             <LogOut size={18} /> LOG OUT

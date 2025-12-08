@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { App } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '../lib/supabaseClient';
 import { User, Session } from '@supabase/supabase-js';
 import { getSubscriptionStatus } from '../services/paymentService';
@@ -92,6 +93,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (!user || user.id !== session.user.id) {
             const status = await getSubscriptionStatus(session.user.id, session.user.email);
             if (mounted) setSubscription(status);
+
+            // SECURITY: If signed in, ensure any pending auth browser is closed
+            try { await Browser.close(); } catch { }
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -107,6 +111,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let appListener: any;
 
     const handleAuthUrl = async (url: URL) => {
+      // Close the in-app browser overlay if it's open
+      // This is critical for native iOS to return the user to the app view
+      try {
+        await Browser.close();
+      } catch (e) { /* Ignore if not open */ }
+
       // Only handle Supabase Auth URLs (PKCE or Implicit)
       const hasCode = url.searchParams.has('code');
       const hasToken = url.hash.includes('access_token');
@@ -146,6 +156,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Handle Errors
       if (hasError) {
         setLoading(false);
+        const errorDesc = url.searchParams.get('error_description') || 'Authentication failed.';
+        alert(`Login Error: ${errorDesc}`);
       }
     };
 
@@ -209,8 +221,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         redirectTo: isNative
           ? 'scantosold://login-callback'
           : window.location.origin,
+        skipBrowserRedirect: true,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account'
+        }
       },
     });
+
+    if (!error && data?.url) {
+      if (isNative) {
+        // Open the auth URL in the system browser/webview
+        await Browser.open({ url: data.url, windowName: '_self' });
+      } else {
+        // Fallback for web
+        window.location.href = data.url;
+      }
+    }
+
     return { data, error };
   };
 
@@ -236,6 +264,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error("Error signing out:", error);
     } finally {
       setUser(null);
+      // Force reload to completely clear app state and ensure AuthScreen renders
+      window.location.reload();
     }
   };
 

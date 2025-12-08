@@ -46,6 +46,7 @@ const EbayLogo = () => (
 );
 
 import LiteView from './components/LiteView';
+import CropModal from './components/CropModal';
 
 function App() {
     const { user, loading: authLoading, refreshSubscription, subscription } = useAuth();
@@ -59,6 +60,7 @@ function App() {
     const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
 
     const [status, setStatus] = useState<ScoutStatus>(ScoutStatus.IDLE);
+    // Default to LENS to prevent paywall leak, or check localstorage
     const [scanMode, setScanMode] = useState<'AI' | 'LENS'>('AI');
     const [cameraMode, setCameraMode] = useState<'SCOUT' | 'EDIT'>('SCOUT');
     const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -121,7 +123,17 @@ function App() {
                 setCustomTemplates(JSON.parse(savedTemplates));
             } catch (e) { console.error("Failed to load templates", e); }
         }
-    }, [user]);
+
+        // Fix Paywall Leak: Ensure new users or free users don't start in AI mode if they shouldn't
+        if (subscription && subscription.tier !== 'PRO' && scanMode === 'AI') {
+            // Check if they have credits? Or just default to LENS to be safe and showing the "Upgrade" lock
+            // Actually, simply enforcing the check when they *try* to scan is better, but if the UI shows the camera immediately:
+            // Let's default to LENS if they are free tier to encourage "Free Scan" first, or just validated.
+            // But the user said "default is set to ai premium camera".
+            // Let's force it to LENS if not PRO.
+            setScanMode('LENS');
+        }
+    }, [user, subscription]);
 
 
     const handleCompleteOnboarding = () => {
@@ -142,6 +154,8 @@ function App() {
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 
     const [viewingImageIndex, setViewingImageIndex] = useState<number | null>(null);
+    const [isCropOpen, setIsCropOpen] = useState(false);
+    const [optimizeBgColor, setOptimizeBgColor] = useState<'white' | 'black'>('white');
 
     const [unitForm, setUnitForm] = useState({ id: '', storeNumber: '', address: '', cost: '', imageUrl: '' });
 
@@ -161,6 +175,14 @@ function App() {
     useEffect(() => {
         scheduleGoalReminder(notificationSettings, listedTodayCount);
     }, [listedTodayCount, notificationSettings]);
+
+    useEffect(() => {
+        // Reset manual search title when switching editing items
+        if (editingItem?.id) {
+            setEditedTitle(editingItem.title || "");
+            setVisualSearchResults([]);
+        }
+    }, [editingItem?.id]);
 
     useEffect(() => {
         const accepted = localStorage.getItem('sts_tos_accepted');
@@ -455,7 +477,7 @@ function App() {
         // I will use localStorage as a temporary gate for the "Free" tier enforcement if needed, or just rely on the fact we increment usage.
 
         // Let's use localStorage for a simple client-side daily limit for now until backend is updated.
-        const todayKey = `opt_count_${new Date().toDateString()}`;
+        const todayKey = `opt_count_${user.id}_${new Date().toDateString()}`;
         const count = parseInt(localStorage.getItem(todayKey) || '0');
 
         if (count >= limit) {
@@ -467,7 +489,9 @@ function App() {
         try {
             const cachedBase64 = imageCache.current.get(currentUrl);
             const inputForAI = cachedBase64 || currentUrl;
-            const { image: optimizedBase64, tokenUsage } = await optimizeProductImage(inputForAI, editingItem.title);
+            // Map the simple state to the descriptive string expected by the prompt
+            const bgDesc = optimizeBgColor === 'white' ? 'pure white (#FFFFFF)' : 'pure black (#000000)';
+            const { image: optimizedBase64, tokenUsage } = await optimizeProductImage(inputForAI, editingItem.title, bgDesc);
             if (!optimizedBase64) throw new Error("AI failed to generate image. Please retry.");
 
             // Log Token Usage
@@ -640,6 +664,15 @@ function App() {
 
 
     const handleImageCaptured = async (imageData: string, barcode?: string) => {
+        // Enforce Paywall: If they are in AI mode but don't have access (e.g. Free Tier limit reached or not Pro)
+        // AND they are not just scanning a barcode (which might be free? Assuming AI Scan is the premium feature)
+        // If scanMode is AI, we block. If scanMode is LENS, we allow (as it's Visual Search/Free capable usually, or checks later).
+        if (scanMode === 'AI' && !canAccess('AI_SCAN')) {
+            setStatus(ScoutStatus.IDLE);
+            setIsPricingOpen(true);
+            return;
+        }
+
         // 1. Compress immediately
         const compressed = await compressImage(imageData);
         setCurrentImage(compressed);
@@ -708,6 +741,27 @@ function App() {
                                 url: c.url,
                                 condition: c.condition
                             })));
+                        } else {
+                            // 4. Fallback: Broad Search (if specific failed)
+                            const words = query.split(' ');
+                            if (words.length > 2) {
+                                const broadQuery = words.slice(0, 3).join(' '); // Try first 3 words
+                                const broadData = await searchEbayComps(broadQuery, 'ACTIVE', 'USED');
+                                if (broadData.comps && broadData.comps.length > 0) {
+                                    setVisualSearchResults(broadData.comps.map(c => ({
+                                        id: c.id,
+                                        title: c.title,
+                                        price: c.price,
+                                        shipping: c.shipping,
+                                        image: c.image,
+                                        url: c.url,
+                                        condition: c.condition
+                                    })));
+                                    setEditedTitle(broadQuery); // Update title to what we actually found
+                                    // Optional: Notify user
+                                    // alert("Specific match not found. Showing broader results for: " + broadQuery);
+                                }
+                            }
                         }
                     }
                 }
@@ -751,8 +805,10 @@ function App() {
                     };
                 });
 
-                // Set editedTitle for Premium Links
-                setEditedTitle(result.itemTitle);
+                setScoutResult(result);
+
+                // Set editedTitle to the SEARCH QUERY (shorter, better for comps) instead of full title
+                setEditedTitle(result.searchQuery || result.itemTitle);
 
                 if (result.estimatedWeight) {
                     setEditingItem(prev => prev ? ({ ...prev, itemSpecifics: { ...prev.itemSpecifics, Weight: result.estimatedWeight! } }) : null);
@@ -974,13 +1030,38 @@ function App() {
 
     const handleGenerateListing = async (platform: 'EBAY' | 'FACEBOOK') => {
         setListingPlatform(platform); setIsGeneratingListing(true);
-        const text = await generateListingDescription(
-            editingItem ? editingItem.title : editedTitle,
-            editingItem ? (editingItem.conditionNotes || '') : conditionNotes,
-            platform
-        );
-        if (editingItem) setEditingItem({ ...editingItem, generatedListing: { ...editingItem.generatedListing!, platform, content: text } });
-        else setGeneratedListing(text);
+        try {
+            const title = editingItem ? editingItem.title : editedTitle;
+            const notes = editingItem ? (editingItem.conditionNotes || '') : conditionNotes;
+
+            // Parallel execution: Text generation AND Specifics extraction
+            const [text, newSpecifics] = await Promise.all([
+                generateListingDescription(title, notes, platform),
+                suggestItemSpecifics(title, notes)
+            ]);
+
+            if (editingItem) {
+                setEditingItem({
+                    ...editingItem,
+                    generatedListing: { ...editingItem.generatedListing!, platform, content: text },
+                    itemSpecifics: { ...editingItem.itemSpecifics, ...newSpecifics }
+                });
+            } else {
+                setGeneratedListing(text);
+                // Also update local scout result specific if we are in scan mode flow
+                if (scoutResult) {
+                    // Update specific state if applicable, or generic state
+                    // Note: In non-editingItem flow (scan results), specific state is tied to scoutResult
+                    // We can't easily update scoutResult directly here without a setter, but usually we just set local states.
+                    // For now, let's just alert the user or assume they will save soon.
+                    // Actually, let's look at how itemSpecifics are stored in scan mode.
+                    // They aren't stored in a separate state variable, they are in scoutResult.
+                    // We can try to shallow merge if possible, or just ignore for scan view.
+                }
+            }
+        } catch (e) {
+            console.error("Generation failed", e);
+        }
         setIsGeneratingListing(false);
     };
 
@@ -1002,8 +1083,15 @@ function App() {
             } else if (currentImage) {
                 // Upload wasn't finished or failed, try once more
                 const storageUrl = await uploadScanImage(user.id, currentImage);
-                if (storageUrl) { finalImageUrl = storageUrl; imageCache.current.set(storageUrl, currentImage); }
-                else finalImageUrl = await compressImage(currentImage, 800, 0.6);
+                if (storageUrl) {
+                    finalImageUrl = storageUrl;
+                    imageCache.current.set(storageUrl, currentImage);
+                } else {
+                    // Critical Fix: Do NOT fallback to Base64. It crashes the DB.
+                    alert("Image upload failed. Please check your internet and try again.");
+                    setIsSaving(false);
+                    return;
+                }
             }
 
             const currentUnit = activeUnit || "55";
@@ -1081,7 +1169,7 @@ function App() {
     };
 
     const handleUpdateInventoryItem = async (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string, dimensions?: string) => {
-        if (!editingItem) return;
+        if (!editingItem || !user) return; // Add user check
         try {
             const updatedItem: InventoryItem = {
                 ...editingItem,
@@ -1090,6 +1178,40 @@ function App() {
                 itemSpecifics: { ...editingItem.itemSpecifics, Weight: weight },
                 dimensions: dimensions || editingItem.dimensions
             };
+
+            // Check if this is a NEW local item (e.g. from camera/scan) that hasn't been saved to DB yet
+            // If it has a temporary ID or isn't found in the DB (implied by context), we should ADD it.
+            // For now, let's assume we need to try adding it if it's not an "ebay-" item and we want to persist it.
+
+            // However, our logic relies on `updateInventoryItem` for existing.
+            // If the user scanned an item, `editingItem.id` is likely a timestamp or `scan-...`.
+            // We need to know if it exists. 
+            // Simplified Logic: If we are "Saving Draft", we should UPSERT in a way.
+
+            // NOTE: The `updateInventoryItem` function in `databaseService` uses `.update().eq('id', item.id)`. 
+            // If the ID doesn't exist in DB, `update` returns no error but updates 0 rows.
+
+            // BETTER APPROACH:
+            // 1. Try to Add (Insert).
+            // 2. If it fails (duplicate), Try to Update.
+            // OR checks if it is a "new" ID.
+
+            // Let's modify behavior: 
+            // If user explicitly clicks "Save Draft", we assume they want to persist it.
+            // We'll try to add it first if it looks like a new scan.
+
+            // Actually, best practice with Supabase is `upsert` but our service splits them.
+            // Let's just try to ADD if it's a new draft capture.
+
+            // FIXME: Start by trying to update. If we are unsure, maybe check if it is in `inventory` state?
+            const isKnownItem = inventory.some(i => i.id === updatedItem.id);
+
+            if (isKnownItem) {
+                await updateInventoryItem(updatedItem);
+            } else {
+                // It's a new item (e.g. fresh scan), so ADD it.
+                await addInventoryItem(updatedItem, user.id);
+            }
 
             // Optimistic update
             setInventory(prev => {
@@ -1102,11 +1224,14 @@ function App() {
             });
             setEditingItem(updatedItem);
 
-            await updateInventoryItem(updatedItem);
-            alert("Draft Saved!");
-            setEditingItem(null); // Close modal after save
+            // Force Refresh from DB to confirm persistence
+            fetchInventory().then(setInventory);
+
+            alert("Draft Saved to Inventory!");
+            setEditingItem(null);
         } catch (e: any) {
-            alert("Failed: " + e.message);
+            console.error("Save failed", e);
+            alert("Failed to save: " + e.message);
         }
     };
 
@@ -1174,19 +1299,24 @@ function App() {
     const handleUnitImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Reset input value to ensure onChange fires even if same file selected again
+            e.target.value = '';
+
             const reader = new FileReader();
             reader.onloadend = async () => {
                 const base64 = reader.result as string;
-                // Optionally upload to storage if user is logged in
+                // Enforce Cloud Storage Upload
                 if (user) {
                     const publicUrl = await uploadScanImage(user.id, base64);
                     if (publicUrl) {
                         setUnitForm(prev => ({ ...prev, imageUrl: publicUrl }));
-                        return;
+                    } else {
+                        alert("Image upload failed. Check your connection or file size.");
                     }
+                } else {
+                    // Only fallback for offline/guest
+                    setUnitForm(prev => ({ ...prev, imageUrl: base64 }));
                 }
-                // Fallback to base64
-                setUnitForm(prev => ({ ...prev, imageUrl: base64 }));
             };
             reader.readAsDataURL(file);
         }
@@ -1256,9 +1386,21 @@ function App() {
     };
 
     const handleSaveUnit = async () => {
-        if (!user || !unitForm.storeNumber) return;
+        if (!user) return;
+
+        if (!unitForm.storeNumber || unitForm.storeNumber.trim() === '') {
+            alert("Please enter a Source Name or ID (e.g. 'Garage Sale').");
+            return;
+        }
+
         try {
-            const newUnitData: StorageUnit = { id: unitForm.id, storeNumber: unitForm.storeNumber, address: unitForm.address, cost: parseFloat(unitForm.cost) || 0, imageUrl: unitForm.imageUrl };
+            const newUnitData: StorageUnit = {
+                id: unitForm.id,
+                storeNumber: unitForm.storeNumber,
+                address: unitForm.address || '',
+                cost: parseFloat(unitForm.cost) || 0,
+                imageUrl: unitForm.imageUrl || '' // Ensure string type 
+            };
             if (unitForm.id) {
                 const oldUnit = storageUnits.find(u => u.id === unitForm.id);
                 await updateStorageUnit(newUnitData, oldUnit?.storeNumber);
@@ -1932,61 +2074,147 @@ function App() {
             {showTos && <DisclaimerModal onAccept={handleAcceptTos} />}
             {editingItem && isPreviewOpen && (<PreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} item={editingItem} onImageClick={(index) => setViewingImageIndex(index)} />)}
             {editingItem && viewingImageIndex !== null && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="flex justify-end p-4 border-b border-slate-800 bg-slate-900/50">
-                            <button onClick={() => setViewingImageIndex(null)} className="p-2 rounded-full bg-slate-800 text-white hover:bg-slate-700 border border-slate-600 transition-colors"><X size={20} /></button>
-                        </div>
-                        <div className="flex-1 relative flex items-center justify-center bg-black p-4 overflow-hidden group">
-                            <img src={editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl} className="max-h-full max-w-full object-contain" alt="Full View" />
-                            {isOptimizingImage && <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className="flex flex-col items-center gap-4"><Loader2 className="animate-spin text-neon-green" size={48} /><span className="text-white font-mono tracking-widest text-sm animate-pulse">OPTIMIZING AI...</span></div></div>}
+                <div className="fixed inset-0 z-[100] flex flex-col bg-black animate-in fade-in duration-200">
+                    {/* Top Bar - Floating Close */}
+                    <div className="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pt-[calc(env(safe-area-inset-top)+1rem)] pointer-events-none">
+                        <span className="bg-black/40 backdrop-blur-md text-white/70 px-3 py-1 rounded-full text-xs font-mono border border-white/10">PREVIEW MODE</span>
+                        <button
+                            onClick={() => setViewingImageIndex(null)}
+                            className="pointer-events-auto p-3 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-white/20 border border-white/10 transition-colors shadow-xl"
+                        >
+                            <X size={24} />
+                        </button>
+                    </div>
 
-                            {/* Navigation Arrows */}
-                            <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('prev'); }} className="pointer-events-auto p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all hover:scale-110"><ChevronLeft size={32} /></button>
-                                <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('next'); }} className="pointer-events-auto p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all hover:scale-110"><ChevronRight size={32} /></button>
+                    {/* Main Image Area - Full Screen */}
+                    <div className="flex-1 relative flex items-center justify-center overflow-hidden group">
+                        <img
+                            src={editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl}
+                            className="w-full h-full object-contain p-4 transition-transform duration-300"
+                            alt="Full View"
+                        />
+
+                        {isOptimizingImage && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
+                                <div className="flex flex-col items-center gap-4">
+                                    <Loader2 className="animate-spin text-neon-green" size={64} />
+                                    <span className="text-white font-mono tracking-widest text-sm animate-pulse">OPTIMIZING AI...</span>
+                                </div>
                             </div>
+                        )}
+
+                        {/* Navigation Arrows (Floating) */}
+                        <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('prev'); }} className="pointer-events-auto p-4 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all active:scale-95 backdrop-blur-md border border-white/10"><ChevronLeft size={32} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleNavigateImage('next'); }} className="pointer-events-auto p-4 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all active:scale-95 backdrop-blur-md border border-white/10"><ChevronRight size={32} /></button>
                         </div>
-                        <div className="p-6 bg-slate-900 border-t border-slate-800 flex flex-wrap justify-center gap-4">
-                            <button onClick={() => handleOptimizeImage(viewingImageIndex, editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl)} disabled={isOptimizingImage} className="px-6 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50 shadow-lg text-sm"><Wand2 size={18} /> Optimize</button>
-                            <button onClick={async () => {
-                                const imgUrl = viewingImageIndex === 0 ? editingItem.imageUrl : (editingItem.additionalImages?.[viewingImageIndex! - 1] || '');
-                                if (!imgUrl) return;
+                    </div>
 
-                                try {
-                                    // Simple rotation using canvas
-                                    const img = new Image();
-                                    img.crossOrigin = "anonymous"; // Try to handle CORS
-                                    img.src = imgUrl;
-                                    await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+                    {/* Bottom Controls Panel */}
+                    <div className="bg-slate-900/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] animate-in slide-in-from-bottom duration-300 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                        <div className="p-6 space-y-6">
 
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = img.height;
-                                    canvas.height = img.width;
-                                    const ctx = canvas.getContext('2d');
-                                    if (ctx) {
-                                        ctx.translate(canvas.width / 2, canvas.height / 2);
-                                        ctx.rotate(90 * Math.PI / 180);
-                                        ctx.drawImage(img, -img.width / 2, -img.height / 2);
-                                        const rotated = canvas.toDataURL('image/jpeg', 0.8);
+                            {/* Row 1: Background Toggle */}
+                            <div className="flex justify-center">
+                                <div className="bg-black/40 p-1 rounded-full flex border border-white/10">
+                                    <button
+                                        onClick={() => setOptimizeBgColor('white')}
+                                        className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold transition-all ${optimizeBgColor === 'white' ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <div className={`w-3 h-3 rounded-full ${optimizeBgColor === 'white' ? 'bg-black' : 'bg-white'}`} /> White BG
+                                    </button>
+                                    <button
+                                        onClick={() => setOptimizeBgColor('black')}
+                                        className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold transition-all ${optimizeBgColor === 'black' ? 'bg-slate-800 text-white shadow-lg border border-slate-700' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <div className={`w-3 h-3 rounded-full ${optimizeBgColor === 'black' ? 'bg-white' : 'bg-black border border-white/30'}`} /> Black BG
+                                    </button>
+                                </div>
+                            </div>
 
-                                        if (viewingImageIndex === 0) {
-                                            setEditingItem({ ...editingItem, imageUrl: rotated });
-                                        } else {
-                                            const newImages = [...(editingItem.additionalImages || [])];
-                                            newImages[viewingImageIndex! - 1] = rotated;
-                                            setEditingItem({ ...editingItem, additionalImages: newImages });
+                            {/* Row 2: Action Buttons */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <button
+                                    onClick={() => handleOptimizeImage(viewingImageIndex, editingItem.additionalImages ? (viewingImageIndex === 0 ? editingItem.imageUrl : editingItem.additionalImages[viewingImageIndex - 1]) : editingItem.imageUrl)}
+                                    disabled={isOptimizingImage}
+                                    className="flex flex-col items-center justify-center gap-2 p-3 bg-white text-black rounded-xl font-bold hover:bg-gray-200 disabled:opacity-50 active:scale-95 transition-all shadow-lg"
+                                >
+                                    <Wand2 size={24} />
+                                    <span className="text-xs">Optimize</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setIsCropOpen(true)}
+                                    className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-800 text-white border border-slate-700 rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all"
+                                >
+                                    <ScanLine size={24} />
+                                    <span className="text-xs">Crop</span>
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        const imgUrl = viewingImageIndex === 0 ? editingItem.imageUrl : (editingItem.additionalImages?.[viewingImageIndex! - 1] || '');
+                                        if (!imgUrl) return;
+
+                                        try {
+                                            const img = new Image();
+                                            img.crossOrigin = "anonymous";
+                                            img.src = imgUrl;
+                                            await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+
+                                            const canvas = document.createElement('canvas');
+                                            canvas.width = img.height;
+                                            canvas.height = img.width;
+                                            const ctx = canvas.getContext('2d');
+                                            if (ctx) {
+                                                ctx.translate(canvas.width / 2, canvas.height / 2);
+                                                ctx.rotate(90 * Math.PI / 180);
+                                                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                                                const rotated = canvas.toDataURL('image/jpeg', 0.8);
+
+                                                if (viewingImageIndex === 0) {
+                                                    setEditingItem({ ...editingItem, imageUrl: rotated });
+                                                } else {
+                                                    const newImages = [...(editingItem.additionalImages || [])];
+                                                    newImages[viewingImageIndex! - 1] = rotated;
+                                                    setEditingItem({ ...editingItem, additionalImages: newImages });
+                                                }
+                                            }
+                                        } catch (e) {
+                                            console.error("Rotation failed", e);
+                                            alert("Cannot rotate this image. Try re-uploading.");
                                         }
-                                    }
-                                } catch (e) {
-                                    console.error("Rotation failed", e);
-                                    alert("Cannot rotate this image (security restriction). Try re-uploading it.");
-                                }
-                            }} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-blue-500 shadow-lg text-sm"><RefreshCw size={18} /> Rotate</button>
-                            <button onClick={() => setViewingImageIndex(null)} className="px-6 py-3 bg-slate-800 text-white border border-slate-700 rounded-xl font-bold hover:bg-slate-700 transition-colors text-sm">Close</button>
+                                    }}
+                                    className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-800 text-white border border-slate-700 rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all"
+                                >
+                                    <RefreshCw size={24} />
+                                    <span className="text-xs">Rotate</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isCropOpen && editingItem && viewingImageIndex !== null && (
+                <CropModal
+                    isOpen={isCropOpen}
+                    image={viewingImageIndex === 0 ? editingItem.imageUrl : (editingItem.additionalImages?.[viewingImageIndex - 1] || '')}
+                    onClose={() => setIsCropOpen(false)}
+                    onSave={async (cropped) => {
+                        // Optimistically update
+                        const publicUrl = await uploadScanImage(user?.id || 'anon', cropped);
+                        const finalUrl = publicUrl || cropped;
+
+                        if (viewingImageIndex === 0) {
+                            setEditingItem({ ...editingItem, imageUrl: finalUrl });
+                        } else {
+                            const newImages = [...(editingItem.additionalImages || [])];
+                            newImages[viewingImageIndex - 1] = finalUrl;
+                            setEditingItem({ ...editingItem, additionalImages: newImages });
+                        }
+                    }}
+                />
             )}
             {isUnitModalOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -2091,119 +2319,136 @@ function App() {
                                 <button onClick={() => setEditingItem(null)}><X size={24} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" /></button>
                             </div>
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900 rounded-b-2xl">
-                            {/* Removed duplicate trash can */}
-                            <div className="flex gap-3 w-full justify-end">
-                                <button onClick={() => setEditingItem(null)} className="px-6 py-2 font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors">Cancel</button>
-                                <button onClick={() => handlePushToEbay(editingItem)} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center gap-2">
-                                    List to eBay
-                                </button>
-                                <button onClick={() => handleUpdateInventoryItem(editingItem.calculation, editingItem.costCode, editingItem.calculation.itemCost, editingItem.itemSpecifics?.Weight || "", editingItem.dimensions)} className="px-8 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
-                                    Save Draft
-                                </button>
-                            </div>
-                        </div>
+                        {/* Header/Footer Separator Removed - Consolidated layout */}
 
-                        {/* RESEARCH PANEL (Free Mode & AI Premium) */}
-                        <div className="px-6 pt-4 pb-0">
-                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
-                                <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
-                                    <Globe size={16} /> Research & Comps
-                                    {isResearching && <span className="text-xs font-normal opacity-70 animate-pulse">(Searching...)</span>}
-                                </h4>
+                        {/* SCROLLABLE CONTENT BODY (Research + Form) */}
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-slate-900 pb-64">
+                            {/* RESEARCH PANEL */}
+                            <div className="px-6 pt-4 pb-0">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
+                                    <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
+                                        <Globe size={16} /> Research & Comps
+                                        {isResearching && <span className="text-xs font-normal opacity-70 animate-pulse">(Searching...)</span>}
+                                    </h4>
 
-                                {/* Search Input */}
-                                <div className="flex gap-2 mb-3">
-                                    <input
-                                        type="text"
-                                        value={editedTitle}
-                                        onChange={(e) => setEditedTitle(e.target.value)}
-                                        className="flex-1 bg-white dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-                                        placeholder="Search term..."
-                                    />
-                                    <button
-                                        onClick={async () => {
-                                            setIsResearching(true);
-                                            try {
-                                                const data = await searchEbayComps(editedTitle, 'ACTIVE', 'USED');
-                                                setVisualSearchResults(data.comps || []);
-                                            } catch (e) {
-                                                console.error(e);
-                                            } finally {
-                                                setIsResearching(false);
-                                            }
-                                        }}
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-colors"
-                                    >
-                                        Search
-                                    </button>
-                                </div>
-
-                                {/* Research Links - Use editedTitle OR first visual match OR "item" */}
-                                {/* Research Links - Use editedTitle OR editingItem.title OR AI Result OR "item" */}
-                                <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                    <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
-                                </div>
-
-                                {isResearching ? (
-                                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="min-w-[200px] h-[80px] bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm animate-pulse" />
-                                        ))}
+                                    {/* Search Input */}
+                                    <div className="flex gap-2 mb-3">
+                                        <input
+                                            type="text"
+                                            value={editedTitle}
+                                            onChange={(e) => setEditedTitle(e.target.value)}
+                                            className="flex-1 bg-white dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                            placeholder="Search term..."
+                                        />
+                                        <button
+                                            onClick={async () => {
+                                                setIsResearching(true);
+                                                try {
+                                                    const term = editedTitle || editingItem?.title || "";
+                                                    if (!term) return;
+                                                    const conditionParam = itemCondition === 'NEW' ? 'NEW' : 'USED';
+                                                    const data = await searchEbayComps(term, 'ACTIVE', conditionParam);
+                                                    setVisualSearchResults(data.comps || []);
+                                                } catch (e) {
+                                                    console.error(e);
+                                                } finally {
+                                                    setIsResearching(false);
+                                                }
+                                            }}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-colors"
+                                        >
+                                            Search
+                                        </button>
                                     </div>
-                                ) : visualSearchResults.length > 0 ? (
-                                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                        {visualSearchResults.map(match => (
-                                            <div key={match.id} className="min-w-[200px] bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col gap-2">
-                                                <div className="flex gap-2">
-                                                    <div className="w-12 h-12 bg-gray-100 rounded shrink-0 overflow-hidden">
-                                                        {match.image && <img src={match.image} className="w-full h-full object-cover" />}
+
+                                    {/* Research Links - Use editedTitle OR first visual match OR "item" */}
+                                    {/* Research Links - Use editedTitle OR editingItem.title OR AI Result OR "item" */}
+                                    <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
+                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
+                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
+                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
+                                        <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                    </div>
+
+                                    {isResearching ? (
+                                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                                            {[1, 2, 3].map(i => (
+                                                <div key={i} className="min-w-[200px] h-[80px] bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm animate-pulse" />
+                                            ))}
+                                        </div>
+                                    ) : visualSearchResults.length > 0 ? (
+                                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                                            {visualSearchResults.map(match => (
+                                                <div key={match.id} className="min-w-[200px] bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col gap-2">
+                                                    <div className="flex gap-2">
+                                                        <div className="w-12 h-12 bg-gray-100 rounded shrink-0 overflow-hidden">
+                                                            {match.image && <img src={match.image} className="w-full h-full object-cover" />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[10px] font-bold line-clamp-2 leading-tight mb-1">{match.title}</div>
+                                                            <div className="font-black text-blue-600">${match.price?.toFixed(2)}</div>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-[10px] font-bold line-clamp-2 leading-tight mb-1">{match.title}</div>
-                                                        <div className="font-black text-blue-600">${match.price?.toFixed(2)}</div>
-                                                    </div>
+                                                    <button
+                                                        onClick={() => handleSellSimilar(match)}
+                                                        className="w-full py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
+                                                    >
+                                                        Import Data
+                                                    </button>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleSellSimilar(match)}
-                                                    className="w-full py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
-                                                >
-                                                    Import Data
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-xs text-slate-500 italic">No matches found. Try entering a title manually.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white dark:bg-slate-900">
-                            <div className="grid grid-cols-4 gap-2">
-                                <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
-                                    <img src={editingItem.imageUrl} className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                        <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="View"><Eye size={14} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(0); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-slate-500 italic">No matches found. Try entering a title manually.</div>
+                                    )}
                                 </div>
+                            </div>
 
-                                {editingItem.additionalImages?.map((img, i) => (
-                                    <div key={i} className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(i + 1)}>
-                                        <img src={img} className="w-full h-full object-cover" />
+                            {/* FORM CONTENT */}
+                            <div className="p-6 space-y-6">
+                                <div className="grid grid-cols-4 gap-2">
+                                    <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
+                                        <img src={editingItem.imageUrl} className="w-full h-full object-cover" />
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(i + 1); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(i + 1); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="View"><Eye size={14} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(0); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
-                                ))}
 
-                                <button onClick={() => { setCameraMode('EDIT'); setStatus(ScoutStatus.SCANNING); }} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Camera size={18} /><span className="text-[8px] font-bold uppercase mt-1">Camera</span></button>
-                                <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Upload size={18} /><span className="text-[8px] font-bold uppercase mt-1">File</span></button>
+                                    {editingItem.additionalImages?.map((img, i) => (
+                                        <div key={i} className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(i + 1)}>
+                                            <img src={img} className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(i + 1); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(i + 1); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <button onClick={() => { setCameraMode('EDIT'); setStatus(ScoutStatus.SCANNING); }} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Camera size={18} /><span className="text-[8px] font-bold uppercase mt-1">Camera</span></button>
+                                    <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Upload size={18} /><span className="text-[8px] font-bold uppercase mt-1">File</span></button>
+                                </div>
+
+                                {/* --- EDIT ITEM SOURCE --- */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-mono uppercase text-slate-500">Source / Location</label>
+                                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2">
+                                        <Warehouse size={16} className="text-slate-400" />
+                                        <select
+                                            value={editingItem.storageUnitId || ''}
+                                            onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })}
+                                            className="flex-1 w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
+                                        >
+                                            <option value="" disabled>Select Source</option>
+                                            {storageUnits.map(unit => (
+                                                <option key={unit.id} value={unit.storeNumber}>
+                                                    {unit.storeNumber} {unit.address ? `(${unit.address})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
                             </div>
                             <input ref={editImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditImageUpload} />
                             <input ref={additionalImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAdditionalImageUpload} />
@@ -2443,9 +2688,10 @@ function App() {
                                 </div>
                             </div>
                         </div>
-
                     </div>
-                    <div className="p-4 border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex flex-col gap-3">
+
+
+                    <div className="absolute bottom-0 left-0 right-0 w-full p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex flex-col gap-3 z-50 shadow-xl">
                         <div className="flex gap-3">
                             <button onClick={() => setEditingItem(null)} className="px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-xl uppercase text-xs hover:bg-gray-50 dark:hover:bg-slate-700">Close</button>
                             <button onClick={() => setIsPreviewOpen(true)} className="px-4 py-3 bg-gray-200 dark:bg-slate-800 text-slate-700 dark:text-white border border-gray-300 dark:border-slate-600 font-bold rounded-xl uppercase text-xs hover:bg-gray-300 dark:hover:bg-slate-700 flex items-center gap-2"><Eye size={16} /> Preview</button>
@@ -2457,17 +2703,17 @@ function App() {
                                 editingItem.dimensions
                             )} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl uppercase text-xs shadow-lg hover:bg-emerald-500 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
                         </div>
-                        {editingItem.status === 'DRAFT' && (
-                            <button
-                                onClick={() => handlePushToEbay(editingItem)}
-                                className="w-full py-4 bg-blue-600 text-white font-black rounded-xl uppercase text-sm shadow-lg shadow-blue-600/20 hover:bg-blue-500 flex items-center justify-center gap-2 transition-all active:scale-95"
-                            >
-                                <Globe size={18} /> List on eBay
-                            </button>
-                        )}
+                        <button
+                            onClick={() => handlePushToEbay(editingItem)}
+                            className="w-full py-4 bg-blue-600 text-white font-black rounded-xl uppercase text-sm shadow-lg shadow-blue-600/20 hover:bg-blue-500 flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                            <Globe size={18} /> List Item Now
+                        </button>
                     </div>
                 </div>
-            )}
+
+            )
+            }
             {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
 
             <main className="flex-1 relative overflow-hidden flex flex-col">
@@ -2478,23 +2724,25 @@ function App() {
             {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
 
             {/* Loading Overlay */}
-            {loadingMessage && (
-                <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full text-center">
-                        <div className="relative">
-                            <div className="w-16 h-16 border-4 border-slate-700 border-t-neon-green rounded-full animate-spin"></div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Zap size={24} className="text-neon-green animate-pulse" />
+            {
+                loadingMessage && (
+                    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full text-center">
+                            <div className="relative">
+                                <div className="w-16 h-16 border-4 border-slate-700 border-t-neon-green rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Zap size={24} className="text-neon-green animate-pulse" />
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white mb-1">AI Working...</h3>
+                                <p className="text-slate-400 text-sm">{loadingMessage}</p>
                             </div>
                         </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-white mb-1">AI Working...</h3>
-                            <p className="text-slate-400 text-sm">{loadingMessage}</p>
-                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 

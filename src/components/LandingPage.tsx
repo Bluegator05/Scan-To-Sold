@@ -302,7 +302,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
                                 <CheckItem text="Unlimited Scans (Lens Mode)" />
-                                <CheckItem text="5 AI Optimizations / Day" />
+                                <CheckItem text="3 AI Optimizations / Day" />
                                 <CheckItem text="Profit Calculator" />
                                 <CheckItem text="Inventory Tracking" />
                                 <CheckItem text="Bulk Mode" crossed />
@@ -323,7 +323,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onOpen
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
                                 <CheckItem text="Unlimited AI Scans" color="text-blue-400" />
-                                <CheckItem text="50 AI Optimizations / Day" color="text-blue-400" />
+                                <CheckItem text="20 AI Optimizations / Day" color="text-blue-400" />
                                 <CheckItem text="Profit Calculator" color="text-blue-400" />
                                 <CheckItem text="Unlimited Inventory" color="text-blue-400" />
                                 <CheckItem text="Bulk Mode" crossed />

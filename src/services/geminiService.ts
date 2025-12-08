@@ -52,13 +52,11 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
           2. Create a "Comp Search Query" (Max 4-5 words). STRICTLY Brand + Model + MPN. 
              - DO NOT include colors, adjectives, "vintage", "rare", or generic words like "toy" or "electronics" unless part of the model name.
              - Example: "Sony Walkman WM-2" (NOT "Red Sony Walkman WM-2 Cassette Player").
-          3. Estimate current sold price (USD).
           
           Output JSON ONLY:
           {
             "itemTitle": "string",
-            "searchQuery": "string",
-            "estimatedSoldPrice": number
+            "searchQuery": "string"
           }
         `;
     } else {
@@ -446,7 +444,7 @@ export const generateListingDescription = async (title: string, notes: string, p
   return text.trim();
 };
 
-export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?: string): Promise<{ image: string | null, tokenUsage?: { input: number, output: number, total: number } }> => {
+export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?: string, backgroundColor: string = 'pure white (#FFFFFF)'): Promise<{ image: string | null, tokenUsage?: { input: number, output: number, total: number } }> => {
   if (!apiKey) return { image: null };
   try {
     let base64Data = imageUrlOrBase64;
@@ -468,7 +466,8 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
       }
     }
 
-    const cleanBase64 = base64Data.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+    // Fix Base64 regex to be more inclusive of types
+    const cleanBase64 = base64Data.replace(/^data:image\/[a-zA-Z]+;base64,/, "");
 
     const prompt = `
             TASK: STRICT BACKGROUND REMOVAL & CENTERING.
@@ -476,7 +475,7 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
             
             ACTION PLAN:
             1. CUT OUT the target item precisely.
-            2. PLACE it on a pure white background (#FFFFFF).
+            2. PLACE it on a ${backgroundColor} background.
             3. CENTER the item in the frame with balanced padding.
             4. LIGHTING: NEUTRAL, FLAT lighting only. Do not add dramatic shadows or highlights.
             
@@ -487,13 +486,16 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
             - **NO COLOR GRADING:** Do not change the color temperature or saturation of the item.
             - **NO TEXTURE SMOOTHING:** Do not apply "beauty filters" to the object.
             
-            SUMMARY: Change the background to white. Move the item to the center. DO NOT TOUCH THE ITEM OTHERWISE.
+            SUMMARY: Change the background to ${backgroundColor}. Move the item to the center. DO NOT TOUCH THE ITEM OTHERWISE.
             
             Return ONLY the generated image.
         `;
 
+    // 45 Second Timeout Race
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Request Timed Out (45s)")), 45000));
+
     // Use 'gemini-3-pro-image-preview' for high-quality editing (better background removal & lighting)
-    const response = await ai.models.generateContent({
+    const apiCall = ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: {
         parts: [
@@ -502,6 +504,9 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
         ]
       }
     });
+
+    // @ts-ignore
+    const response = await Promise.race([apiCall, timeoutPromise]);
 
     const usage = response.usageMetadata;
     const tokenUsage = usage ? {
