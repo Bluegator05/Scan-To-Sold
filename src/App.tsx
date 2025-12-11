@@ -13,7 +13,7 @@ import DisclaimerModal from './components/DisclaimerModal';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import Logo from './components/Logo';
 import { ScoutStatus, ScoutResult, InventoryItem, ProfitCalculation, StorageUnit, ItemSpecifics } from './types';
-import { analyzeItemImage, analyzeItemText, generateListingDescription, refinePriceAnalysis, optimizeTitle, suggestItemSpecifics, optimizeProductImage } from './services/geminiService';
+import { analyzeItemImage, analyzeItemText, optimizeTitle, suggestItemSpecifics, refinePriceAnalysis, generateListingDescription, optimizeProductImage, identifyItem, analyzeItemDetails } from './services/geminiService';
 import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
@@ -75,6 +75,33 @@ function App() {
     const [visualSearchResults, setVisualSearchResults] = useState<any[]>([]);
     const [isVisualSearching, setIsVisualSearching] = useState(false);
     const [lensKeyword, setLensKeyword] = useState("");
+    const [isBackgroundAnalyzing, setIsBackgroundAnalyzing] = useState(false); // NEW: Discreet AI Indicator
+
+    // Helper to clean HTML from imported descriptions (Define here to be accessible everywhere)
+    const cleanDescription = (html: string) => {
+        if (!html) return "";
+        try {
+            // 1. Remove style/script tags
+            let text = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+            // 2. Structural tags to newlines
+            text = text.replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<\/div>/gi, '\n')
+                .replace(/<\/p>/gi, '\n')
+                .replace(/<\/li>/gi, '\n');
+            // 3. Strip all other tags
+            text = text.replace(/<[^>]+>/g, '');
+            // 4. Decode entities
+            text = text.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+            // 5. Cleanup whitespace (trim lines, remove empty lines)
+            return text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .join('\n');
+        } catch (e) {
+            return html; // Fallback
+        }
+    };
 
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [activeUnit, setActiveUnit] = useState<string>("55");
@@ -663,177 +690,6 @@ function App() {
 
 
 
-    const handleImageCaptured = async (imageData: string, barcode?: string) => {
-        // Enforce Paywall: If they are in AI mode but don't have access (e.g. Free Tier limit reached or not Pro)
-        // AND they are not just scanning a barcode (which might be free? Assuming AI Scan is the premium feature)
-        // If scanMode is AI, we block. If scanMode is LENS, we allow (as it's Visual Search/Free capable usually, or checks later).
-        if (scanMode === 'AI' && !canAccess('AI_SCAN')) {
-            setStatus(ScoutStatus.IDLE);
-            setIsPricingOpen(true);
-            return;
-        }
-
-        // 1. Compress immediately
-        const compressed = await compressImage(imageData);
-        setCurrentImage(compressed);
-
-        // 2. Create Draft Item IMMEDIATELY (Unified Flow)
-        const tempId = crypto.randomUUID();
-        const newItem: InventoryItem = {
-            id: tempId,
-            sku: `SKU-${Date.now()}`,
-            title: "", // Empty initially
-            dateScanned: new Date().toISOString(),
-            storageUnitId: activeUnit,
-            costCode: '',
-            calculation: {
-                soldPrice: 0,
-                shippingCost: 0,
-                itemCost: 0,
-                platformFees: 0,
-                netProfit: 0,
-                isProfitable: false
-            },
-            imageUrl: compressed,
-            status: 'DRAFT',
-            conditionNotes: 'USED',
-            itemSpecifics: ensureDefaultSpecifics({}),
-            generatedListing: { platform: 'EBAY', content: '' },
-            dimensions: ""
-        };
-
-        // 3. Open Edit Modal & CLOSE CAMERA Immediately
-        setEditingItem(newItem);
-        setLoadingMessage("");
-        setStatus(ScoutStatus.COMPLETE); // <--- FIX: Close Camera Immediately
-
-        // 4. Async Process based on Mode
-        if (scanMode === 'LENS') {
-            // --- FREE MODE (Assisted) ---
-            setVisualSearchResults([]);
-            setIsResearching(true); // <--- FIX: Start Loading State
-
-            try {
-                // 1. Try Direct Visual Search (Fastest)
-                const visualResults = await searchEbayByImage(compressed);
-                if (visualResults && visualResults.length > 0) {
-                    setVisualSearchResults(visualResults);
-                } else {
-                    // 2. Fallback: Identify Item -> Text Search (Slower but robust)
-                    // If visual search returns nothing, we ask Gemini to identify the item quickly
-                    const idResult = await analyzeItemImage(compressed, undefined, false, true); // Lite Mode
-                    const query = idResult.searchQuery || idResult.itemTitle;
-                    setEditedTitle(query || ""); // <--- FIX: Populate Search Box immediately
-
-                    // FIX: Also update the main item title so the form is populated
-                    setEditingItem(prev => prev ? ({ ...prev, title: query || prev.title }) : null);
-
-                    if (query) {
-                        // 3. Search eBay with the identified title
-                        const data = await searchEbayComps(query, 'ACTIVE', 'USED');
-                        if (data.comps && data.comps.length > 0) {
-                            setVisualSearchResults(data.comps.map(c => ({
-                                id: c.id,
-                                title: c.title,
-                                price: c.price,
-                                shipping: c.shipping,
-                                image: c.image,
-                                url: c.url,
-                                condition: c.condition
-                            })));
-                        } else {
-                            // 4. Fallback: Broad Search (if specific failed)
-                            const words = query.split(' ');
-                            if (words.length > 2) {
-                                const broadQuery = words.slice(0, 3).join(' '); // Try first 3 words
-                                const broadData = await searchEbayComps(broadQuery, 'ACTIVE', 'USED');
-                                if (broadData.comps && broadData.comps.length > 0) {
-                                    setVisualSearchResults(broadData.comps.map(c => ({
-                                        id: c.id,
-                                        title: c.title,
-                                        price: c.price,
-                                        shipping: c.shipping,
-                                        image: c.image,
-                                        url: c.url,
-                                        condition: c.condition
-                                    })));
-                                    setEditedTitle(broadQuery); // Update title to what we actually found
-                                    // Optional: Notify user
-                                    // alert("Specific match not found. Showing broader results for: " + broadQuery);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Visual search failed", e);
-            } finally {
-                setIsResearching(false); // <--- FIX: End Loading State
-            }
-        } else {
-            // --- PREMIUM MODE (Done For You) ---
-            // We need to tell the modal "AI Analyzing..."
-            // We can use a special title or a separate state.
-            // Let's set a temporary title to indicate loading if we don't have a separate flag yet.
-            setEditingItem(prev => prev ? ({ ...prev, title: "AI Analyzing..." }) : null);
-
-            try {
-                let result: ScoutResult;
-                if (barcode) {
-                    result = await analyzeItemText(barcode);
-                } else {
-                    result = await analyzeItemImage(compressed, undefined, isBulkMode);
-                }
-
-                // Update the OPEN modal with results
-                setEditingItem(prev => {
-                    if (!prev || prev.id !== tempId) return prev; // User might have closed it
-                    return {
-                        ...prev,
-                        title: result.itemTitle,
-                        description: result.description, // Ensure description is set
-                        generatedListing: { platform: 'EBAY', content: result.description || '' }, // Ensure generatedListing is set
-                        itemSpecifics: ensureDefaultSpecifics(result.itemSpecifics),
-                        conditionNotes: result.condition || 'USED',
-                        calculation: {
-                            ...prev.calculation,
-                            soldPrice: result.estimatedSoldPrice,
-                            shippingCost: result.estimatedShippingCost || 0,
-                            netProfit: result.estimatedSoldPrice - (result.estimatedShippingCost || 0) - ((result.estimatedSoldPrice * 0.1325) + 0.30)
-                        },
-                        dimensions: result.estimatedDimensions || prev.dimensions
-                    };
-                });
-
-                setScoutResult(result);
-
-                // Set editedTitle to the SEARCH QUERY (shorter, better for comps) instead of full title
-                setEditedTitle(result.searchQuery || result.itemTitle);
-
-                if (result.estimatedWeight) {
-                    setEditingItem(prev => prev ? ({ ...prev, itemSpecifics: { ...prev.itemSpecifics, Weight: result.estimatedWeight! } }) : null);
-                }
-
-                // Log usage
-                if (user) {
-                    incrementDailyUsage();
-                    logScanEvent({
-                        dateScanned: new Date().toISOString(),
-                        imageUrl: compressed,
-                        title: result.itemTitle,
-                        barcode: barcode,
-                        estimatedValue: result.estimatedSoldPrice,
-                        resultStatus: 'SCANNED'
-                    }, user.id);
-                }
-
-            } catch (e) {
-                console.error("AI Analysis failed", e);
-                setEditingItem(prev => prev ? ({ ...prev, title: "Analysis Failed. Please enter manually." }) : null);
-            }
-        }
-    };
-
     const handleImportFromUrl = async () => {
         if (!importUrl) return;
         const id = extractEbayId(importUrl);
@@ -946,7 +802,7 @@ function App() {
                 title: fullData.title || editingItem.title,
                 conditionNotes: fullData.condition || editingItem.conditionNotes,
                 itemSpecifics: mergedSpecifics,
-                generatedListing: { platform: 'EBAY', content: fullData.description || '' },
+                generatedListing: { platform: 'EBAY', content: cleanDescription(fullData.description || '') },
                 calculation: {
                     ...editingItem.calculation,
                     soldPrice: newPrice || editingItem.calculation.soldPrice,
@@ -956,7 +812,7 @@ function App() {
             });
             if (newPrice) setCurrentListingPrice(newPrice);
             // Also update the standalone state if needed
-            setGeneratedListing({ platform: 'EBAY', content: fullData.description || '' });
+            setGeneratedListing({ platform: 'EBAY', content: cleanDescription(fullData.description || '') });
         } else if (scoutResult) {
             // Scout Mode -> Create Draft & Open Edit Modal
             const newItem: InventoryItem = {
@@ -978,7 +834,7 @@ function App() {
                 status: 'DRAFT',
                 conditionNotes: newCondition,
                 itemSpecifics: ensureDefaultSpecifics(importedData.itemSpecifics),
-                generatedListing: { platform: 'EBAY', content: importedData.description || '' },
+                generatedListing: { platform: 'EBAY', content: cleanDescription(importedData.description || '') },
                 dimensions: newDims
             };
 
@@ -999,6 +855,8 @@ function App() {
             setLoadingMessage("");
         }
     };
+
+    const [scoutAdditionalImages, setScoutAdditionalImages] = useState<string[]>([]); // New state for batch
 
     const handleOptimizeTitle = async () => {
         setLoadingMessage("Optimizing Title...");
@@ -1072,6 +930,262 @@ function App() {
         return Number((unit.cost / Math.max(1, currentCount + countModifier)).toFixed(2));
     };
 
+    const handleImageCaptured = async (imageData: string | string[], barcode?: string) => {
+        // Enforce Paywall (Only for AI Scout Mode)
+        if (cameraMode === 'SCOUT' && scanMode === 'AI' && !canAccess('AI_SCAN')) {
+            setStatus(ScoutStatus.IDLE);
+            setIsPricingOpen(true);
+            return;
+        }
+
+        // --- NUCLEAR WATCHDOG (FAILSAVE) ---
+        // Forces unlock if ANY part of this function hangs for > 15s
+        const watchdogId = setTimeout(() => {
+            console.warn("Watchdog Triggered");
+            setLoadingMessage("System Timeout - Unlocking...");
+            setTimeout(() => setStatus(ScoutStatus.COMPLETE), 1000);
+        }, 15000);
+
+        try {
+            setLoadingMessage("Processing Images...");
+
+            let allImages: string[] = [];
+            if (Array.isArray(imageData)) {
+                allImages = imageData;
+            } else {
+                allImages = [imageData];
+            }
+
+            if (allImages.length === 0) return;
+
+            // --- EDIT MODE: APPEND PHOTOS ---
+            // If we are in EDIT mode, we just want to add photos to the current item and close the camera.
+            if (cameraMode === 'EDIT') {
+                const processedImages: string[] = [];
+
+                // Compress all images in parallel for speed
+                const compressionPromises = allImages.map(img => compressImage(img));
+                const compressedImages = await Promise.all(compressionPromises);
+
+                // Start background uploads
+                if (user) {
+                    compressedImages.forEach(img => {
+                        uploadScanImage(user.id, img).then(url => {
+                            if (url) imageCache.current.set(url, img);
+                        });
+                    });
+                }
+
+                setEditingItem(prev => {
+                    if (!prev) return null;
+                    // Filter out any potential main image duplicates if modifying list
+                    const currentImages = prev.additionalImages || [];
+                    const newImages = [...currentImages, ...compressedImages].slice(0, 24); // Max 24 photos
+
+                    return {
+                        ...prev,
+                        additionalImages: newImages
+                    };
+                });
+
+                setLoadingMessage("");
+                setStatus(ScoutStatus.IDLE); // Return to Edit Modal
+                return;
+            }
+
+            // --- SOCUT MODE (NEW SCAN) ---
+
+            const mainImage = allImages[0];
+            const additionalRaw = allImages.slice(1);
+
+            // --- STEP 1: COMPRESSION ---
+            setStatus(ScoutStatus.ANALYZING);
+
+            // Compress Main Image
+            const mainVideoPromise = compressImage(mainImage);
+            const mainTimeout = new Promise((resolve) => setTimeout(() => resolve(mainImage), 3000));
+            // @ts-ignore
+            const compressedMain = await Promise.race([mainVideoPromise, mainTimeout]) as string;
+
+            // Compress Additional Images (Parallel)
+            // This prevents "Load Failed" errors when saving large raw camera images
+            const additionalPromises = additionalRaw.map(img => compressImage(img));
+            const compressedAdditional = await Promise.all(additionalPromises);
+
+            setCurrentImage(compressedMain);
+            setScoutAdditionalImages(compressedAdditional);
+            setScannedBarcode(barcode || null);
+
+            // Upload in background (don't await)
+            if (user) {
+                uploadScanImage(user.id, compressedMain).then(url => {
+                    if (url) { setPublicImageLink(url); imageCache.current.set(url, compressedMain); }
+                });
+                // Upload additional in background too
+                compressedAdditional.forEach(img => {
+                    uploadScanImage(user.id, img);
+                });
+            }
+
+            // Reset UI
+            setScoutResult(null);
+            setEditedTitle("");
+            setBinLocation("");
+            setConditionNotes("");
+            setGeneratedListing("");
+            setListingPlatform(null);
+            setCurrentListingPrice(0);
+            setItemCondition('USED');
+            setImportUrl("");
+            setVisualSearchResults([]);
+            setLensKeyword("");
+
+            if (scanMode === 'LENS') {
+                setEditingItem(prev => prev ? ({ ...prev, title: "Identifying...", imageUrl: compressedMain, additionalImages: compressedAdditional }) : null);
+            }
+
+            // --- STEP 2: IDENTIFICATION (Phase 1) ---
+            setLoadingMessage(scanMode === 'LENS' ? "Identifying..." : "Identifying...");
+
+            // Force UI Repaint so "STOP" button is visible and clickable
+            await new Promise(r => setTimeout(r, 100));
+
+            let initialResult;
+            try {
+                if (barcode) {
+                    initialResult = await analyzeItemText(barcode);
+                } else {
+                    // Explicit 15s Timeout for Identification (Increased from 8s)
+                    const idPromise = identifyItem(compressedMain, barcode);
+                    const idTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("ID_TIMEOUT")), 15000));
+                    // @ts-ignore
+                    const fastId = await Promise.race([idPromise, idTimeout]) as any;
+
+                    initialResult = {
+                        itemTitle: fastId.itemTitle,
+                        searchQuery: fastId.searchQuery,
+                        listingSources: fastId.listingSources
+                    };
+                }
+            } catch (err) {
+                console.error("Phase 1 Error:", err);
+                initialResult = { itemTitle: "Item Detected", searchQuery: "Item", listingSources: [] };
+            }
+
+            setEditedTitle(initialResult.searchQuery || initialResult.itemTitle);
+            setLensKeyword(initialResult.searchQuery || initialResult.itemTitle);
+
+            // --- NON-BLOCKING UI UNLOCK ---
+            setLoadingMessage(""); // Dismiss Overlay Immediately
+            setStatus(ScoutStatus.COMPLETE);
+
+            // Set Initial "Lite" Result
+            const baseResult: ScoutResult = {
+                itemTitle: initialResult.itemTitle,
+                searchQuery: initialResult.searchQuery || initialResult.itemTitle,
+                estimatedSoldPrice: 0,
+                estimatedShippingCost: 0,
+                estimatedWeight: "",
+                confidence: 80,
+                description: "", // Will populate later
+                listingSources: initialResult.listingSources || [],
+                itemSpecifics: {}, // Will populate later
+                isBulkLot: false
+            };
+
+            setScoutResult(baseResult);
+
+            // Update modal with initial data
+            setEditingItem(prev => prev ? ({ ...prev, title: initialResult.searchQuery || initialResult.itemTitle }) : null);
+
+            // --- ASYNC STEP 3: DEEP ANALYSIS & COMPS ---
+            // Trigger these in background and update state as they finish
+
+            const runAsyncTasks = async () => {
+                // 1. Start Comp Search (Fastest)
+                searchEbayComps(baseResult.searchQuery || baseResult.itemTitle, 'SOLD', 'USED').then(data => {
+                    if (data && data.comps) setVisualSearchResults(data.comps);
+                });
+
+                if (scanMode === 'AI') {
+                    setIsBackgroundAnalyzing(true); // START DISCREET INDICATOR
+                    try {
+                        // 2. Start Deep Analysis (Slower) - Specs, Price, Dims
+                        const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
+                        const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 20000)); // 20s timeout
+
+                        // 3. Start High-Quality Description Generation (Parallel)
+                        // This uses the specialized text generator that the user likes ("Auto-Write"), ensuring quality.
+                        const descriptionPromise = generateListingDescription(
+                            initialResult.itemTitle,
+                            'USED', // Default condition
+                            'EBAY'
+                        );
+
+                        // Wait for both Deep Data and Description
+                        // @ts-ignore
+                        const [details, bestDescription] = await Promise.all([
+                            Promise.race([detailsPromise, detailsTimeout]) as Promise<Partial<ScoutResult>>,
+                            descriptionPromise
+                        ]);
+
+                        const finalResult = {
+                            ...baseResult,
+                            ...details,
+                            description: bestDescription || details.description || "", // Prioritize specialized generator
+                            itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {})
+                        };
+
+                        // Update Scout Result with Deep Data
+                        setScoutResult(prev => prev ? ({ ...prev, ...finalResult }) : finalResult);
+                        setEditedTitle(finalResult.itemTitle); // Or optimizedTitle?
+                        setItemCondition(finalResult.condition || 'USED');
+                        // CRITICAL FIX: Update the bound description field
+                        setGeneratedListing({ platform: 'EBAY', content: finalResult.description || "" });
+
+                        // Update Edit Modal with Deep Analysis Data (Live Hydration)
+                        setEditingItem(prev => {
+                            if (!prev) return null;
+                            return {
+                                ...prev,
+                                title: finalResult.optimizedTitle || finalResult.itemTitle, // Use Optimized Title
+                                itemSpecifics: finalResult.itemSpecifics,
+                                conditionNotes: finalResult.condition || 'USED',
+                                dimensions: finalResult.estimatedDimensions || prev.dimensions,
+                                calculation: {
+                                    ...prev.calculation,
+                                    soldPrice: finalResult.estimatedSoldPrice || 0,
+                                    shippingCost: finalResult.estimatedShippingCost || 0,
+                                },
+                                generatedListing: {
+                                    platform: 'EBAY',
+                                    content: finalResult.description || ""
+                                }
+                            };
+                        });
+                    } catch (err) {
+                        console.error("Async Deep Analysis Failed:", err);
+                    } finally {
+                        setIsBackgroundAnalyzing(false); // STOP DISCREET INDICATOR
+                    }
+                }
+            };
+
+            // Fire and forget (don't await in main thread)
+            runAsyncTasks();
+
+        } catch (error) {
+            console.error("Capture Flow Error:", error);
+            alert("Error during scan. Watchdog will reset.");
+            setLoadingMessage("");
+            setStatus(ScoutStatus.COMPLETE);
+        } finally {
+            clearTimeout(watchdogId);
+            // Redundant safety clear
+            setLoadingMessage("");
+        }
+    };
+
     const handleSaveToInventory = async (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string) => {
         if (!scoutResult || !user) return;
         setIsSaving(true);
@@ -1094,6 +1208,17 @@ function App() {
                 }
             }
 
+            // Upload Additional Images
+            const uploadedAdditional: string[] = [];
+            for (const img of scoutAdditionalImages) {
+                if (img.startsWith('data:')) {
+                    const url = await uploadScanImage(user.id, img);
+                    if (url) uploadedAdditional.push(url);
+                } else {
+                    uploadedAdditional.push(img);
+                }
+            }
+
             const currentUnit = activeUnit || "55";
             const newDynamicCost = calculateDynamicCost(currentUnit, 1);
             const sku = `UNIT${currentUnit}-${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase().replace(' ', '')}-C${Math.floor(newDynamicCost)}-${Math.floor(Math.random() * 1000)}`;
@@ -1105,7 +1230,7 @@ function App() {
                 id: '', sku, title: editedTitle || scoutResult.itemTitle || "Untitled Item",
                 dateScanned: new Date().toISOString(), storageUnitId: currentUnit, costCode: `C${Math.floor(newDynamicCost)}`,
                 calculation: { ...calc, itemCost: newDynamicCost, netProfit: net, isProfitable: net >= 15 },
-                imageUrl: finalImageUrl, additionalImages: [], status: 'DRAFT', binLocation, conditionNotes,
+                imageUrl: finalImageUrl, additionalImages: uploadedAdditional, status: 'DRAFT', binLocation, conditionNotes,
                 itemSpecifics: { ...ensureDefaultSpecifics(scoutResult.itemSpecifics), Weight: weight }, postalCode: localStorage.getItem('sts_default_zip') || "95125",
                 generatedListing: generatedListing ? {
                     platform: listingPlatform!,
@@ -1120,7 +1245,7 @@ function App() {
             await batchUpdateUnitItemCosts(currentUnit, newDynamicCost);
             await refreshData();
 
-            setStatus(ScoutStatus.IDLE); setScoutResult(null); setScannedBarcode(null); setView('inventory'); setInventoryTab('DRAFT');
+            setStatus(ScoutStatus.IDLE); setScoutResult(null); setScannedBarcode(null); setScoutAdditionalImages([]); setView('inventory'); setInventoryTab('DRAFT');
         } catch (e: any) { alert("Failed to save: " + e.message); } finally { setIsSaving(false); }
     };
 
@@ -1176,7 +1301,11 @@ function App() {
                 calculation: calc,
                 costCode,
                 itemSpecifics: { ...editingItem.itemSpecifics, Weight: weight },
-                dimensions: dimensions || editingItem.dimensions
+                dimensions: dimensions || editingItem.dimensions,
+                generatedListing: generatedListing ? {
+                    platform: listingPlatform || 'EBAY',
+                    content: typeof generatedListing === 'string' ? generatedListing : generatedListing.content
+                } : editingItem.generatedListing
             };
 
             // Check if this is a NEW local item (e.g. from camera/scan) that hasn't been saved to DB yet
@@ -1793,9 +1922,37 @@ function App() {
                 {currentImage ? <img src={currentImage} alt="Captured" className="w-full h-full object-contain" /> : <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900"><SearchIcon size={48} className="text-slate-700 mb-2" /><span className="text-slate-500 font-mono text-xs uppercase">Manual Lookup: {manualQuery}</span></div>}
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                     {status === ScoutStatus.ANALYZING ? (
-                        <div className="flex items-center gap-2 text-neon-green animate-pulse"><Loader2 className="animate-spin" size={16} /><span className="font-mono text-sm font-bold">{isBulkMode ? 'ANALYZING BULK LOT...' : loadingMessage || 'AI MARKET RESEARCH...'}</span></div>
+                        <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2 text-neon-green animate-pulse">
+                                <Loader2 className="animate-spin" size={16} />
+                                <span className="font-mono text-sm font-bold">{isBulkMode ? 'ANALYZING BULK LOT...' : loadingMessage || 'AI MARKET RESEARCH...'}</span>
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setStatus(ScoutStatus.COMPLETE);
+                                    setLoadingMessage("");
+                                }}
+                                className="px-3 py-1 bg-red-900/50 hover:bg-red-900/80 text-white text-[10px] font-bold rounded-full border border-red-500/30 transition-colors backdrop-blur-md"
+                            >
+                                STOP
+                            </button>
+                        </div>
                     ) : (<div className="flex justify-between items-end">{scannedBarcode && (<div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20"><ScanLine size={12} /> {scannedBarcode}</div>)}
-                        {scanMode === 'AI' && <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>}
+                        {scanMode === 'AI' && (
+                            <div className="flex items-center gap-2">
+                                {isBackgroundAnalyzing && (
+                                    <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                        </span>
+                                        <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
+                                    </div>
+                                )}
+                                <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
+                            </div>
+                        )}
                         {scanMode === 'LENS' && <span className="text-xs font-mono bg-blue-500/20 backdrop-blur px-2 py-1 rounded text-blue-400 border border-blue-500/30 font-bold">VISUAL SEARCH</span>}
                     </div>)}
                 </div>
@@ -2398,8 +2555,24 @@ function App() {
                                                 </div>
                                             ))}
                                         </div>
+                                    ) : scoutResult?.listingSources && scoutResult.listingSources.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1"><SearchIcon size={12} /> Google Matches (AI Found)</div>
+                                            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                                                {scoutResult.listingSources.map((source, i) => (
+                                                    <a key={i} href={source.uri} target="_blank" rel="noreferrer" className="min-w-[160px] max-w-[160px] bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col gap-2 hover:border-blue-400 transition-colors group">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[10px] font-bold line-clamp-3 leading-tight text-slate-700 dark:text-slate-300 group-hover:text-blue-500 mb-1">{source.title}</div>
+                                                        </div>
+                                                        <div className="w-full py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-500 text-[10px] font-bold rounded flex items-center justify-center gap-1">
+                                                            Visit <ExternalLink size={10} />
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ) : (
-                                        <div className="text-xs text-slate-500 italic">No matches found. Try entering a title manually.</div>
+                                        <div className="text-xs text-slate-500 italic">No matches found. Try entering a title manually to search again.</div>
                                     )}
                                 </div>
                             </div>
@@ -2717,7 +2890,7 @@ function App() {
             {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
 
             <main className="flex-1 relative overflow-hidden flex flex-col">
-                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
+                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
             </main>
 
             {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}

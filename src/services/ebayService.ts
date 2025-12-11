@@ -107,13 +107,22 @@ export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'A
   if (!url) throw new Error("Backend URL not configured");
 
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 Second Timeout
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || "Failed to fetch comps");
     }
     return await res.json();
   } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error("Comp search timed out");
+      throw new Error("Search timed out. Please try again.");
+    }
     console.error("Comp search failed", error);
     throw error;
   }

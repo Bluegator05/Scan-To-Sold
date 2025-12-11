@@ -10,6 +10,7 @@ export enum ScoutStatus {
 export interface ScoutResult {
   itemTitle: string;
   searchQuery?: string; // New: Optimized shorter query for comps
+  optimizedTitle?: string; // New: SEO listing title (Max 80)
   barcode?: string;
   estimatedSoldPrice: number;
   estimatedShippingCost?: number;

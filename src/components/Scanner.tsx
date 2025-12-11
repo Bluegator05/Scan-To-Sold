@@ -1,16 +1,16 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, RefreshCw, ScanBarcode, Loader2, Camera, Volume2, VolumeX } from 'lucide-react';
+import { X, RefreshCw, ScanBarcode, Loader2, Camera, Volume2, VolumeX, Check, Trash2 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 interface ScannerProps {
-  onCapture: (imageData: string, barcode?: string) => void;
+  onCapture: (imageData: string | string[], barcode?: string) => void;
   onClose: () => void;
   bulkSessionCount?: number;
   feedbackMessage?: string;
+  singleCapture?: boolean;
 }
 
-const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount = 0, feedbackMessage }) => {
+const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount = 0, feedbackMessage, singleCapture = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -21,15 +21,18 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
   const [isCapturing, setIsCapturing] = useState(false);
   const [autoScanEnabled, setAutoScanEnabled] = useState(false); // Default to Photo Mode (Manual)
   const [isMuted, setIsMuted] = useState(false);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]); // Batch buffer
 
   // Use Ref to lock capture logic and prevent effect cleanup cancellations
   const captureLock = useRef(false);
 
   // Sound effect ref
   const beepRef = useRef<HTMLAudioElement | null>(null);
+  const shutterRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     beepRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    shutterRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'); // Camera shutter
   }, []);
 
   const playBeep = () => {
@@ -37,6 +40,14 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
       beepRef.current.currentTime = 0;
       beepRef.current.volume = 0.5;
       beepRef.current.play().catch(e => console.log("Audio play failed", e));
+    }
+  };
+
+  const playShutter = () => {
+    if (!isMuted && shutterRef.current) {
+      shutterRef.current.currentTime = 0;
+      shutterRef.current.volume = 0.6;
+      shutterRef.current.play().catch(() => { });
     }
   };
 
@@ -83,7 +94,7 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
     });
   }, [autoScanEnabled, isMuted]);
 
-  // Auto-capture effect
+  // Auto-capture effect (Legacy / Single Shot)
   useEffect(() => {
     if (detectedBarcode && !captureLock.current && autoScanEnabled) {
       captureLock.current = true;
@@ -177,12 +188,40 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
   const handleManualCapture = () => {
     const imageData = captureFrame();
     if (imageData) {
-      onCapture(imageData, undefined); // Pass undefined for barcode to force Image Analysis
+      playShutter();
+      if (navigator.vibrate) navigator.vibrate(20);
+
+      // If Single Capture Mode (Scout Mode), return immediately
+      if (singleCapture) {
+        setIsCapturing(true);
+        onCapture(imageData, undefined);
+        return;
+      }
+
+      // Add to batch buffer
+      setCapturedImages(prev => [...prev, imageData]);
+
+      // Visual feedback (flash)
+      setIsCapturing(true);
+      setTimeout(() => setIsCapturing(false), 200);
     }
   };
 
+  const handleDone = () => {
+    if (capturedImages.length > 0) {
+      onCapture(capturedImages, undefined);
+    } else {
+      onClose();
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setCapturedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+
   return (
-    <div className="fixed inset-0 bg-black z-[10000] overflow-hidden">
+    <div className="fixed inset-0 bg-black z-[10000] overflow-hidden flex flex-col">
 
       {/* Video Layer */}
       <div className="absolute inset-0 z-0 bg-black">
@@ -193,6 +232,9 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
           playsInline
         />
       </div>
+
+      {/* Flash Overlay */}
+      <div className={`absolute inset-0 z-10 bg-white pointer-events-none transition-opacity duration-200 ${isCapturing ? 'opacity-50' : 'opacity-0'}`} />
 
       {/* Header Layer */}
       <div className="absolute top-0 left-0 right-0 p-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] flex justify-between items-start z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pb-20">
@@ -227,9 +269,27 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
               {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
             </button>
           )}
-          <button onClick={onClose} className={`p-3 backdrop-blur-md rounded-full text-white hover:bg-slate-700 border border-white/10 ${bulkSessionCount > 0 ? 'bg-neon-green text-slate-950 font-bold px-6' : 'bg-black/40'}`}>
-            {bulkSessionCount > 0 ? "DONE" : <X size={24} />}
-          </button>
+          {!singleCapture && (
+            <button
+              onClick={handleDone}
+              className={`flex items-center gap-2 px-4 py-3 backdrop-blur-md rounded-full text-white hover:bg-slate-700 border border-white/10 transition-all ${capturedImages.length > 0 ? 'bg-neon-green text-slate-950 font-black' : 'bg-black/40'}`}
+            >
+              {capturedImages.length > 0 ? (
+                <>
+                  <Check size={20} className="stroke-[3]" />
+                  <span>DONE ({capturedImages.length})</span>
+                </>
+              ) : <X size={24} />}
+            </button>
+          )}
+          {singleCapture && (
+            <button
+              onClick={onClose}
+              className="p-3 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-slate-700 border border-white/10"
+            >
+              <X size={24} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -260,6 +320,7 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
       {autoScanEnabled && (
         <div className={`absolute inset-0 z-10 pointer-events-none flex flex-col items-center justify-center transition-opacity duration-300`}>
           <div className={`relative w-72 h-48 rounded-2xl border-[3px] transition-all duration-200 ${detectedBarcode ? 'border-neon-green scale-105 shadow-[0_0_50px_rgba(57,255,20,0.6)] bg-neon-green/10' : 'border-white/50'}`}>
+            {/* Corners... */}
             <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white -mt-1 -ml-1 rounded-tl-sm"></div>
             <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white -mt-1 -mr-1 rounded-tr-sm"></div>
             <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white -mb-1 -ml-1 rounded-bl-sm"></div>
@@ -278,28 +339,54 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
               </div>
             )}
           </div>
-
-          {!detectedBarcode && !initializing && (
-            <p className="mt-8 bg-black/60 text-white/90 px-4 py-2 rounded-full text-xs font-mono backdrop-blur-md border border-white/10">
-              Align Barcode
-            </p>
-          )}
         </div>
       )}
 
-      {/* Manual Capture Button (Always Visible) */}
+      {/* Thumbnail Strip (Bottom) */}
+      {!autoScanEnabled && !singleCapture && capturedImages.length > 0 && (
+        <div className="absolute bottom-32 left-0 right-0 z-20 px-6">
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
+            {capturedImages.map((img, idx) => (
+              <div key={idx} className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-white/30 snap-start animate-in zoom-in duration-200">
+                <img src={img} className="w-full h-full object-cover" alt={`Capture ${idx}`} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                  className="absolute top-0 right-0 bg-black/50 p-1 text-white hover:bg-red-500/80 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[10px] text-white text-center font-mono">
+                  #{idx + 1}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Manual Capture Button or Gallery Link */}
       <div className="absolute bottom-0 left-0 right-0 p-8 pb-12 flex justify-center items-center z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-24">
-        <button
-          onClick={handleManualCapture}
-          className={`w-20 h-20 rounded-full border-4 flex items-center justify-center active:scale-95 transition-all shadow-2xl
-            ${detectedBarcode
-              ? 'border-neon-green bg-white/10 shadow-[0_0_30px_rgba(57,255,20,0.5)]'
-              : (autoScanEnabled ? 'border-white bg-white/10 hover:bg-white/20' : 'border-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20')
-            }
-          `}
-        >
-          <div className={`w-16 h-16 rounded-full transition-colors ${detectedBarcode ? 'bg-neon-green' : (autoScanEnabled ? 'bg-white' : 'bg-yellow-400')}`}></div>
-        </button>
+        <div className="relative">
+          {/* Shutter Button */}
+          <button
+            onClick={handleManualCapture}
+            className={`w-20 h-20 rounded-full border-4 flex items-center justify-center active:scale-95 transition-all shadow-2xl relative
+                ${detectedBarcode
+                ? 'border-neon-green bg-white/10 shadow-[0_0_30px_rgba(57,255,20,0.5)]'
+                : (autoScanEnabled ? 'border-white bg-white/10 hover:bg-white/20' : 'border-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20')
+              }
+            `}
+          >
+            <div className={`w-16 h-16 rounded-full transition-colors ${detectedBarcode ? 'bg-neon-green' : (autoScanEnabled ? 'bg-white' : 'bg-yellow-400')}`}></div>
+          </button>
+
+          {/* Counter Badge */}
+          {!autoScanEnabled && !singleCapture && capturedImages.length > 0 && (
+            <div className="absolute -top-2 -right-2 bg-neon-green text-black font-black w-8 h-8 flex items-center justify-center rounded-full border-2 border-black z-30 animate-in zoom-in">
+              {capturedImages.length}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Feedback Toast */}
@@ -319,6 +406,9 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
           0%, 100% { transform: translateY(-300%); opacity: 0; }
           50% { opacity: 1; }
           100% { transform: translateY(300%); opacity: 0; }
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
         }
       `}</style>
     </div>

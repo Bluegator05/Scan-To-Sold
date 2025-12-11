@@ -128,7 +128,7 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
         `;
     }
 
-    // Use Flash 2.5 for Image Analysis (Faster, excellent vision)
+    // Use Flash 2.5 for Image Analysis (Fastest & Newest)
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
@@ -188,6 +188,149 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
   } catch (error: any) {
     console.error("Analysis Error:", error);
     return createErrorResult(error.message);
+  }
+};
+
+// --- NEW FAST PIPELINE ---
+
+export const identifyItem = async (imageBase64: string, barcode?: string): Promise<{ itemTitle: string, searchQuery: string, listingSources: any[] }> => {
+  if (!apiKey) throw new Error("Missing API Key");
+  const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+
+  const prompt = `
+    Act as an expert reseller. FAST ID.
+    ${barcode ? `Barcode: ${barcode}` : ""}
+    
+    1. Identify the item in the image (Brand + Model + Key Variant).
+    2. Create a "Comp Search Query" (Max 4-5 words) for finding sold listings.
+       - STRICTLY Brand + Model + MPN + Key Variant (e.g. Color/Edition).
+       - Exclude generic words (e.g. "sneakers", "working").
+    
+    Output JSON ONLY: { "itemTitle": "string", "searchQuery": "string" }
+  `;
+
+  try {
+    const apiCall = ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+          { text: prompt }
+        ]
+      },
+      config: { tools: [{ googleSearch: {} }] }
+    });
+
+    // 15 Second Safety Timeout for Phase 1
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Fast ID Timed Out")), 15000));
+
+    // @ts-ignore
+    const response = await Promise.race([apiCall, timeoutPromise]) as any;
+
+    const text = response.text || "{}";
+    const result = extractJSON(text);
+
+    const listingSources: any[] = [];
+    if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+      response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+        if (chunk.web?.uri) listingSources.push({ title: chunk.web.title || "Source", uri: chunk.web.uri });
+      });
+    }
+
+    return {
+      itemTitle: result.itemTitle || "Unknown Item",
+      searchQuery: result.searchQuery || result.itemTitle,
+      listingSources
+    };
+  } catch (e) {
+    console.error("Fast ID Error:", e);
+    return { itemTitle: "Unknown Item", searchQuery: "", listingSources: [] };
+  }
+};
+
+export const analyzeItemDetails = async (imageBase64: string, identifiedTitle: string): Promise<Partial<ScoutResult>> => {
+  if (!apiKey) return {};
+  const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+
+  const prompt = `
+    Analyze this image of: "${identifiedTitle}".
+    
+    TASK: Create a professional eBay listing.
+    
+    1. WRITE AN OPTIMIZED TITLE (Crucial):
+       - Max 80 Characters.
+       - Format: Brand + Model + Key Variant + Key Specs + Condition (if applicable).
+       - NO filler words ("Look", "Wow").
+       - Example: "Sony Walkman WM-2 Cassette Player Red Vintage Portable working"
+    
+    2. WRITE A DESCRIPTION:
+       - Format:
+         [Main Title Line]
+         
+         **Features:**
+         - [Key Feature 1 (Material, Style, etc)]
+         - [Key Feature 2]
+         - [Key Feature 3]
+         
+         **Measurements/Size:**
+         - [Approximate Estimated Dimensions/Size]
+         
+         **Condition:**
+         [Condition Note - Be specific about wear/flaws]
+         
+         **Shipping:**
+         Ships via USPS Ground Advantage. Securely packaged.
+    
+    3. ESTIMATE DATA (Search Web):
+       - Price: Average Sold Price for this condition.
+       - Shipping: Accurate Weight & Dimensions for this model.
+    
+    4. EXTRACT ITEM SPECIFICS (REQUIRED):
+       - You MUST populate the 'itemSpecifics' object.
+       - keys: "Brand", "Model", "MPN" (if found), and other category-specific attributes (e.g. "Size", "Color", "Material", "Platform").
+       - Do NOT leave empty. If unknown, use "Unbranded" or "Unknown".
+    
+    Output JSON ONLY:
+    {
+      "optimizedTitle": "string (Max 80 chars)",
+      "condition": "USED",
+      "estimatedSoldPrice": number,
+      "estimatedShippingCost": number,
+      "estimatedWeight": "string",
+      "estimatedDimensions": "string",
+      "itemSpecifics": {
+          "Brand": "string",
+          "Model": "string",
+          "MPN": "string",
+          "Color": "string"
+      },
+      "description": "string"
+    }
+  `;
+
+  try {
+    const apiCall = ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+          { text: prompt }
+        ]
+      },
+      config: { tools: [{ googleSearch: {} }] }
+    });
+
+    // 20 Second Safety Timeout (Speed Priority but robust)
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Analysis Timed Out")), 20000));
+
+    // @ts-ignore
+    const response = await Promise.race([apiCall, timeoutPromise]) as any;
+
+    const text = response.text || "{}";
+    return extractJSON(text);
+  } catch (e) {
+    console.error("Deep Analysis Error:", e);
+    return {};
   }
 };
 
@@ -506,7 +649,7 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
     });
 
     // @ts-ignore
-    const response = await Promise.race([apiCall, timeoutPromise]);
+    const response = await Promise.race([apiCall, timeoutPromise]) as any;
 
     const usage = response.usageMetadata;
     const tokenUsage = usage ? {
