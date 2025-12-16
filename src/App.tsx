@@ -17,8 +17,9 @@ import { analyzeItemImage, analyzeItemText, optimizeTitle, suggestItemSpecifics,
 import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
+import ResearchScreen from './components/ResearchScreen';
 import { incrementDailyUsage } from './services/paymentService';
-import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, API_BASE_URL } from './services/ebayService';
+import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, getSellThroughData, API_BASE_URL } from './services/ebayService';
 import { compressImage, uploadScanImage } from './services/imageService';
 import { scheduleGoalReminder, NotificationSettings } from './services/notificationService';
 import {
@@ -29,7 +30,7 @@ import {
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
-import { Camera, LayoutDashboard, Package, Settings, Edit2, Save, Trash2, Plus, X, Image as ImageIcon, Search as SearchIcon, Upload, Layers, Mic, MicOff, Sun, Moon, ScanLine, Filter, Calendar, RefreshCw, Tag, Wand2, Warehouse, MapPin, DollarSign, ChevronDown as ChevronDownIcon, ChevronUp, Box, Barcode, Globe2, Maximize2, Folder, List as ListIcon, AlertTriangle, Eye, Aperture, Truck, ShieldCheck, CreditCard, Loader2, ShoppingCart, ExternalLink, BarChart3, HelpCircle, Facebook, ShieldAlert, Zap, Globe, Download, Link as LinkIcon, Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight, Copy, Check, Lock } from 'lucide-react';
+import { Camera, Search, LayoutDashboard, BarChart3, Package, Settings, Plus, X, Trash2, Edit2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, Layers, CheckSquare, Sparkles, Image as ImageIcon, Link, ArrowLeft, Wand2, Calculator, Save, MoreHorizontal, Copy, Info, Check, AlertCircle, ScanLine, Share2, DollarSign, Zap, Eye, RotateCcw, Loader2, HelpCircle, Box, Upload, List as ListIcon, Lock, Download, ChevronRight, Warehouse, Sun, Moon, Aperture, Camera as CameraIcon, ShoppingCart, Tag, Globe, Facebook, Mic, MicOff, ShieldAlert, CreditCard, Truck, ShieldCheck, Maximize2, Folder, AlertTriangle, Globe2, Barcode, MapPin, Calendar, Filter, ChevronLeft, ArrowRight, Search as SearchIcon } from 'lucide-react';
 import { useFeatureGate, Feature } from './hooks/useFeatureGate';
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -54,7 +55,7 @@ function App() {
     const { canAccess, getLimit } = useFeatureGate();
 
     const [isLiteMode, setIsLiteMode] = useState(false);
-    const [view, setView] = useState<'scout' | 'inventory' | 'stats'>('scout');
+    const [view, setView] = useState<'command' | 'scout' | 'inventory' | 'stats'>('command');
     const [inventoryTab, setInventoryTab] = useState<'DRAFT' | 'LISTED' | 'SOLD'>('DRAFT');
     const [inventoryViewMode, setInventoryViewMode] = useState<'FOLDERS' | 'FLAT'>('FOLDERS');
     const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
@@ -1124,50 +1125,51 @@ function App() {
 
                         // Wait for both Deep Data and Description
                         // @ts-ignore
-                        const [details, bestDescription] = await Promise.all([
+                        // Wait for Deep Data, Description, AND Market Data
+                        // @ts-ignore
+                        const [details, bestDescription, marketStats] = await Promise.all([
                             Promise.race([detailsPromise, detailsTimeout]) as Promise<Partial<ScoutResult>>,
-                            descriptionPromise
+                            descriptionPromise,
+                            getSellThroughData(baseResult.searchQuery || baseResult.itemTitle).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 }))
                         ]);
 
-                        const finalResult = {
+                        const finalResult: ScoutResult = {
                             ...baseResult,
                             ...details,
-                            description: bestDescription || details.description || "", // Prioritize specialized generator
-                            itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {})
+                            description: bestDescription || details.description || "",
+                            itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {}),
+                            marketData: {
+                                sellThroughRate: marketStats.sellThroughRate,
+                                totalActive: marketStats.activeCount,
+                                totalSold: marketStats.soldCount,
+                                activeComps: (marketStats as any).activeComps || [],
+                                soldComps: (marketStats as any).soldComps || []
+                            }
                         };
 
-                        // Update Scout Result with Deep Data
+                        // Update Scout Result
                         setScoutResult(prev => prev ? ({ ...prev, ...finalResult }) : finalResult);
-                        setEditedTitle(finalResult.itemTitle); // Or optimizedTitle?
+                        setEditedTitle(finalResult.itemTitle);
                         setItemCondition(finalResult.condition || 'USED');
-                        // CRITICAL FIX: Update the bound description field
                         setGeneratedListing({ platform: 'EBAY', content: finalResult.description || "" });
 
-                        // Update Edit Modal with Deep Analysis Data (Live Hydration)
-                        setEditingItem(prev => {
-                            if (!prev) return null;
-                            return {
-                                ...prev,
-                                title: finalResult.optimizedTitle || finalResult.itemTitle, // Use Optimized Title
-                                itemSpecifics: finalResult.itemSpecifics,
-                                conditionNotes: finalResult.condition || 'USED',
-                                dimensions: finalResult.estimatedDimensions || prev.dimensions,
-                                calculation: {
-                                    ...prev.calculation,
-                                    soldPrice: finalResult.estimatedSoldPrice || 0,
-                                    shippingCost: finalResult.estimatedShippingCost || 0,
-                                },
-                                generatedListing: {
-                                    platform: 'EBAY',
-                                    content: finalResult.description || ""
-                                }
-                            };
-                        });
+                        // NEW WORKFLOW: Stop at Research Review
+                        setStatus(ScoutStatus.RESEARCH_REVIEW);
+                        // Do NOT open Edit Modal automatically yet. User must confirm.
+
                     } catch (err) {
                         console.error("Async Deep Analysis Failed:", err);
+                        setStatus(ScoutStatus.ERROR);
                     } finally {
                         setIsBackgroundAnalyzing(false); // STOP DISCREET INDICATOR
                     }
+                } else if (scanMode === 'LENS') {
+                    // For Lens, we might want to just show results or go to review. 
+                    // Keeping existing Lens behavior for now but ensuring status is set.
+                    setStatus(ScoutStatus.IDLE); // Or keep ANALYZING until user actions?
+                    // Lens updates visualSearchResults via useEffect/callbacks usually.
+                    // If we want Lens to also have a review step, we'd need to adapt.
+                    // For now, Lens just shows visual matches.
                 }
             };
 
@@ -1766,11 +1768,14 @@ function App() {
         );
     };
 
-    const renderIdleState = () => {
+    // --- NEW COMMAND DASHBOARD ---
+    const renderCommandView = () => {
         return (
             <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 transition-colors duration-300 pt-safe pb-safe">
-                <div className="flex flex-col items-center justify-center p-6 space-y-8 shrink-0 animate-in fade-in zoom-in duration-500 min-h-[80vh]">
-                    <div className="w-full flex justify-between items-center px-4 absolute top-4 pt-safe left-0 z-20">
+                <div className="flex flex-col items-center p-6 space-y-6 shrink-0">
+
+                    {/* Header */}
+                    <div className="w-full flex justify-between items-center mb-4">
                         <button onClick={() => setIsHelpOpen(true)} className="p-2 rounded-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-neon-green transition-colors shadow-sm"><HelpCircle size={20} /></button>
                         <div className="flex gap-2">
                             <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm"><Settings size={20} /></button>
@@ -1778,14 +1783,47 @@ function App() {
                         </div>
                     </div>
 
-                    {/* Daily Progress Badge - Moved into flow to prevent overlap */}
-                    <div className="glass-panel rounded-2xl px-6 py-3 flex flex-col items-center gap-1 animate-in slide-in-from-top-4 duration-700 mt-10">
-                        <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">DAILY GOAL</span>
-                        <div className="flex items-center gap-3">
-                            <span className="w-3 h-3 bg-neon-green rounded-full animate-pulse shadow-[0_0_10px_#39ff14]"></span>
-                            <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{listedTodayCount} Listed</span>
+                    {/* Daily Goal Card */}
+                    <div className="w-full glass-panel rounded-2xl p-6 flex flex-col items-center gap-2 animate-in slide-in-from-top-4 duration-700 bg-gradient-to-br from-white to-slate-100 dark:from-slate-900 dark:to-slate-800 border border-white/20 shadow-xl">
+                        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest font-bold">DAILY GOAL</span>
+                        <div className="relative">
+                            <div className="flex items-center gap-3 relative z-10">
+                                <span className="w-3 h-3 bg-neon-green rounded-full animate-pulse shadow-[0_0_10px_#39ff14]"></span>
+                                <span className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter">{listedTodayCount}</span>
+                                <span className="text-sm font-bold text-slate-400 uppercase self-end mb-2">Listed</span>
+                            </div>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2">Keep up the momentum!</p>
+                    </div>
+
+                    {/* Placeholder for future features (e.g. Recent Activity, Notifications) */}
+                    <div className="w-full grid grid-cols-2 gap-4">
+                        <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center gap-2 opacity-50">
+                            <BarChart3 size={24} className="text-slate-400" />
+                            <span className="text-[10px] uppercase font-bold text-slate-500">Sales Trend</span>
+                        </div>
+                        <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center gap-2 opacity-50">
+                            <Sparkles size={24} className="text-slate-400" />
+                            <span className="text-[10px] uppercase font-bold text-slate-500">AI Tips</span>
                         </div>
                     </div>
+                </div>
+            </div>
+        );
+    };
+
+    // --- SCOUT VIEW (Scanner) ---
+    // (Renamed from renderIdleState, stripping header/goals to focus on Scanning)
+    const renderScoutView = () => {
+
+        return (
+            <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 transition-colors duration-300 pt-safe pb-safe">
+                <div className="flex flex-col items-center justify-center p-6 space-y-8 shrink-0 animate-in fade-in zoom-in duration-500 min-h-[80vh]">
+                    {/* Simplified Header for Scout */}
+                    <div className="w-full text-center pb-4">
+                        <h2 className="text-[10px] font-black tracking-[0.3em] uppercase text-slate-400">RESEARCH MODE</h2>
+                    </div>
+
 
                     {/* SCAN MODE TABS (GATED) */}
                     <div className="flex bg-slate-200/50 dark:bg-slate-800/80 p-1.5 rounded-2xl mb-6 relative z-10 mx-4 border border-white/20 shadow-sm backdrop-blur-sm">
@@ -1916,276 +1954,325 @@ function App() {
         );
     };
 
-    const renderAnalysis = () => (
-        <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
-            <div className="relative w-full h-72 bg-black shrink-0">
-                {currentImage ? <img src={currentImage} alt="Captured" className="w-full h-full object-contain" /> : <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900"><SearchIcon size={48} className="text-slate-700 mb-2" /><span className="text-slate-500 font-mono text-xs uppercase">Manual Lookup: {manualQuery}</span></div>}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                    {status === ScoutStatus.ANALYZING ? (
-                        <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-2 text-neon-green animate-pulse">
-                                <Loader2 className="animate-spin" size={16} />
-                                <span className="font-mono text-sm font-bold">{isBulkMode ? 'ANALYZING BULK LOT...' : loadingMessage || 'AI MARKET RESEARCH...'}</span>
-                            </div>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setStatus(ScoutStatus.COMPLETE);
-                                    setLoadingMessage("");
-                                }}
-                                className="px-3 py-1 bg-red-900/50 hover:bg-red-900/80 text-white text-[10px] font-bold rounded-full border border-red-500/30 transition-colors backdrop-blur-md"
-                            >
-                                STOP
-                            </button>
-                        </div>
-                    ) : (<div className="flex justify-between items-end">{scannedBarcode && (<div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20"><ScanLine size={12} /> {scannedBarcode}</div>)}
-                        {scanMode === 'AI' && (
-                            <div className="flex items-center gap-2">
-                                {isBackgroundAnalyzing && (
-                                    <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
-                                        <span className="relative flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                        </span>
-                                        <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
-                                    </div>
-                                )}
-                                <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
-                            </div>
-                        )}
-                        {scanMode === 'LENS' && <span className="text-xs font-mono bg-blue-500/20 backdrop-blur px-2 py-1 rounded text-blue-400 border border-blue-500/30 font-bold">VISUAL SEARCH</span>}
-                    </div>)}
-                </div>
-                {status === ScoutStatus.COMPLETE && (<button onClick={handleStartScan} className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/70 transition-colors"><Camera size={20} /></button>)}
-            </div>
 
-            <div className="flex-1 p-4 space-y-6">
-                {status === ScoutStatus.ANALYZING ? (
-                    <div className="space-y-6 mt-4 opacity-50"><div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-3/4 animate-pulse"></div><div className="h-32 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div><div className="h-40 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div></div>
-                ) : scoutResult ? (
-                    <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
-                        {/* ... Results Content ... */}
-                        {scanMode === 'LENS' && !scoutResult.barcode && (
-                            <div className="space-y-4">
-                                {/* Research Buttons Row (Using Lens Keyword) */}
-                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(lensKeyword || editedTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500"><ShoppingCart size={14} /> eBay Sold</a>
-                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500"><Tag size={14} /> eBay Listed</a>
-                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-white shrink-0 hover:border-slate-500"><Globe size={14} /> Google</a>
-                                    <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500"><Facebook size={14} /> FB Market</a>
+
+    const renderResearchReview = () => {
+        if (!scoutResult) return null;
+
+        return (
+            <ResearchScreen
+                result={scoutResult}
+                onDiscard={() => {
+                    setStatus(ScoutStatus.IDLE);
+                    setScoutResult(null);
+                }}
+                onCreateDraft={() => {
+                    setEditingItem({
+                        id: Date.now().toString(),
+                        title: scoutResult.optimizedTitle || scoutResult.itemTitle,
+                        sku: "",
+                        storageUnitId: "",
+                        costCode: "",
+                        imageUrl: currentImage || "",
+                        additionalImages: [],
+                        quantity: 1,
+                        generatedListing: {
+                            platform: 'EBAY',
+                            content: scoutResult.description
+                        },
+                        itemSpecifics: scoutResult.itemSpecifics,
+                        dimensions: scoutResult.estimatedDimensions,
+                        calculation: {
+                            soldPrice: scoutResult.estimatedSoldPrice,
+                            shippingCost: scoutResult.estimatedShippingCost || 0,
+                            itemCost: 0,
+                            platformFees: 0,
+                            netProfit: 0,
+                            isProfitable: true
+                        },
+                        status: 'DRAFT',
+                        dateScanned: new Date().toISOString()
+                    });
+                    setStatus(ScoutStatus.COMPLETE);
+                }}
+            />
+        );
+    };
+    const renderAnalysis = () => {
+        if (status === ScoutStatus.RESEARCH_REVIEW) return renderResearchReview();
+
+        return (
+            <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
+                <div className="relative w-full h-72 bg-black shrink-0">
+                    {currentImage ? <img src={currentImage} alt="Captured" className="w-full h-full object-contain" /> : <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900"><SearchIcon size={48} className="text-slate-700 mb-2" /><span className="text-slate-500 font-mono text-xs uppercase">Manual Lookup: {manualQuery}</span></div>}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                        {status === ScoutStatus.ANALYZING ? (
+                            <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-2 text-neon-green animate-pulse">
+                                    <Loader2 className="animate-spin" size={16} />
+                                    <span className="font-mono text-sm font-bold">{isBulkMode ? 'ANALYZING BULK LOT...' : loadingMessage || 'AI MARKET RESEARCH...'}</span>
                                 </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setStatus(ScoutStatus.COMPLETE);
+                                        setLoadingMessage("");
+                                    }}
+                                    className="px-3 py-1 bg-red-900/50 hover:bg-red-900/80 text-white text-[10px] font-bold rounded-full border border-red-500/30 transition-colors backdrop-blur-md"
+                                >
+                                    STOP
+                                </button>
+                            </div >
+                        ) : (<div className="flex justify-between items-end">{scannedBarcode && (<div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20"><ScanLine size={12} /> {scannedBarcode}</div>)}
+                            {scanMode === 'AI' && (
+                                <div className="flex items-center gap-2">
+                                    {isBackgroundAnalyzing && (
+                                        <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                            </span>
+                                            <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
+                                        </div>
+                                    )}
+                                    <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
+                                </div>
+                            )}
+                            {scanMode === 'LENS' && <span className="text-xs font-mono bg-blue-500/20 backdrop-blur px-2 py-1 rounded text-blue-400 border border-blue-500/30 font-bold">VISUAL SEARCH</span>}
+                        </div>)
+                        }
+                    </div >
+                    {status === ScoutStatus.COMPLETE && (<button onClick={handleStartScan} className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/70 transition-colors"><Camera size={20} /></button>)}
+                </div >
 
-                                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                            <Tag size={18} className="text-blue-500" /> eBay Matches
-                                        </h3>
-                                        {isVisualSearching && <Loader2 size={16} className="animate-spin text-blue-500" />}
+                <div className="flex-1 p-4 space-y-6">
+                    {status === ScoutStatus.ANALYZING ? (
+                        <div className="space-y-6 mt-4 opacity-50"><div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-3/4 animate-pulse"></div><div className="h-32 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div><div className="h-40 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div></div>
+                    ) : scoutResult ? (
+                        <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
+                            {/* ... Results Content ... */}
+                            {scanMode === 'LENS' && !scoutResult.barcode && (
+                                <div className="space-y-4">
+                                    {/* Research Buttons Row (Using Lens Keyword) */}
+                                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(lensKeyword || editedTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500"><ShoppingCart size={14} /> eBay Sold</a>
+                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500"><Tag size={14} /> eBay Listed</a>
+                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-white shrink-0 hover:border-slate-500"><Globe size={14} /> Google</a>
+                                        <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500"><Facebook size={14} /> FB Market</a>
                                     </div>
 
-                                    {/* Keyword Fallback Input */}
-                                    <div className="flex gap-2 mb-4">
-                                        <input
-                                            type="text"
-                                            placeholder="Search items..."
-                                            value={lensKeyword}
-                                            onChange={(e) => setLensKeyword(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleLensKeywordSearch()}
-                                            className="flex-1 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-                                        />
-                                        <button onClick={handleLensKeywordSearch} className="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold"><SearchIcon size={14} /></button>
-                                    </div>
+                                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                                <Tag size={18} className="text-blue-500" /> eBay Matches
+                                            </h3>
+                                            {isVisualSearching && <Loader2 size={16} className="animate-spin text-blue-500" />}
+                                        </div>
 
-                                    {/* List Layout for Visual Matches */}
-                                    {visualSearchResults.length > 0 ? (
-                                        <div className="flex flex-col gap-3">
-                                            {visualSearchResults.slice(0, 5).map(item => (
-                                                <div key={item.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-lg flex gap-3 items-center">
-                                                    {/* Image */}
-                                                    <div className="w-14 h-14 bg-gray-100 dark:bg-slate-950 rounded-md overflow-hidden shrink-0 relative">
-                                                        {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={16} /></div>}
-                                                    </div>
-                                                    {/* Info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug mb-1">{item.title}</h4>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-black text-blue-600 dark:text-blue-400">${item.price?.toFixed(2)}</span>
-                                                            <span className="text-[10px] text-slate-500">{item.shipping > 0 ? `+${item.shipping?.toFixed(2)} Ship` : 'Free Shipping'}</span>
+                                        {/* Keyword Fallback Input */}
+                                        <div className="flex gap-2 mb-4">
+                                            <input
+                                                type="text"
+                                                placeholder="Search items..."
+                                                value={lensKeyword}
+                                                onChange={(e) => setLensKeyword(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleLensKeywordSearch()}
+                                                className="flex-1 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                            />
+                                            <button onClick={handleLensKeywordSearch} className="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold"><SearchIcon size={14} /></button>
+                                        </div>
+
+                                        {/* List Layout for Visual Matches */}
+                                        {visualSearchResults.length > 0 ? (
+                                            <div className="flex flex-col gap-3">
+                                                {visualSearchResults.slice(0, 5).map(item => (
+                                                    <div key={item.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-lg flex gap-3 items-center">
+                                                        {/* Image */}
+                                                        <div className="w-14 h-14 bg-gray-100 dark:bg-slate-950 rounded-md overflow-hidden shrink-0 relative">
+                                                            {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={16} /></div>}
+                                                        </div>
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug mb-1">{item.title}</h4>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-black text-blue-600 dark:text-blue-400">${item.price?.toFixed(2)}</span>
+                                                                <span className="text-[10px] text-slate-500">{item.shipping > 0 ? `+${item.shipping?.toFixed(2)} Ship` : 'Free Shipping'}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Buttons Column */}
+                                                        <div className="flex flex-col gap-2 w-24 shrink-0">
+                                                            <button
+                                                                onClick={() => handleUsePrice(item)}
+                                                                className="w-full py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 text-[9px] font-bold rounded border border-gray-200 dark:border-slate-700 transition-colors uppercase"
+                                                            >
+                                                                Use Price
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleSelectVisualMatch(item)}
+                                                                className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-bold rounded flex items-center justify-center gap-1 transition-colors shadow-sm uppercase"
+                                                            >
+                                                                Sell Similar
+                                                            </button>
                                                         </div>
                                                     </div>
+                                                ))}
 
-                                                    {/* Buttons Column */}
-                                                    <div className="flex flex-col gap-2 w-24 shrink-0">
-                                                        <button
-                                                            onClick={() => handleUsePrice(item)}
-                                                            className="w-full py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 text-[9px] font-bold rounded border border-gray-200 dark:border-slate-700 transition-colors uppercase"
-                                                        >
-                                                            Use Price
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleSelectVisualMatch(item)}
-                                                            className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-bold rounded flex items-center justify-center gap-1 transition-colors shadow-sm uppercase"
-                                                        >
-                                                            Sell Similar
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-6 px-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+                                                <p className="text-[10px] text-slate-500 mb-2">No matches found.</p>
+                                                <button onClick={handlePerformVisualSearch} className="text-blue-500 text-[10px] font-bold hover:underline">Retry Visual Scan</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
+                            {/* --- EDITOR & DETAILS (Shared) --- */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center"><label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title {scanMode === 'LENS' && '(Manual Entry)'}</label><div className="flex gap-2">
+                                    {scanMode === 'AI' && <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>}
+                                    <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button></div></div>
+                                <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder={scanMode === 'LENS' ? "Enter item name..." : "Item description..."} />
+                            </div>
+
+                            {/* Description Field with Templates */}
+                            {/* Description Field with Templates */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs text-slate-500 font-mono uppercase tracking-wider">Description</label>
+                                </div>
+
+                                {/* Templates - Moved to own line for visibility */}
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2">
+                                    {/* Default Templates */}
+                                    <button onClick={() => {
+                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
+                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
+
+                                    <button onClick={() => {
+                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
+                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
+
+                                    <button onClick={() => {
+                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• For parts or repair only.\n• Does not power on.\n• No returns.";
+                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
+
+                                    {/* Custom Templates */}
+                                    {customTemplates.map((tmpl, idx) => (
+                                        <button key={idx} onClick={() => {
+                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
+                                            setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                        }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
+                                    ))}
+
+                                    {/* Add Custom Template */}
+                                    <button onClick={() => {
+                                        const text = prompt("Enter new template text:");
+                                        if (text) {
+                                            const newTemplates = [...customTemplates, text];
+                                            setCustomTemplates(newTemplates);
+                                            localStorage.setItem('sts_custom_templates', JSON.stringify(newTemplates));
+                                        }
+                                    }} className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Plus size={12} /> Add</button>
+                                </div>
+                                <textarea
+                                    value={typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "")}
+                                    onChange={(e) => setGeneratedListing({ platform: 'EBAY', content: e.target.value })}
+                                    className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-32 shadow-sm"
+                                    placeholder="Detailed item description..."
+                                />
+                            </div>
+
+                            {scanMode === 'AI' && (
+                                <>
+                                    {/* Research Links for Premium - MOVED TO TOP */}
+                                    <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
+                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
+                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
+                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
+                                        <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                    </div>
+
+                                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                        <button onClick={() => setIsCompsOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold shrink-0 hover:bg-blue-500 shadow-lg shadow-blue-500/20"><SearchIcon size={14} /> Deep Analysis</button>
+                                    </div>
+                                    {/* Sources Section Restored */}
+                                    {scoutResult?.listingSources && scoutResult.listingSources.length > 0 && (
+                                        <div className="bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-100 dark:border-slate-800">
+                                            <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-2 flex items-center gap-1">
+                                                <Globe size={10} /> Sources Found
+                                            </h4>
+                                            <div className="space-y-1">
+                                                {scoutResult.listingSources.slice(0, 3).map((source, idx) => (
+                                                    <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
+                                                        {source.title}
+                                                    </a>
+                                                ))}
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div className="text-center py-6 px-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-                                            <p className="text-[10px] text-slate-500 mb-2">No matches found.</p>
-                                            <button onClick={handlePerformVisualSearch} className="text-blue-500 text-[10px] font-bold hover:underline">Retry Visual Scan</button>
+                                    )}
+                                </>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label><div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1"><button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button><button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button></div></div>
+                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label><input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" /></div>
+                            </div>
+                            <div className="relative">
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
+                                    {scanMode === 'LENS' && (
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working perfectly.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Tested</button>
+                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good cosmetic condition with minor wear.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Good Cond.</button>
+                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Sold as-is for parts or repair.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Parts Only</button>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
-
-                        {/* --- EDITOR & DETAILS (Shared) --- */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center"><label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title {scanMode === 'LENS' && '(Manual Entry)'}</label><div className="flex gap-2">
-                                {scanMode === 'AI' && <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>}
-                                <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button></div></div>
-                            <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder={scanMode === 'LENS' ? "Enter item name..." : "Item description..."} />
-                        </div>
-
-                        {/* Description Field with Templates */}
-                        {/* Description Field with Templates */}
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <label className="text-xs text-slate-500 font-mono uppercase tracking-wider">Description</label>
+                                <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" placeholder="Condition notes (e.g. scratches, missing box)..." />
+                                <button onClick={() => toggleRecording('condition')} className={`absolute bottom-2 right-2 p-1.5 rounded-full transition-all ${isRecording === 'condition' ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{isRecording === 'condition' ? <MicOff size={12} /> : <Mic size={12} />}</button>
                             </div>
 
-                            {/* Templates - Moved to own line for visibility */}
-                            <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2">
-                                {/* Default Templates */}
-                                <button onClick={() => {
-                                    const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
-                                    setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
+                            <ProfitCalculator estimatedPrice={scoutResult.estimatedSoldPrice} estimatedShipping={scoutResult.estimatedShippingCost} estimatedWeight={scoutResult.estimatedWeight} onSave={handleSaveToInventory} isScanning={false} isLoading={isSaving} />
 
-                                <button onClick={() => {
-                                    const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
-                                    setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
-
-                                <button onClick={() => {
-                                    const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• For parts or repair only.\n• Does not power on.\n• No returns.";
-                                    setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
-
-                                {/* Custom Templates */}
-                                {customTemplates.map((tmpl, idx) => (
-                                    <button key={idx} onClick={() => {
-                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
-                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                    }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
-                                ))}
-
-                                {/* Add Custom Template */}
-                                <button onClick={() => {
-                                    const text = prompt("Enter new template text:");
-                                    if (text) {
-                                        const newTemplates = [...customTemplates, text];
-                                        setCustomTemplates(newTemplates);
-                                        localStorage.setItem('sts_custom_templates', JSON.stringify(newTemplates));
-                                    }
-                                }} className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Plus size={12} /> Add</button>
-                            </div>
-                            <textarea
-                                value={typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "")}
-                                onChange={(e) => setGeneratedListing({ platform: 'EBAY', content: e.target.value })}
-                                className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-32 shadow-sm"
-                                placeholder="Detailed item description..."
-                            />
-                        </div>
-
-                        {scanMode === 'AI' && (
-                            <>
-                                {/* Research Links for Premium - MOVED TO TOP */}
-                                <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                    <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                            <div className="mt-4 p-3 bg-red-900/10 border border-red-900/30 rounded-lg flex gap-3 items-start">
+                                <ShieldAlert className="text-red-500 shrink-0 mt-0.5" size={16} />
+                                <div className="text-[10px] text-slate-400 leading-relaxed">
+                                    <strong className="text-red-400">LIABILITY DISCLAIMER:</strong> Calculations are estimates. Verify all prices, weights, and fees before listing. We are not liable for losses.
                                 </div>
-
-                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                    <button onClick={() => setIsCompsOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold shrink-0 hover:bg-blue-500 shadow-lg shadow-blue-500/20"><SearchIcon size={14} /> Deep Analysis</button>
-                                </div>
-                                {/* Sources Section Restored */}
-                                {scoutResult?.listingSources && scoutResult.listingSources.length > 0 && (
-                                    <div className="bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-100 dark:border-slate-800">
-                                        <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-2 flex items-center gap-1">
-                                            <Globe size={10} /> Sources Found
-                                        </h4>
-                                        <div className="space-y-1">
-                                            {scoutResult.listingSources.slice(0, 3).map((source, idx) => (
-                                                <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
-                                                    {source.title}
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label><div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1"><button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button><button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button></div></div>
-                            <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label><input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" /></div>
-                        </div>
-                        <div className="relative">
-                            <div className="flex justify-between items-center mb-1">
-                                <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
-                                {scanMode === 'LENS' && (
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working perfectly.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Tested</button>
-                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good cosmetic condition with minor wear.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Good Cond.</button>
-                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Sold as-is for parts or repair.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Parts Only</button>
-                                    </div>
-                                )}
                             </div>
-                            <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" placeholder="Condition notes (e.g. scratches, missing box)..." />
-                            <button onClick={() => toggleRecording('condition')} className={`absolute bottom-2 right-2 p-1.5 rounded-full transition-all ${isRecording === 'condition' ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{isRecording === 'condition' ? <MicOff size={12} /> : <Mic size={12} />}</button>
+
+                            <button onClick={() => { if (window.confirm("Discard this scan? Data will be lost.")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
                         </div>
-
-                        <ProfitCalculator estimatedPrice={scoutResult.estimatedSoldPrice} estimatedShipping={scoutResult.estimatedShippingCost} estimatedWeight={scoutResult.estimatedWeight} onSave={handleSaveToInventory} isScanning={false} isLoading={isSaving} />
-
-                        <div className="mt-4 p-3 bg-red-900/10 border border-red-900/30 rounded-lg flex gap-3 items-start">
-                            <ShieldAlert className="text-red-500 shrink-0 mt-0.5" size={16} />
-                            <div className="text-[10px] text-slate-400 leading-relaxed">
-                                <strong className="text-red-400">LIABILITY DISCLAIMER:</strong> Calculations are estimates. Verify all prices, weights, and fees before listing. We are not liable for losses.
+                    ) : (
+                        // If status is COMPLETE but no result, it usually means we just saved a draft or are in a transitional state.
+                        // Instead of showing "Analysis Failed", we should probably show the Idle state or a "Scan Complete" message.
+                        // However, if we truly failed, we should show error.
+                        // Let's check if we have an editingItem (which means we are in the modal).
+                        // If we are here, editingItem is null (modal closed).
+                        // So we should probably just go back to IDLE.
+                        <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
+                            <div className="text-center">
+                                <h3 className="font-bold">Ready to Scan</h3>
+                                <p className="text-sm opacity-80 mt-1">Tap the camera to start.</p>
                             </div>
+                            <button onClick={() => setStatus(ScoutStatus.IDLE)} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">Start New Scan</button>
                         </div>
-
-                        <button onClick={() => { if (window.confirm("Discard this scan? Data will be lost.")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
-                    </div>
-                ) : (
-                    // If status is COMPLETE but no result, it usually means we just saved a draft or are in a transitional state.
-                    // Instead of showing "Analysis Failed", we should probably show the Idle state or a "Scan Complete" message.
-                    // However, if we truly failed, we should show error.
-                    // Let's check if we have an editingItem (which means we are in the modal).
-                    // If we are here, editingItem is null (modal closed).
-                    // So we should probably just go back to IDLE.
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
-                        <div className="text-center">
-                            <h3 className="font-bold">Ready to Scan</h3>
-                            <p className="text-sm opacity-80 mt-1">Tap the camera to start.</p>
-                        </div>
-                        <button onClick={() => setStatus(ScoutStatus.IDLE)} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">Start New Scan</button>
-                    </div>
-                )}
-            </div>
-            {isCompsOpen && scoutResult && (<CompsModal isOpen={isCompsOpen} onClose={() => setIsCompsOpen(false)} initialQuery={scoutResult.searchQuery || editedTitle || scoutResult.itemTitle} condition={itemCondition} onApplyPrice={(price) => setScoutResult(prev => prev ? ({ ...prev, estimatedSoldPrice: price }) : null)} onSellSimilar={handleSellSimilar} />)}
-        </div>
-    );
+                    )}
+                </div>
+                {isCompsOpen && scoutResult && (<CompsModal isOpen={isCompsOpen} onClose={() => setIsCompsOpen(false)} initialQuery={scoutResult.searchQuery || editedTitle || scoutResult.itemTitle} condition={itemCondition} onApplyPrice={(price) => setScoutResult(prev => prev ? ({ ...prev, estimatedSoldPrice: price }) : null)} onSellSimilar={handleSellSimilar} />)}
+            </div >
+        );
+    };
 
     if (authLoading) {
         return (
@@ -2890,10 +2977,27 @@ function App() {
             {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
 
             <main className="flex-1 relative overflow-hidden flex flex-col">
-                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderIdleState() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
+                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />) : view === 'command' ? (renderCommandView()) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderScoutView() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
             </main>
 
-            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] justify-around shrink-0 shadow-lg z-50"><button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutDashboard size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span></button><button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><BarChart3 size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span></button><button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><Package size={24} /><span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span></button></nav>)}
+            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] justify-around shrink-0 shadow-lg z-50">
+                <button onClick={() => { setView('command'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'command' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                    <LayoutDashboard size={24} />
+                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span>
+                </button>
+                <button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                    <Search size={24} />
+                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Scout</span>
+                </button>
+                <button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                    <BarChart3 size={24} />
+                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span>
+                </button>
+                <button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                    <Package size={24} />
+                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span>
+                </button>
+            </nav>)}
             {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
 
             {/* Loading Overlay */}
@@ -2917,6 +3021,10 @@ function App() {
             }
         </div >
     );
-}
+};
+
+
+
+
 
 export default App;

@@ -3,6 +3,7 @@ export enum ScoutStatus {
   IDLE = 'IDLE',
   SCANNING = 'SCANNING',
   ANALYZING = 'ANALYZING',
+  RESEARCH_REVIEW = 'RESEARCH_REVIEW',
   COMPLETE = 'COMPLETE',
   ERROR = 'ERROR'
 }
@@ -21,6 +22,14 @@ export interface ScoutResult {
   confidence: number; // 0-100
   description: string;
   marketDemand?: 'HIGH' | 'MEDIUM' | 'LOW'; // New: Sell-through indicator
+  // NEW: Precise Market Data for Review Screen
+  marketData?: {
+    sellThroughRate: number; // 0-100+
+    totalSold: number;
+    totalActive: number;
+    activeComps?: Comp[]; // New: Full list for detailed view
+    soldComps?: Comp[]; // New: Full list for detailed view
+  };
   condition?: 'NEW' | 'USED'; // New: Condition detected by AI
   listingSources?: {
     title: string;
@@ -46,6 +55,16 @@ export interface Comp {
   epid?: string;
   condition?: string;
   image?: string; // New field for thumbnail
+  dateSold?: string; // New: Sale date (for SOLD items) or End Date
+  listingDate?: string; // New: Start date
+}
+
+export interface MarketData {
+  source?: string;
+  price: number;
+  title: string;
+  link?: string;
+  type: 'active' | 'sold';
 }
 
 export interface ProfitCalculation {
