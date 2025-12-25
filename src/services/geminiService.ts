@@ -62,7 +62,7 @@ export const identifyItem = async (imageBase64: string, barcode?: string): Promi
     return result;
   } catch (e: any) {
     console.error("Fast ID Catch Block:", e);
-    return { itemTitle: "Unknown Item", searchQuery: "", listingSources: [] };
+    return { itemTitle: `Error: ${e.message || "Unknown"}`, searchQuery: "", listingSources: [] };
   }
 };
 

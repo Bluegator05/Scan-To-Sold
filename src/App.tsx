@@ -21,6 +21,7 @@ import ResearchScreen from './components/ResearchScreen';
 import { incrementDailyUsage } from './services/paymentService';
 import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, getSellThroughData, API_BASE_URL } from './services/ebayService';
 import { compressImage, uploadScanImage } from './services/imageService';
+import { analytics, logEvent } from './lib/firebase';
 import { scheduleGoalReminder, NotificationSettings } from './services/notificationService';
 import {
     fetchInventory, addInventoryItem, deleteInventoryItem, updateInventoryItem,
@@ -932,6 +933,13 @@ function App() {
     };
 
     const handleImageCaptured = async (imageData: string | string[], barcode?: string) => {
+        // Analytics: Track scan start
+        if (cameraMode === 'SCOUT') {
+            logEvent(analytics, 'item_scan_started', {
+                mode: scanMode,
+                has_barcode: !!barcode
+            });
+        }
         // Enforce Paywall (Only for AI Scout Mode)
         if (cameraMode === 'SCOUT' && scanMode === 'AI' && !canAccess('AI_SCAN')) {
             setStatus(ScoutStatus.IDLE);
@@ -1155,6 +1163,13 @@ function App() {
 
                         // NEW WORKFLOW: Stop at Research Review
                         setStatus(ScoutStatus.RESEARCH_REVIEW);
+
+                        // Analytics: Track scan success
+                        logEvent(analytics, 'item_scan_success', {
+                            mode: scanMode,
+                            title: finalResult.itemTitle,
+                            confidence: finalResult.confidence
+                        });
                         // Do NOT open Edit Modal automatically yet. User must confirm.
 
                     } catch (err) {
