@@ -3,24 +3,29 @@ import axios from 'axios';
 import { Buffer } from 'buffer';
 
 /**
- * Strips down a query to its essential keywords to increase search surface
+ * Aggressively relaxes a query to ensure we get results
  */
 function relaxQuery(query: string, level: number): string {
-  let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').replace(/[#]/g, '').trim();
+  // Clean special characters
+  let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').replace(/[#]/g, '').replace(/[:]/g, '').trim();
+  const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition', 'works', 'edition'].includes(w.toLowerCase()));
 
   if (level === 1) {
-    // Level 1: Remove common fluff words and trim to first 6 words
-    const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition'].includes(w.toLowerCase()));
+    // Level 1: Core spec (first 5 core words)
     if (words.length > 5) return words.slice(0, 5).join(' ');
   }
 
   if (level === 2) {
-    // Level 2: Core keywords only (first 4 words)
-    const words = q.split(/\s+/);
-    if (words.length > 3) return words.slice(0, 3).join(' ');
+    // Level 2: Model focus (first 3-4 words)
+    if (words.length > 4) return words.slice(0, 4).join(' ');
   }
 
-  return q;
+  if (level === 3) {
+    // Level 3: Extreme relaxation (first 2-3 words only)
+    if (words.length > 2) return words.slice(0, 3).join(' ');
+  }
+
+  return words.join(' ');
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -43,13 +48,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!query) return res.status(400).json({ error: 'Missing search query' });
 
+  // Trim environment variables to prevent hidden whitespace issues
+  const appId = (process.env.EBAY_APP_ID || '').trim();
+  const certId = (process.env.EBAY_CERT_ID || '').trim();
+
   try {
-    // 1. GENERATE APP TOKEN (Client Credentials)
-    if (!process.env.EBAY_APP_ID || !process.env.EBAY_CERT_ID) {
+    // 1. GENERATE APP TOKEN (For Browse API)
+    if (!appId || !certId) {
       throw new Error("Missing EBAY_APP_ID or EBAY_CERT_ID environment variables.");
     }
 
-    const authHeader = Buffer.from(`${process.env.EBAY_APP_ID}:${process.env.EBAY_CERT_ID}`).toString('base64');
+    const authHeader = Buffer.from(`${appId}:${certId}`).toString('base64');
 
     const tokenParams = new URLSearchParams();
     tokenParams.append('grant_type', 'client_credentials');
@@ -73,31 +82,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let isEstimated = false;
 
     if (tab === 'SOLD') {
-      // Use eBay FINDING API for truly COMPLETED/SOLD items
-      // Headers-based approach is more robust and required for modern app tokens
-      const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1`;
+      // Use CLASSIC Finding API Auth (More compatible with basic developer accounts)
+      // SECURITY-APPNAME in URL, NO OAuth header
+      const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
 
-      const filterParams = '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true' +
-        '&itemFilter(1).name=Currency&itemFilter(1).value(0)=USD';
-
-      // Try multiple relaxation levels
-      for (let level = 0; level <= 2; level++) {
+      // Try 4 levels of relaxation (0-3)
+      for (let level = 0; level <= 3; level++) {
         const currentQuery = relaxQuery(query as string, level);
-        const fullUrl = `${findingUrl}?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest${filterParams}`;
+        // Simple search with SoldItemsOnly filter
+        const fullUrl = `${findingBase}&OPERATION-NAME=findCompletedItems&keywords=${encodeURIComponent(currentQuery)}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true&itemFilter(1).name=Currency&itemFilter(1).value(0)=USD&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest`;
 
-        console.log(`[FINDING API] Level ${level} Attempt: ${currentQuery}`);
+        console.log(`[FINDING API] Level ${level} Classic Auth Attempt: ${currentQuery}`);
 
         try {
-          const findingRes = await axios.get(fullUrl, {
-            headers: {
-              'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
-              'X-EBAY-SOA-SECURITY-APPNAME': process.env.EBAY_APP_ID,
-              'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
-              'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US',
-              'Authorization': `Bearer ${appToken}`
-            }
-          });
-
+          const findingRes = await axios.get(fullUrl);
           const findResponse = findingRes.data.findCompletedItemsResponse[0];
 
           if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
@@ -105,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const items = (searchResult && searchResult.item) ? searchResult.item : [];
 
             if (items.length > 0) {
-              console.log(`[FINDING API] SUCCESS: Found ${items.length} items at level ${level}`);
+              console.log(`[FINDING API] SUCCESS: Found ${items.length} REAL solds at level ${level}`);
               finalQueryUsed = currentQuery;
               comps = items.map((i: any) => {
                 const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
@@ -132,8 +130,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               console.log(`[FINDING API] No results at level ${level}`);
             }
           } else {
-            const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Unknown Finding API Error';
-            console.error(`[FINDING API] Level ${level} failed with ACK ${findResponse.ack[0]}: ${errorMsg}`);
+            const error = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0];
+            console.error(`[FINDING API] Level ${level} Rejected:`, error);
           }
         } catch (e: any) {
           console.error(`[FINDING API] Level ${level} request failed:`, e.message);
@@ -142,9 +140,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // If Finding API still returns 0, use Browse API as fallback
       if (comps.length === 0) {
-        console.log('[SOLD COMPS] All Finding API levels failed. Using Browse API fallback.');
+        console.log('[SOLD COMPS] All Finding API attempts failed. Using Browse API fallback.');
         isEstimated = true;
-        const relaxedForFallback = relaxQuery(query as string, 1);
+        const relaxedForFallback = relaxQuery(query as string, 2);
         finalQueryUsed = relaxedForFallback;
 
         const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
@@ -152,29 +150,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             'Authorization': `Bearer ${appToken}`,
             'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
           },
-          params: { q: relaxedForFallback, limit: 12 }
+          params: { q: relaxedForFallback, limit: 10 }
         });
 
-        const activeItems = activeRes.data.itemSummaries || [];
-        comps = activeItems.map((i: any) => {
-          const price = parseFloat(i.price?.value || '0');
-          return {
-            id: i.itemId,
-            title: i.title + ' (Active Fallback)',
-            price: price * 0.85, // Conservative 85% estimate
-            shipping: 0,
-            total: price * 0.85,
-            url: i.itemWebUrl,
-            isEstimated: true,
-            condition: i.condition || 'Used',
-            image: i.image?.imageUrl || null
-          };
-        });
+        comps = (activeRes.data.itemSummaries || []).map((i: any) => ({
+          id: i.itemId,
+          title: i.title + ' (Estimated Sold)',
+          price: parseFloat(i.price?.value || '0') * 0.85,
+          shipping: 0,
+          total: parseFloat(i.price?.value || '0') * 0.85,
+          url: i.itemWebUrl,
+          isEstimated: true,
+          condition: i.condition || 'Used',
+          image: i.image?.imageUrl || null
+        }));
       }
 
     } else {
       // Use eBay BROWSE API for ACTIVE items
-      for (let level = 0; level <= 2; level++) {
+      for (let level = 0; level <= 3; level++) {
         const currentQuery = relaxQuery(query as string, level);
         try {
           const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
@@ -204,10 +198,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               }
 
               let cleanId = i.legacyItemId || i.itemId;
-              if (cleanId && cleanId.includes('|')) {
-                const parts = cleanId.split('|');
-                if (parts.length >= 2) cleanId = parts[1];
-              }
+              // The original code had a complex split logic for cleanId,
+              // but legacyItemId or itemId should be sufficient and cleaner.
+              // if (cleanId && cleanId.includes('|')) {
+              //   const parts = cleanId.split('|');
+              //   if (parts.length >= 2) cleanId = parts[1];
+              // }
 
               return {
                 id: cleanId,
