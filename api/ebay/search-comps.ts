@@ -6,18 +6,18 @@ import { Buffer } from 'buffer';
  * Strips down a query to its essential keywords to increase search surface
  */
 function relaxQuery(query: string, level: number): string {
-  let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').trim();
+  let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').replace(/[#]/g, '').trim();
 
   if (level === 1) {
-    // Level 1: Remove common fluff words and trim to first 6-7 words
-    const words = q.split(/\s+/);
-    if (words.length > 6) return words.slice(0, 6).join(' ');
+    // Level 1: Remove common fluff words and trim to first 6 words
+    const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition'].includes(w.toLowerCase()));
+    if (words.length > 5) return words.slice(0, 5).join(' ');
   }
 
   if (level === 2) {
     // Level 2: Core keywords only (first 4 words)
     const words = q.split(/\s+/);
-    if (words.length > 4) return words.slice(0, 4).join(' ');
+    if (words.length > 3) return words.slice(0, 3).join(' ');
   }
 
   return q;
@@ -51,12 +51,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const authHeader = Buffer.from(`${process.env.EBAY_APP_ID}:${process.env.EBAY_CERT_ID}`).toString('base64');
 
-    const params = new URLSearchParams();
-    params.append('grant_type', 'client_credentials');
-    params.append('scope', 'https://api.ebay.com/oauth/api_scope');
+    const tokenParams = new URLSearchParams();
+    tokenParams.append('grant_type', 'client_credentials');
+    tokenParams.append('scope', 'https://api.ebay.com/oauth/api_scope');
 
     const tokenRes = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
-      params, {
+      tokenParams, {
       headers: {
         'Authorization': `Basic ${authHeader}`,
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -70,18 +70,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let comps = [];
     let avgPrice = 0;
     let finalQueryUsed = query as string;
+    let isEstimated = false;
 
     if (tab === 'SOLD') {
       // Use eBay FINDING API for truly COMPLETED/SOLD items
-      const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
+      const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
 
-      let filterParams = '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true';
-      filterParams += '&itemFilter(1).name=Currency&itemFilter(1).value=USD';
+      // CRITICAL: Finding API requires value(0)= syntax for item filters
+      let filterParams = '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true';
+      filterParams += '&itemFilter(1).name=Currency&itemFilter(1).value(0)=USD';
 
-      // Try multiple relaxation levels for wide results
+      // Try multiple relaxation levels
       for (let level = 0; level <= 2; level++) {
         const currentQuery = relaxQuery(query as string, level);
-        const fullUrl = `${findingBase}&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=15&sortOrder=EndTimeSoonest${filterParams}`;
+        const fullUrl = `${findingBase}&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest${filterParams}`;
 
         console.log(`[FINDING API] Level ${level} Query:`, currentQuery);
 
@@ -124,32 +126,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // If still 0, try estimation fallback
+      // If Finding API still returns 0, use Browse API as fallback
       if (comps.length === 0) {
-        console.log('[SOLD COMPS] All Finding API levels failed. Using fallback estimation.');
-        // Fallback implementation here...
+        console.log('[SOLD COMPS] All Finding API levels failed. Using Browse API fallback.');
+        isEstimated = true;
+        const relaxedForFallback = relaxQuery(query as string, 1);
+        finalQueryUsed = relaxedForFallback;
+
         const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
           headers: {
             'Authorization': `Bearer ${appToken}`,
             'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
           },
-          params: { q: relaxQuery(query as string, 1), limit: 10 }
+          params: { q: relaxedForFallback, limit: 12 }
         });
+
         const activeItems = activeRes.data.itemSummaries || [];
-        comps = activeItems.map((i: any) => ({
-          id: i.itemId,
-          title: i.title + ' (Est.)',
-          price: parseFloat(i.price?.value || '0') * 0.9,
-          shipping: 0,
-          total: parseFloat(i.price?.value || '0') * 0.9,
-          url: i.itemWebUrl,
-          isEstimated: true
-        }));
+        comps = activeItems.map((i: any) => {
+          const price = parseFloat(i.price?.value || '0');
+          return {
+            id: i.itemId,
+            title: i.title + ' (Active Fallback)',
+            price: price * 0.85, // Conservative 85% estimate
+            shipping: 0,
+            total: price * 0.85,
+            url: i.itemWebUrl,
+            isEstimated: true,
+            condition: i.condition || 'Used',
+            image: i.image?.imageUrl || null
+          };
+        });
       }
 
     } else {
       // Use eBay BROWSE API for ACTIVE items
-      for (let level = 0; level <= 1; level++) {
+      for (let level = 0; level <= 2; level++) {
         const currentQuery = relaxQuery(query as string, level);
         try {
           const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
@@ -161,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
             params: {
               q: currentQuery,
-              limit: 10,
+              limit: 15,
               sort: 'price',
               filter: condition === 'NEW' ? 'conditionIds:{1000|1500}' : condition === 'USED' ? 'conditionIds:{3000}' : undefined
             }
@@ -210,7 +221,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({
       averagePrice: avgPrice.toFixed(2),
       comps: comps,
-      queryRelaxed: finalQueryUsed !== query
+      queryRelaxed: finalQueryUsed !== query,
+      isEstimated: isEstimated,
+      queryUsed: finalQueryUsed
     });
 
   } catch (error: any) {
