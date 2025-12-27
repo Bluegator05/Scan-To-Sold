@@ -164,6 +164,19 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                             <MarketChart data={allCompsForChart} />
                         </div>
                     )}
+
+                    {/* Estimation Warning */}
+                    {marketData?.isEstimated && (
+                        <div className="mt-4 flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-pulse">
+                            <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-xs font-bold text-red-500">Estimated Data Used</p>
+                                <p className="text-[10px] text-red-500/80 leading-tight mt-0.5">
+                                    eBay Finding API returned 0 results. Sold data is estimated based on active listings minus 15%.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
 
@@ -220,7 +233,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'SOLD' ? 'bg-slate-800 text-neon-green shadow-sm ring-1 ring-white/5' : 'text-slate-500 hover:text-white'}`}
                         >
                             <CheckCircle2 size={14} />
-                            SOLD
+                            SOLD {marketData?.isEstimated && <span className="text-[8px] opacity-60 ml-0.5">(EST.)</span>}
                         </button>
                         <button
                             onClick={() => setActiveTab('ACTIVE')}
@@ -235,7 +248,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                         <div
                             key={comp.id}
                             onClick={() => handleOpenLink(comp.url)}
-                            className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex gap-3 hover:bg-slate-800 transition-colors cursor-pointer group active:scale-[0.99]"
+                            className={`bg-slate-900 border border-slate-800 rounded-xl p-3 flex gap-3 hover:bg-slate-800 transition-colors cursor-pointer group active:scale-[0.99] ${activeTab === 'SOLD' && marketData?.isEstimated ? 'opacity-90' : ''}`}
                         >
                             {/* Image */}
                             <div className="w-16 h-16 bg-slate-950 rounded-lg shrink-0 overflow-hidden relative border border-slate-800">
@@ -254,7 +267,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
 
                                 <div className="flex items-end justify-between mt-1">
                                     <div>
-                                        <div className={`text-sm font-black ${activeTab === 'SOLD' ? 'text-neon-green' : 'text-white'}`}>
+                                        <div className={`text-sm font-black ${activeTab === 'SOLD' ? (marketData?.isEstimated ? 'text-yellow-400' : 'text-neon-green') : 'text-white'}`}>
                                             ${comp.price.toFixed(2)}
                                         </div>
                                     </div>
@@ -262,6 +275,11 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                                     {activeTab === 'SOLD' && comp.dateSold && (
                                         <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
                                             <Calendar size={10} /> {formatDate(comp.dateSold)}
+                                        </div>
+                                    )}
+                                    {activeTab === 'SOLD' && marketData?.isEstimated && (
+                                        <div className="text-[9px] font-bold text-yellow-400/60 uppercase">
+                                            Active Fallback
                                         </div>
                                     )}
                                 </div>

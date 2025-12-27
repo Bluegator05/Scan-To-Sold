@@ -29,6 +29,8 @@ export interface ScoutResult {
     totalActive: number;
     activeComps?: Comp[]; // New: Full list for detailed view
     soldComps?: Comp[]; // New: Full list for detailed view
+    isEstimated?: boolean;
+    queryUsed?: string;
   };
   condition?: 'NEW' | 'USED'; // New: Condition detected by AI
   listingSources?: {

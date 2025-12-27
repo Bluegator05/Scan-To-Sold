@@ -180,15 +180,13 @@ export const getEbayPolicies = async (userId: string) => {
   }
 };
 
-export const getSellThroughData = async (query: string): Promise<{ activeCount: number, soldCount: number, sellThroughRate: number, activeComps: Comp[], soldComps: Comp[] }> => {
+export const getSellThroughData = async (query: string): Promise<{ activeCount: number, soldCount: number, sellThroughRate: number, activeComps: Comp[], soldComps: Comp[], isEstimated?: boolean, queryUsed?: string }> => {
   // Parallel fetch for speed
   const [activeRes, soldRes] = await Promise.all([
     searchEbayComps(query, 'ACTIVE', 'USED').catch(() => ({ comps: [], totalEntries: 0 })),
     searchEbayComps(query, 'SOLD', 'USED').catch(() => ({ comps: [], totalEntries: 0 }))
   ]);
 
-  // Try to use 'totalEntries' if backend provides it (common in eBay APIs)
-  // If not, fallback to array length (less accurate for >100 items but best we have without backend changes)
   const activeCount: number = (activeRes as any).totalEntries || activeRes.comps.length;
   const soldCount: number = (soldRes as any).totalEntries || soldRes.comps.length;
 
@@ -196,7 +194,7 @@ export const getSellThroughData = async (query: string): Promise<{ activeCount: 
   if (activeCount > 0) {
     sellThroughRate = (soldCount / activeCount) * 100;
   } else if (soldCount > 0) {
-    sellThroughRate = 100; // Infinite demand?
+    sellThroughRate = 100;
   }
 
   return {
@@ -204,6 +202,8 @@ export const getSellThroughData = async (query: string): Promise<{ activeCount: 
     soldCount,
     sellThroughRate,
     activeComps: activeRes.comps || [],
-    soldComps: soldRes.comps || []
+    soldComps: soldRes.comps || [],
+    isEstimated: (soldRes as any).isEstimated,
+    queryUsed: (soldRes as any).queryUsed
   };
 };
