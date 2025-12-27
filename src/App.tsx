@@ -904,9 +904,11 @@ function App() {
                     };
                 }
             } catch (err) {
-                console.error("Phase 1 Error:", err);
+                console.error("[SCAN] Phase 1 Identification Error:", err);
                 initialResult = { itemTitle: "Scanning...", searchQuery: "", listingSources: [] };
             }
+
+            console.log("[SCAN] Phase 1 Complete. Initial Result:", initialResult);
 
             // --- REFINEMENT: If ID failed or is generic, don't show "Item Detected" yet ---
             const isGeneric = !initialResult.searchQuery ||
@@ -918,10 +920,12 @@ function App() {
             const displaySearch = isGeneric ? "" : titleToUse;
 
             setEditedTitle(displayTitle);
+            console.log("[SCAN] Title State - titleToUse:", titleToUse, "displayTitle:", displayTitle, "isGeneric:", isGeneric);
 
             // --- NON-BLOCKING UI UNLOCK ---
             setLoadingMessage("");
             setStatus(ScoutStatus.COMPLETE);
+            console.log("[SCAN] UI Unlocked. Status set to COMPLETE.");
 
             // Set Initial "Lite" Result
             const baseResult: ScoutResult = {
@@ -939,28 +943,34 @@ function App() {
 
             setScoutResult(baseResult);
             setEditingItem(prev => prev ? ({ ...prev, title: initialResult.searchQuery || initialResult.itemTitle }) : null);
+            console.log("[SCAN] Base Result Set:", baseResult);
 
             // --- ASYNC STEP 3: DEEP ANALYSIS & COMPS ---
             const runAsyncTasks = async () => {
                 setIsBackgroundAnalyzing(true);
 
                 try {
+                    console.log("[SCAN] Starting Phase 2: Deep Analysis");
                     // 1. Deep Analysis (Specs, Price, and Better Title)
                     const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
                     const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 25000));
 
                     const details = await Promise.race([detailsPromise, detailsTimeout]) as Partial<ScoutResult>;
+                    console.log("[SCAN] Deep Analysis Complete:", details);
 
                     // If we got a better title from deep analysis, use it for comps
                     const refinedTitle = details.itemTitle || initialResult.itemTitle;
                     const refinedSearch = details.searchQuery || refinedTitle;
+                    console.log("[SCAN] Refined Search Query:", refinedSearch);
 
                     // 2. Start Comp Search & Market Stats with refined title
+                    console.log("[SCAN] Starting Phase 3: Comps & Market Data");
                     const [compsResults, marketStats, bestDescription] = await Promise.all([
                         searchEbayComps(refinedSearch, 'SOLD', 'USED'),
                         getSellThroughData(refinedSearch).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 })),
                         generateListingDescription(refinedTitle, 'USED', 'EBAY')
                     ]);
+                    console.log("[SCAN] Comps Results:", compsResults, "Market Stats:", marketStats);
 
                     if (compsResults && compsResults.comps) {
                         setVisualSearchResults(compsResults.comps);
@@ -989,6 +999,7 @@ function App() {
                     setGeneratedListing({ platform: 'EBAY', content: finalResult.description || "" });
 
                     // NEW WORKFLOW: Stop at Research Review
+                    console.log("[SCAN] Setting status to RESEARCH_REVIEW. Final Result:", finalResult);
                     setStatus(ScoutStatus.RESEARCH_REVIEW);
 
                     // Analytics: Track scan success
@@ -999,12 +1010,15 @@ function App() {
                     // Do NOT open Edit Modal automatically yet. User must confirm.
 
                 } catch (err) {
-                    console.error("Async Deep Analysis Failed:", err);
+                    console.error("[SCAN] Async Deep Analysis Failed:", err);
+                    console.error("[SCAN] Error Stack:", err instanceof Error ? err.stack : 'No stack trace');
                     // Fallback: If we at least have a title, show the research review screen
                     // This prevents a permanent hang if one component (like sold comps) fails.
-                    if (baseResult.itemTitle && baseResult.itemTitle !== "Scanning...") {
+                    if (baseResult.itemTitle && baseResult.itemTitle !== "Scanning..." && baseResult.itemTitle !== "Item") {
+                        console.log("[SCAN] Showing partial results with title:", baseResult.itemTitle);
                         setStatus(ScoutStatus.RESEARCH_REVIEW);
                     } else {
+                        console.error("[SCAN] No valid title. Setting status to ERROR.");
                         setStatus(ScoutStatus.ERROR);
                     }
                 } finally {
