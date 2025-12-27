@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
-    const { query } = req.query;
+    const { query, token } = req.query;
     if (!query) return res.status(400).json({ error: 'Missing query parameter' });
 
     try {
@@ -24,7 +24,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log('[TEST] Classic Auth Finding API URL:', fullUrl);
 
-        const response = await axios.get(fullUrl);
+        const response = await axios.get(fullUrl, {
+            headers: token ? {
+                'Authorization': `Bearer ${token}`
+            } : {}
+        });
 
         console.log('[TEST] Response Status:', response.status);
 
