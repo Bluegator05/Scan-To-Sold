@@ -1,7 +1,27 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Buffer } from 'buffer';
+
+/**
+ * Strips down a query to its essential keywords to increase search surface
+ */
+function relaxQuery(query: string, level: number): string {
+  let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').trim();
+
+  if (level === 1) {
+    // Level 1: Remove common fluff words and trim to first 6-7 words
+    const words = q.split(/\s+/);
+    if (words.length > 6) return words.slice(0, 6).join(' ');
+  }
+
+  if (level === 2) {
+    // Level 2: Core keywords only (first 4 words)
+    const words = q.split(/\s+/);
+    if (words.length > 4) return words.slice(0, 4).join(' ');
+  }
+
+  return q;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -49,87 +69,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 2. SEARCH EBAY
     let comps = [];
     let avgPrice = 0;
+    let finalQueryUsed = query as string;
 
     if (tab === 'SOLD') {
       // Use eBay FINDING API for truly COMPLETED/SOLD items
-      // https://developer.ebay.com/Devzone/finding/CallRef/findCompletedItems.html
-      const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
+      const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
 
-      let filterParams = '';
-      // Don't filter by condition for sold items - we want to see all sold listings
-      // The condition filter is too restrictive and causes 0 results
-
-      filterParams += '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true';
+      let filterParams = '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true';
       filterParams += '&itemFilter(1).name=Currency&itemFilter(1).value=USD';
 
-      try {
-        const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
-        const fullUrl = `${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`;
+      // Try multiple relaxation levels for wide results
+      for (let level = 0; level <= 2; level++) {
+        const currentQuery = relaxQuery(query as string, level);
+        const fullUrl = `${findingBase}&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=15&sortOrder=EndTimeSoonest${filterParams}`;
 
-        console.log('[FINDING API] Request URL:', fullUrl);
-        console.log('[FINDING API] Query:', query);
-        console.log('[FINDING API] Filter Params:', filterParams);
+        console.log(`[FINDING API] Level ${level} Query:`, currentQuery);
 
-        const findingRes = await axios.get(fullUrl);
-
-        console.log('[FINDING API] Response Status:', findingRes.status);
-        console.log('[FINDING API] Response Data:', JSON.stringify(findingRes.data, null, 2));
-
-        const findResponse = findingRes.data.findCompletedItemsResponse[0];
-        console.log('[FINDING API] ACK:', findResponse.ack[0]);
-
-        if (findResponse.ack[0] !== 'Success' && findResponse.ack[0] !== 'Warning') {
-          const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Finding API Error';
-          console.error('[FINDING API] Error Message:', errorMsg);
-          throw new Error(errorMsg);
-        }
-
-        const searchResult = findResponse.searchResult[0];
-        const items = (searchResult && searchResult.item) ? searchResult.item : [];
-        console.log('[FINDING API] Found', items.length, 'sold items');
-
-        // If Finding API returns results, use them
-        if (items.length > 0) {
-          comps = items.map((i: any) => {
-            const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
-            let shippingCost = 0;
-            const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
-            if (shippingInfo && shippingInfo.shippingServiceCost) {
-              shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
-            }
-
-            return {
-              id: i.itemId[0],
-              title: i.title[0],
-              price: itemPrice,
-              shipping: shippingCost,
-              total: itemPrice + shippingCost,
-              url: i.viewItemURL[0],
-              dateSold: i.listingInfo[0].endTime[0],
-              condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
-              image: i.galleryURL ? i.galleryURL[0] : null
-            };
-          });
-        } else {
-          // Finding API returned 0 results - use fallback estimation
-          console.log('[SOLD COMPS] Finding API returned 0 results. Using fallback estimation.');
-          throw new Error('No sold items found - using fallback');
-        }
-      } catch (findingError: any) {
-        console.error('[SOLD COMPS] Finding API Error:', findingError.message);
-        console.error('[SOLD COMPS] Using fallback estimation based on active listings');
-
-        // FALLBACK: Estimate sold comps from active listings
-        // This provides value even when Finding API doesn't work
         try {
-          // Get active listings for the same query
-          let filter = 'priceCurrency:USD';
-          if (condition === 'NEW') {
-            filter += ',conditionIds:{1000|1500}';
-          } else if (condition === 'USED') {
-            filter += ',conditionIds:{3000}';
-          }
+          const findingRes = await axios.get(fullUrl);
+          const findResponse = findingRes.data.findCompletedItemsResponse[0];
 
+          if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
+            const searchResult = findResponse.searchResult[0];
+            const items = (searchResult && searchResult.item) ? searchResult.item : [];
+
+            if (items.length > 0) {
+              console.log(`[FINDING API] Found ${items.length} items at level ${level}`);
+              finalQueryUsed = currentQuery;
+              comps = items.map((i: any) => {
+                const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
+                let shippingCost = 0;
+                const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
+                if (shippingInfo && shippingInfo.shippingServiceCost) {
+                  shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
+                }
+
+                return {
+                  id: i.itemId[0],
+                  title: i.title[0],
+                  price: itemPrice,
+                  shipping: shippingCost,
+                  total: itemPrice + shippingCost,
+                  url: i.viewItemURL[0],
+                  dateSold: i.listingInfo[0].endTime[0],
+                  condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
+                  image: i.galleryURL ? i.galleryURL[0] : null
+                };
+              });
+              break; // Success! Exit relaxation loop
+            }
+          }
+        } catch (e: any) {
+          console.error(`[FINDING API] Level ${level} failed:`, e.message);
+        }
+      }
+
+      // If still 0, try estimation fallback
+      if (comps.length === 0) {
+        console.log('[SOLD COMPS] All Finding API levels failed. Using fallback estimation.');
+        // Fallback implementation here...
+        const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+          headers: {
+            'Authorization': `Bearer ${appToken}`,
+            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+          },
+          params: { q: relaxQuery(query as string, 1), limit: 10 }
+        });
+        const activeItems = activeRes.data.itemSummaries || [];
+        comps = activeItems.map((i: any) => ({
+          id: i.itemId,
+          title: i.title + ' (Est.)',
+          price: parseFloat(i.price?.value || '0') * 0.9,
+          shipping: 0,
+          total: parseFloat(i.price?.value || '0') * 0.9,
+          url: i.itemWebUrl,
+          isEstimated: true
+        }));
+      }
+
+    } else {
+      // Use eBay BROWSE API for ACTIVE items
+      for (let level = 0; level <= 1; level++) {
+        const currentQuery = relaxQuery(query as string, level);
+        try {
           const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
             headers: {
               'Authorization': `Bearer ${appToken}`,
@@ -138,107 +160,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
             },
             params: {
-              q: query,
-              limit: 50, // Get more for better estimation
+              q: currentQuery,
+              limit: 10,
               sort: 'price',
-              filter: filter
+              filter: condition === 'NEW' ? 'conditionIds:{1000|1500}' : condition === 'USED' ? 'conditionIds:{3000}' : undefined
             }
           });
 
-          const activeItems = response.data.itemSummaries || [];
-          console.log('[SOLD COMPS FALLBACK] Found', activeItems.length, 'active items for estimation');
+          const items = response.data.itemSummaries || [];
+          if (items.length > 0) {
+            finalQueryUsed = currentQuery;
+            comps = items.map((i: any) => {
+              const itemPrice = parseFloat(i.price?.value || '0');
+              let shippingCost = 0;
+              if (i.shippingOptions && i.shippingOptions.length > 0) {
+                const costObj = i.shippingOptions[0].shippingCost;
+                if (costObj) shippingCost = parseFloat(costObj.value);
+              }
 
-          // Create estimated "sold" comps by sampling from active listings
-          // Apply a slight price discount (10-15%) to simulate sold prices
-          comps = activeItems.slice(0, Math.min(10, activeItems.length)).map((i: any) => {
-            const activePrice = parseFloat(i.price?.value || '0');
-            // Sold items typically sell for 10-15% less than active listings
-            const estimatedSoldPrice = activePrice * 0.88;
+              let cleanId = i.legacyItemId || i.itemId;
+              if (cleanId && cleanId.includes('|')) {
+                const parts = cleanId.split('|');
+                if (parts.length >= 2) cleanId = parts[1];
+              }
 
-            let shippingCost = 0;
-            if (i.shippingOptions && i.shippingOptions.length > 0) {
-              const costObj = i.shippingOptions[0].shippingCost;
-              if (costObj) shippingCost = parseFloat(costObj.value);
-            }
-
-            let cleanId = i.legacyItemId || i.itemId;
-            if (cleanId && cleanId.includes('|')) {
-              const parts = cleanId.split('|');
-              if (parts.length >= 2) cleanId = parts[1];
-            }
-
-            return {
-              id: cleanId,
-              title: i.title + ' (Est.)',
-              price: estimatedSoldPrice,
-              shipping: shippingCost,
-              total: estimatedSoldPrice + shippingCost,
-              url: i.itemWebUrl,
-              condition: i.condition || 'Used',
-              image: i.image?.imageUrl || null,
-              isEstimated: true // Flag to indicate this is estimated data
-            };
-          });
-
-          console.log('[SOLD COMPS FALLBACK] Created', comps.length, 'estimated sold comps');
-        } catch (fallbackError) {
-          console.error('[SOLD COMPS FALLBACK] Failed:', fallbackError);
-          comps = [];
+              return {
+                id: cleanId,
+                title: i.title,
+                price: itemPrice,
+                shipping: shippingCost,
+                total: itemPrice + shippingCost,
+                url: i.itemWebUrl,
+                condition: i.condition || 'Used',
+                image: i.image?.imageUrl || null
+              };
+            });
+            break;
+          }
+        } catch (e: any) {
+          console.error(`[BROWSE API] Level ${level} failed:`, e.message);
         }
       }
-    } else {
-      // Use eBay BROWSE API for ACTIVE items
-      let filter = 'priceCurrency:USD';
-      if (condition === 'NEW') {
-        filter += ',conditionIds:{1000|1500}';
-      } else if (condition === 'USED') {
-        filter += ',conditionIds:{3000}';
-      }
-
-      const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
-        headers: {
-          'Authorization': `Bearer ${appToken}`,
-          'Content-Type': 'application/json',
-          'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-          'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
-        },
-        params: {
-          q: query,
-          limit: 10,
-          sort: 'price',
-          filter: filter
-        }
-      });
-
-      const items = response.data.itemSummaries || [];
-
-      comps = items.map((i: any) => {
-        const itemPrice = parseFloat(i.price?.value || '0');
-        let shippingCost = 0;
-        if (i.shippingOptions && i.shippingOptions.length > 0) {
-          const costObj = i.shippingOptions[0].shippingCost;
-          if (costObj) shippingCost = parseFloat(costObj.value);
-        }
-
-        let cleanId = i.legacyItemId || i.itemId;
-        if (cleanId && cleanId.includes('|')) {
-          const parts = cleanId.split('|');
-          if (parts.length >= 2) cleanId = parts[1];
-        }
-
-        return {
-          id: cleanId,
-          title: i.title,
-          price: itemPrice,
-          shipping: shippingCost,
-          total: itemPrice + shippingCost,
-          url: i.itemWebUrl,
-          gtin: i.gtin || null,
-          epid: i.epid || null,
-          condition: i.condition || 'Used',
-          image: i.image?.imageUrl || null
-        };
-      });
     }
 
     // 4. CALCULATE STATS
@@ -247,13 +209,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.status(200).json({
       averagePrice: avgPrice.toFixed(2),
-      comps: comps
+      comps: comps,
+      queryRelaxed: finalQueryUsed !== query
     });
 
   } catch (error: any) {
     console.error('[BACKEND] Search Error:', error.response?.data || error.message);
-    console.error('[BACKEND] Error Stack:', error.stack);
     const msg = error.response?.data?.error_description || error.message;
-    res.status(500).json({ error: `eBay Search Failed: ${msg}`, details: error.response?.data });
+    res.status(500).json({ error: `eBay Search Failed: ${msg}` });
   }
 }
