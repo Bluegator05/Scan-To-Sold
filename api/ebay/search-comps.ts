@@ -56,15 +56,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
 
       let filterParams = '';
-      if (condition === 'NEW') {
-        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value(0)=1000&itemFilter(0).value(1)=1500';
-      } else if (condition === 'USED') {
-        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value(0)=3000';
-      }
+      // Don't filter by condition for sold items - we want to see all sold listings
+      // The condition filter is too restrictive and causes 0 results
 
-      const filterIdx = condition ? 1 : 0;
-      filterParams += `&itemFilter(${filterIdx}).name=SoldItemsOnly&itemFilter(${filterIdx}).value=true`;
-      filterParams += `&itemFilter(${filterIdx + 1}).name=Currency&itemFilter(${filterIdx + 1}).value=USD`;
+      filterParams += '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true';
+      filterParams += '&itemFilter(1).name=Currency&itemFilter(1).value=USD';
 
       try {
         const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
