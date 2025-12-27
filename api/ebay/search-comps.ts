@@ -74,21 +74,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (tab === 'SOLD') {
       // Use eBay FINDING API for truly COMPLETED/SOLD items
-      const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
+      // Headers-based approach is more robust and required for modern app tokens
+      const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1`;
 
-      // CRITICAL: Finding API requires value(0)= syntax for item filters
-      let filterParams = '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true';
-      filterParams += '&itemFilter(1).name=Currency&itemFilter(1).value(0)=USD';
+      const filterParams = '&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true' +
+        '&itemFilter(1).name=Currency&itemFilter(1).value(0)=USD';
 
       // Try multiple relaxation levels
       for (let level = 0; level <= 2; level++) {
         const currentQuery = relaxQuery(query as string, level);
-        const fullUrl = `${findingBase}&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest${filterParams}`;
+        const fullUrl = `${findingUrl}?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest${filterParams}`;
 
-        console.log(`[FINDING API] Level ${level} Query:`, currentQuery);
+        console.log(`[FINDING API] Level ${level} Attempt: ${currentQuery}`);
 
         try {
-          const findingRes = await axios.get(fullUrl);
+          const findingRes = await axios.get(fullUrl, {
+            headers: {
+              'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
+              'X-EBAY-SOA-SECURITY-APPNAME': process.env.EBAY_APP_ID,
+              'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
+              'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US',
+              'Authorization': `Bearer ${appToken}`
+            }
+          });
+
           const findResponse = findingRes.data.findCompletedItemsResponse[0];
 
           if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
@@ -96,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const items = (searchResult && searchResult.item) ? searchResult.item : [];
 
             if (items.length > 0) {
-              console.log(`[FINDING API] Found ${items.length} items at level ${level}`);
+              console.log(`[FINDING API] SUCCESS: Found ${items.length} items at level ${level}`);
               finalQueryUsed = currentQuery;
               comps = items.map((i: any) => {
                 const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
@@ -118,11 +127,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   image: i.galleryURL ? i.galleryURL[0] : null
                 };
               });
-              break; // Success! Exit relaxation loop
+              break;
+            } else {
+              console.log(`[FINDING API] No results at level ${level}`);
             }
+          } else {
+            const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Unknown Finding API Error';
+            console.error(`[FINDING API] Level ${level} failed with ACK ${findResponse.ack[0]}: ${errorMsg}`);
           }
         } catch (e: any) {
-          console.error(`[FINDING API] Level ${level} failed:`, e.message);
+          console.error(`[FINDING API] Level ${level} request failed:`, e.message);
         }
       }
 
