@@ -66,37 +66,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       filterParams += `&itemFilter(${filterIdx}).name=SoldItemsOnly&itemFilter(${filterIdx}).value=true`;
       filterParams += `&itemFilter(${filterIdx + 1}).name=Currency&itemFilter(${filterIdx + 1}).value=USD`;
 
-      const findingRes = await axios.get(`${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`);
+      try {
+        const findingRes = await axios.get(`${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`);
 
-      const findResponse = findingRes.data.findCompletedItemsResponse[0];
-      if (findResponse.ack[0] !== 'Success' && findResponse.ack[0] !== 'Warning') {
-        const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Finding API Error';
-        throw new Error(errorMsg);
-      }
-
-      const searchResult = findResponse.searchResult[0];
-      const items = (searchResult && searchResult.item) ? searchResult.item : [];
-
-      comps = items.map((i: any) => {
-        const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
-        let shippingCost = 0;
-        const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
-        if (shippingInfo && shippingInfo.shippingServiceCost) {
-          shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
+        const findResponse = findingRes.data.findCompletedItemsResponse[0];
+        if (findResponse.ack[0] !== 'Success' && findResponse.ack[0] !== 'Warning') {
+          const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Finding API Error';
+          throw new Error(errorMsg);
         }
 
-        return {
-          id: i.itemId[0],
-          title: i.title[0],
-          price: itemPrice,
-          shipping: shippingCost,
-          total: itemPrice + shippingCost,
-          url: i.viewItemURL[0],
-          dateSold: i.listingInfo[0].endTime[0],
-          condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
-          image: i.galleryURL ? i.galleryURL[0] : null
-        };
-      });
+        const searchResult = findResponse.searchResult[0];
+        const items = (searchResult && searchResult.item) ? searchResult.item : [];
+
+        comps = items.map((i: any) => {
+          const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
+          let shippingCost = 0;
+          const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
+          if (shippingInfo && shippingInfo.shippingServiceCost) {
+            shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
+          }
+
+          return {
+            id: i.itemId[0],
+            title: i.title[0],
+            price: itemPrice,
+            shipping: shippingCost,
+            total: itemPrice + shippingCost,
+            url: i.viewItemURL[0],
+            dateSold: i.listingInfo[0].endTime[0],
+            condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
+            image: i.galleryURL ? i.galleryURL[0] : null
+          };
+        });
+      } catch (findingError: any) {
+        console.error('[SOLD COMPS] Finding API Error:', findingError.message);
+        // Fallback to empty results rather than crashing
+        comps = [];
+      }
     } else {
       // Use eBay BROWSE API for ACTIVE items
       let filter = 'priceCurrency:USD';
@@ -162,8 +168,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    console.error("Search Error:", error.response?.data || error.message);
+    console.error('[BACKEND] Search Error:', error.response?.data || error.message);
+    console.error('[BACKEND] Error Stack:', error.stack);
     const msg = error.response?.data?.error_description || error.message;
-    res.status(500).json({ error: `eBay Search Failed: ${msg}` });
+    res.status(500).json({ error: `eBay Search Failed: ${msg}`, details: error.response?.data });
   }
 }
