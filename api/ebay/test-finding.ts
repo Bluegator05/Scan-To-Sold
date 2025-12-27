@@ -17,7 +17,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!query) return res.status(400).json({ error: 'Missing query parameter' });
 
     try {
-        const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
+        // Adding GLOBAL-ID=EBAY-US which is often required for correct results
+        const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.0.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
         const fullUrl = `${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true`;
 
         console.log('[TEST] Finding API URL:', fullUrl);
