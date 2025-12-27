@@ -999,9 +999,15 @@ function App() {
 
                 } catch (err) {
                     console.error("Async Deep Analysis Failed:", err);
-                    setStatus(ScoutStatus.ERROR);
+                    // Fallback: If we at least have a title, show the research review screen
+                    // This prevents a permanent hang if one component (like sold comps) fails.
+                    if (baseResult.itemTitle && baseResult.itemTitle !== "Scanning...") {
+                        setStatus(ScoutStatus.RESEARCH_REVIEW);
+                    } else {
+                        setStatus(ScoutStatus.ERROR);
+                    }
                 } finally {
-                    setIsBackgroundAnalyzing(false); // STOP DISCREET INDICATOR
+                    setIsBackgroundAnalyzing(false);
                 }
             };
 

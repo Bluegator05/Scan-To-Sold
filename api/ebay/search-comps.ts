@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const findingRes = await axios.get(`${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`);
 
       const searchResult = findingRes.data.findCompletedItemsResponse[0].searchResult[0];
-      const items = searchResult.item || [];
+      const items = (searchResult && searchResult.item) ? searchResult.item : [];
 
       comps = items.map((i: any) => {
         const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
