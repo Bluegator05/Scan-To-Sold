@@ -67,16 +67,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       filterParams += `&itemFilter(${filterIdx + 1}).name=Currency&itemFilter(${filterIdx + 1}).value=USD`;
 
       try {
-        const findingRes = await axios.get(`${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`);
+        const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
+        const fullUrl = `${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`;
+
+        console.log('[FINDING API] Request URL:', fullUrl);
+        console.log('[FINDING API] Query:', query);
+        console.log('[FINDING API] Filter Params:', filterParams);
+
+        const findingRes = await axios.get(fullUrl);
+
+        console.log('[FINDING API] Response Status:', findingRes.status);
+        console.log('[FINDING API] Response Data:', JSON.stringify(findingRes.data, null, 2));
 
         const findResponse = findingRes.data.findCompletedItemsResponse[0];
+        console.log('[FINDING API] ACK:', findResponse.ack[0]);
+
         if (findResponse.ack[0] !== 'Success' && findResponse.ack[0] !== 'Warning') {
           const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Finding API Error';
+          console.error('[FINDING API] Error Message:', errorMsg);
           throw new Error(errorMsg);
         }
 
         const searchResult = findResponse.searchResult[0];
         const items = (searchResult && searchResult.item) ? searchResult.item : [];
+        console.log('[FINDING API] Found', items.length, 'sold items');
 
         comps = items.map((i: any) => {
           const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
@@ -100,6 +114,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       } catch (findingError: any) {
         console.error('[SOLD COMPS] Finding API Error:', findingError.message);
+        console.error('[SOLD COMPS] Error Stack:', findingError.stack);
+        console.error('[SOLD COMPS] Response Data:', findingError.response?.data);
         // Fallback to empty results rather than crashing
         comps = [];
       }
