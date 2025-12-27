@@ -46,69 +46,109 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const appToken = tokenRes.data.access_token;
 
-    // 2. SEARCH EBAY (Browse API)
-    let filter = 'priceCurrency:USD';
+    // 2. SEARCH EBAY
+    let comps = [];
+    let avgPrice = 0;
 
-    // Apply Condition Filter
-    if (condition === 'NEW') {
-      filter += ',conditionIds:{1000|1500}'; // New, New (Other)
-    } else if (condition === 'USED') {
-      filter += ',conditionIds:{3000}'; // Used
+    if (tab === 'SOLD') {
+      // Use eBay FINDING API for truly COMPLETED/SOLD items
+      // https://developer.ebay.com/Devzone/finding/CallRef/findCompletedItems.html
+      const findingUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${process.env.EBAY_APP_ID}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD`;
+
+      let filterParams = '';
+      if (condition === 'NEW') {
+        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value=1000&itemFilter(0).value=1500';
+      } else if (condition === 'USED') {
+        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value=3000';
+      }
+
+      // Filter for SOLD only (not just completed)
+      filterParams += '&itemFilter(1).name=SoldItemsOnly&itemFilter(1).value=true';
+      filterParams += '&itemFilter(2).name=Currency&itemFilter(2).value=USD';
+
+      const findingRes = await axios.get(`${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`);
+
+      const searchResult = findingRes.data.findCompletedItemsResponse[0].searchResult[0];
+      const items = searchResult.item || [];
+
+      comps = items.map((i: any) => {
+        const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
+        let shippingCost = 0;
+        const shippingInfo = i.shippingInfo[0];
+        if (shippingInfo.shippingServiceCost) {
+          shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
+        }
+
+        return {
+          id: i.itemId[0],
+          title: i.title[0],
+          price: itemPrice,
+          shipping: shippingCost,
+          total: itemPrice + shippingCost,
+          url: i.viewItemURL[0],
+          dateSold: i.listingInfo[0].endTime[0],
+          condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
+          image: i.galleryURL ? i.galleryURL[0] : null
+        };
+      });
+    } else {
+      // Use eBay BROWSE API for ACTIVE items
+      let filter = 'priceCurrency:USD';
+      if (condition === 'NEW') {
+        filter += ',conditionIds:{1000|1500}';
+      } else if (condition === 'USED') {
+        filter += ',conditionIds:{3000}';
+      }
+
+      const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+        headers: {
+          'Authorization': `Bearer ${appToken}`,
+          'Content-Type': 'application/json',
+          'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+          'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
+        },
+        params: {
+          q: query,
+          limit: 10,
+          sort: 'price',
+          filter: filter
+        }
+      });
+
+      const items = response.data.itemSummaries || [];
+
+      comps = items.map((i: any) => {
+        const itemPrice = parseFloat(i.price?.value || '0');
+        let shippingCost = 0;
+        if (i.shippingOptions && i.shippingOptions.length > 0) {
+          const costObj = i.shippingOptions[0].shippingCost;
+          if (costObj) shippingCost = parseFloat(costObj.value);
+        }
+
+        let cleanId = i.legacyItemId || i.itemId;
+        if (cleanId && cleanId.includes('|')) {
+          const parts = cleanId.split('|');
+          if (parts.length >= 2) cleanId = parts[1];
+        }
+
+        return {
+          id: cleanId,
+          title: i.title,
+          price: itemPrice,
+          shipping: shippingCost,
+          total: itemPrice + shippingCost,
+          url: i.itemWebUrl,
+          gtin: i.gtin || null,
+          epid: i.epid || null,
+          condition: i.condition || 'Used',
+          image: i.image?.imageUrl || null
+        };
+      });
     }
-
-    // For SOLD items via Browse API, explicit 'itemStatus:COMPLETED' is often restricted for public clients.
-    // We rely on client-side filtering or best-effort sort if the filter is rejected.
-    // However, we can try 'buyingOptions:{FIXED_PRICE}' to narrow down.
-
-    const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
-      headers: {
-        'Authorization': `Bearer ${appToken}`,
-        'Content-Type': 'application/json',
-        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-        'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
-      },
-      params: {
-        q: query,
-        limit: 10,
-        sort: tab === 'SOLD' ? '-price' : 'price',
-        filter: filter
-      }
-    });
-
-    const items = response.data.itemSummaries || [];
-
-    // 3. PROCESS RESULTS
-    const comps = items.map((i: any) => {
-      const itemPrice = parseFloat(i.price?.value || '0');
-      let shippingCost = 0;
-      if (i.shippingOptions && i.shippingOptions.length > 0) {
-        const costObj = i.shippingOptions[0].shippingCost;
-        if (costObj) shippingCost = parseFloat(costObj.value);
-      }
-
-      let cleanId = i.legacyItemId || i.itemId;
-      if (cleanId && cleanId.includes('|')) {
-        const parts = cleanId.split('|');
-        if (parts.length >= 2) cleanId = parts[1];
-      }
-
-      return {
-        id: cleanId,
-        title: i.title,
-        price: itemPrice,
-        shipping: shippingCost,
-        total: itemPrice + shippingCost,
-        url: i.itemWebUrl,
-        gtin: i.gtin || null,
-        epid: i.epid || null,
-        condition: i.condition || 'Used',
-        image: i.image?.imageUrl || null // Extract image
-      };
-    });
 
     // 4. CALCULATE STATS
     const totalSum = comps.reduce((acc: number, item: any) => acc + item.total, 0);
-    const avgPrice = comps.length > 0 ? totalSum / comps.length : 0;
+    avgPrice = comps.length > 0 ? totalSum / comps.length : 0;
 
     res.status(200).json({
       averagePrice: avgPrice.toFixed(2),
