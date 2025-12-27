@@ -891,7 +891,7 @@ function App() {
                 if (barcode) {
                     initialResult = await analyzeItemText(barcode);
                 } else {
-                    // Explicit 15s Timeout for Identification (Increased from 8s)
+                    // Explicit 15s Timeout for Identification
                     const idPromise = identifyItem(compressedMain, barcode);
                     const idTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("ID_TIMEOUT")), 15000));
                     // @ts-ignore
@@ -905,70 +905,71 @@ function App() {
                 }
             } catch (err) {
                 console.error("Phase 1 Error:", err);
-                initialResult = { itemTitle: "Item Detected", searchQuery: "Item", listingSources: [] };
+                initialResult = { itemTitle: "Scanning...", searchQuery: "", listingSources: [] };
             }
 
-            setEditedTitle(initialResult.searchQuery || initialResult.itemTitle);
+            // --- REFINEMENT: If ID failed or is generic, don't show "Item Detected" yet ---
+            const isGeneric = !initialResult.searchQuery ||
+                initialResult.itemTitle.toLowerCase().includes("item detected") ||
+                initialResult.itemTitle === "Scanning...";
+
+            const displayTitle = isGeneric ? "Scanning..." : (initialResult.searchQuery || initialResult.itemTitle);
+            const displaySearch = isGeneric ? "" : (initialResult.searchQuery || initialResult.itemTitle);
+
+            setEditedTitle(displayTitle);
 
             // --- NON-BLOCKING UI UNLOCK ---
-            setLoadingMessage(""); // Dismiss Overlay Immediately
+            setLoadingMessage("");
             setStatus(ScoutStatus.COMPLETE);
 
             // Set Initial "Lite" Result
             const baseResult: ScoutResult = {
-                itemTitle: initialResult.itemTitle,
-                searchQuery: initialResult.searchQuery || initialResult.itemTitle,
+                itemTitle: displayTitle,
+                searchQuery: displaySearch,
                 estimatedSoldPrice: 0,
                 estimatedShippingCost: 0,
                 estimatedWeight: "",
-                confidence: 80,
-                description: "", // Will populate later
+                confidence: isGeneric ? 30 : 80,
+                description: "",
                 listingSources: initialResult.listingSources || [],
-                itemSpecifics: {}, // Will populate later
+                itemSpecifics: {},
                 isBulkLot: false
             };
 
             setScoutResult(baseResult);
-
-            // Update modal with initial data
             setEditingItem(prev => prev ? ({ ...prev, title: initialResult.searchQuery || initialResult.itemTitle }) : null);
 
             // --- ASYNC STEP 3: DEEP ANALYSIS & COMPS ---
-            // Trigger these in background and update state as they finish
-
             const runAsyncTasks = async () => {
-                // 1. Start Comp Search (Fastest)
-                searchEbayComps(baseResult.searchQuery || baseResult.itemTitle, 'SOLD', 'USED').then(data => {
-                    if (data && data.comps) setVisualSearchResults(data.comps);
-                });
+                setIsBackgroundAnalyzing(true);
 
-                setIsBackgroundAnalyzing(true); // START DISCREET INDICATOR
                 try {
-                    // 2. Start Deep Analysis (Slower) - Specs, Price, Dims
+                    // 1. Deep Analysis (Specs, Price, and Better Title)
                     const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
-                    const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 20000)); // 20s timeout
+                    const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 25000));
 
-                    // 3. Start High-Quality Description Generation (Parallel)
-                    // This uses the specialized text generator that the user likes ("Auto-Write"), ensuring quality.
-                    const descriptionPromise = generateListingDescription(
-                        initialResult.itemTitle,
-                        'USED', // Default condition
-                        'EBAY'
-                    );
+                    const details = await Promise.race([detailsPromise, detailsTimeout]) as Partial<ScoutResult>;
 
-                    // Wait for both Deep Data and Description
-                    // @ts-ignore
-                    // Wait for Deep Data, Description, AND Market Data
-                    // @ts-ignore
-                    const [details, bestDescription, marketStats] = await Promise.all([
-                        Promise.race([detailsPromise, detailsTimeout]) as Promise<Partial<ScoutResult>>,
-                        descriptionPromise,
-                        getSellThroughData(baseResult.searchQuery || baseResult.itemTitle).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 }))
+                    // If we got a better title from deep analysis, use it for comps
+                    const refinedTitle = details.itemTitle || initialResult.itemTitle;
+                    const refinedSearch = details.searchQuery || refinedTitle;
+
+                    // 2. Start Comp Search & Market Stats with refined title
+                    const [compsResults, marketStats, bestDescription] = await Promise.all([
+                        searchEbayComps(refinedSearch, 'SOLD', 'USED'),
+                        getSellThroughData(refinedSearch).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 })),
+                        generateListingDescription(refinedTitle, 'USED', 'EBAY')
                     ]);
+
+                    if (compsResults && compsResults.comps) {
+                        setVisualSearchResults(compsResults.comps);
+                    }
 
                     const finalResult: ScoutResult = {
                         ...baseResult,
                         ...details,
+                        itemTitle: refinedTitle,
+                        searchQuery: refinedSearch,
                         description: bestDescription || details.description || "",
                         itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {}),
                         marketData: {
@@ -1920,10 +1921,17 @@ function App() {
 
                             {/* Research Links for Premium - MOVED TO TOP */}
                             <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                {(() => {
+                                    const searchTitle = (editedTitle || scoutResult?.itemTitle || "").toLowerCase().includes("scanning") ? "" : (editedTitle || scoutResult?.itemTitle || "item");
+                                    return (
+                                        <>
+                                            <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
+                                            <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
+                                            <a href={`https://www.google.com/search?q=${encodeURIComponent(searchTitle)}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
+                                            <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -2328,10 +2336,17 @@ function App() {
                                     {/* Research Links - Use editedTitle OR first visual match OR "item" */}
                                     {/* Research Links - Use editedTitle OR editingItem.title OR AI Result OR "item" */}
                                     <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                        <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                        {(() => {
+                                            const searchTitle = (editedTitle || editingItem?.title || scoutResult?.itemTitle || "").toLowerCase().includes("scanning") ? "" : (editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item");
+                                            return (
+                                                <>
+                                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
+                                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
+                                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchTitle)}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
+                                                    <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
 
                                     {isResearching ? (
