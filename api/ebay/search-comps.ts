@@ -88,32 +88,103 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const items = (searchResult && searchResult.item) ? searchResult.item : [];
         console.log('[FINDING API] Found', items.length, 'sold items');
 
-        comps = items.map((i: any) => {
-          const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
-          let shippingCost = 0;
-          const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
-          if (shippingInfo && shippingInfo.shippingServiceCost) {
-            shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
-          }
+        // If Finding API returns results, use them
+        if (items.length > 0) {
+          comps = items.map((i: any) => {
+            const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
+            let shippingCost = 0;
+            const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
+            if (shippingInfo && shippingInfo.shippingServiceCost) {
+              shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
+            }
 
-          return {
-            id: i.itemId[0],
-            title: i.title[0],
-            price: itemPrice,
-            shipping: shippingCost,
-            total: itemPrice + shippingCost,
-            url: i.viewItemURL[0],
-            dateSold: i.listingInfo[0].endTime[0],
-            condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
-            image: i.galleryURL ? i.galleryURL[0] : null
-          };
-        });
+            return {
+              id: i.itemId[0],
+              title: i.title[0],
+              price: itemPrice,
+              shipping: shippingCost,
+              total: itemPrice + shippingCost,
+              url: i.viewItemURL[0],
+              dateSold: i.listingInfo[0].endTime[0],
+              condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
+              image: i.galleryURL ? i.galleryURL[0] : null
+            };
+          });
+        } else {
+          // Finding API returned 0 results - use fallback estimation
+          console.log('[SOLD COMPS] Finding API returned 0 results. Using fallback estimation.');
+          throw new Error('No sold items found - using fallback');
+        }
       } catch (findingError: any) {
         console.error('[SOLD COMPS] Finding API Error:', findingError.message);
-        console.error('[SOLD COMPS] Error Stack:', findingError.stack);
-        console.error('[SOLD COMPS] Response Data:', findingError.response?.data);
-        // Fallback to empty results rather than crashing
-        comps = [];
+        console.error('[SOLD COMPS] Using fallback estimation based on active listings');
+
+        // FALLBACK: Estimate sold comps from active listings
+        // This provides value even when Finding API doesn't work
+        try {
+          // Get active listings for the same query
+          let filter = 'priceCurrency:USD';
+          if (condition === 'NEW') {
+            filter += ',conditionIds:{1000|1500}';
+          } else if (condition === 'USED') {
+            filter += ',conditionIds:{3000}';
+          }
+
+          const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+            headers: {
+              'Authorization': `Bearer ${appToken}`,
+              'Content-Type': 'application/json',
+              'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+              'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
+            },
+            params: {
+              q: query,
+              limit: 50, // Get more for better estimation
+              sort: 'price',
+              filter: filter
+            }
+          });
+
+          const activeItems = response.data.itemSummaries || [];
+          console.log('[SOLD COMPS FALLBACK] Found', activeItems.length, 'active items for estimation');
+
+          // Create estimated "sold" comps by sampling from active listings
+          // Apply a slight price discount (10-15%) to simulate sold prices
+          comps = activeItems.slice(0, Math.min(10, activeItems.length)).map((i: any) => {
+            const activePrice = parseFloat(i.price?.value || '0');
+            // Sold items typically sell for 10-15% less than active listings
+            const estimatedSoldPrice = activePrice * 0.88;
+
+            let shippingCost = 0;
+            if (i.shippingOptions && i.shippingOptions.length > 0) {
+              const costObj = i.shippingOptions[0].shippingCost;
+              if (costObj) shippingCost = parseFloat(costObj.value);
+            }
+
+            let cleanId = i.legacyItemId || i.itemId;
+            if (cleanId && cleanId.includes('|')) {
+              const parts = cleanId.split('|');
+              if (parts.length >= 2) cleanId = parts[1];
+            }
+
+            return {
+              id: cleanId,
+              title: i.title + ' (Est.)',
+              price: estimatedSoldPrice,
+              shipping: shippingCost,
+              total: estimatedSoldPrice + shippingCost,
+              url: i.itemWebUrl,
+              condition: i.condition || 'Used',
+              image: i.image?.imageUrl || null,
+              isEstimated: true // Flag to indicate this is estimated data
+            };
+          });
+
+          console.log('[SOLD COMPS FALLBACK] Created', comps.length, 'estimated sold comps');
+        } catch (fallbackError) {
+          console.error('[SOLD COMPS FALLBACK] Failed:', fallbackError);
+          comps = [];
+        }
       }
     } else {
       // Use eBay BROWSE API for ACTIVE items
