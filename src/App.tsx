@@ -62,8 +62,6 @@ function App() {
     const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
 
     const [status, setStatus] = useState<ScoutStatus>(ScoutStatus.IDLE);
-    // Default to LENS to prevent paywall leak, or check localstorage
-    const [scanMode, setScanMode] = useState<'AI' | 'LENS'>('AI');
     const [cameraMode, setCameraMode] = useState<'SCOUT' | 'EDIT'>('SCOUT');
     const [currentImage, setCurrentImage] = useState<string | null>(null);
     const [publicImageLink, setPublicImageLink] = useState<string | null>(null);
@@ -71,12 +69,7 @@ function App() {
     const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
     const [manualQuery, setManualQuery] = useState("");
 
-    // Lens Mode States
-    const [importUrl, setImportUrl] = useState("");
-    const [isImporting, setIsImporting] = useState(false);
     const [visualSearchResults, setVisualSearchResults] = useState<any[]>([]);
-    const [isVisualSearching, setIsVisualSearching] = useState(false);
-    const [lensKeyword, setLensKeyword] = useState("");
     const [isBackgroundAnalyzing, setIsBackgroundAnalyzing] = useState(false); // NEW: Discreet AI Indicator
 
     // Helper to clean HTML from imported descriptions (Define here to be accessible everywhere)
@@ -153,15 +146,8 @@ function App() {
             } catch (e) { console.error("Failed to load templates", e); }
         }
 
-        // Fix Paywall Leak: Ensure new users or free users don't start in AI mode if they shouldn't
-        if (subscription && subscription.tier !== 'PRO' && scanMode === 'AI') {
-            // Check if they have credits? Or just default to LENS to be safe and showing the "Upgrade" lock
-            // Actually, simply enforcing the check when they *try* to scan is better, but if the UI shows the camera immediately:
-            // Let's default to LENS if they are free tier to encourage "Free Scan" first, or just validated.
-            // But the user said "default is set to ai premium camera".
-            // Let's force it to LENS if not PRO.
-            setScanMode('LENS');
-        }
+        // Fix: Removed Lens default setting for free users as Lens is being removed.
+        // AI Scan will now be the primary mode for everyone, gate by credits/UI if needed.
     }, [user, subscription]);
 
 
@@ -434,9 +420,7 @@ function App() {
         setListingPlatform(null);
         setCurrentListingPrice(0);
         setItemCondition('USED');
-        setImportUrl("");
         setVisualSearchResults([]);
-        setLensKeyword("");
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -572,113 +556,6 @@ function App() {
         if (user) incrementDailyUsage();
     };
 
-    const handlePerformVisualSearch = async () => {
-        if (!currentImage) return;
-        setIsVisualSearching(true);
-        setVisualSearchResults([]);
-        try {
-            const results = await searchEbayByImage(currentImage);
-            if (results && results.length > 0) {
-                setVisualSearchResults(results);
-            } else {
-                // Fallback?
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsVisualSearching(false);
-        }
-    };
-
-    const handleLensKeywordSearch = async () => {
-        if (!lensKeyword.trim()) return;
-        setIsVisualSearching(true);
-        try {
-            const data = await searchEbayComps(lensKeyword, 'ACTIVE', 'USED');
-            if (data.comps && data.comps.length > 0) {
-                setVisualSearchResults(data.comps.map(c => ({
-                    id: c.id,
-                    title: c.title,
-                    price: c.price,
-                    shipping: c.shipping,
-                    image: c.image,
-                    url: c.url,
-                    condition: c.condition
-                })));
-            } else {
-                alert("No matches found for keywords.");
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsVisualSearching(false);
-        }
-    };
-
-    const handleSelectVisualMatch = async (match: any) => {
-        setIsImporting(true);
-        try {
-            // 1. Fetch Details
-            let details: any = {};
-            try {
-                details = await fetchEbayItemDetails(match.id);
-            } catch (e) {
-                console.warn("Could not fetch full details, using match data", e);
-                details = {
-                    title: match.title,
-                    price: match.price,
-                    shippingCost: match.shipping,
-                    itemSpecifics: {},
-                    description: "",
-                    condition: 'Used',
-                    url: match.url
-                };
-            }
-
-            const price = parseFloat(details.price || match.price || '0');
-            const shipping = parseFloat(details.shippingCost || match.shipping || '0');
-            const condition = (details.condition && details.condition.toLowerCase().includes('new')) ? 'NEW' : 'USED';
-            const weight = details.weight || "";
-
-            // 2. Create Draft Item
-            const newItem: InventoryItem = {
-                id: crypto.randomUUID(),
-                sku: `SKU-${Date.now()}`,
-                title: details.title || match.title,
-                dateScanned: new Date().toISOString(),
-                storageUnitId: activeUnit,
-                costCode: '',
-                calculation: {
-                    soldPrice: price,
-                    shippingCost: shipping,
-                    itemCost: 0,
-                    platformFees: (price * 0.1325) + 0.30,
-                    netProfit: price - shipping - ((price * 0.1325) + 0.30),
-                    isProfitable: false
-                },
-                imageUrl: currentImage || match.image, // Use captured image if available, else match image
-                status: 'DRAFT',
-                conditionNotes: condition,
-                itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics),
-                generatedListing: { platform: 'EBAY', content: details.description || '' },
-                ebayUrl: details.url || match.url,
-                dimensions: details.dimensions || ""
-            };
-
-            if (weight) newItem.itemSpecifics!.Weight = weight;
-
-            // 3. Open Edit Modal
-            setEditingItem(newItem);
-
-        } catch (e) {
-            console.error("Selection failed", e);
-            alert("Failed to select item. Please try again.");
-        } finally {
-            setIsImporting(false);
-            // Do NOT clear visualSearchResults so user can go back if they cancel
-        }
-    };
-
     const handleUsePrice = (match: any) => {
         setScoutResult(prev => {
             if (!prev) return null;
@@ -688,51 +565,6 @@ function App() {
                 estimatedShippingCost: match.shipping || 0
             };
         });
-    };
-
-
-
-    const handleImportFromUrl = async () => {
-        if (!importUrl) return;
-        const id = extractEbayId(importUrl);
-        if (!id) {
-            alert("Could not find a valid eBay Item ID in that URL.");
-            return;
-        }
-        setIsImporting(true);
-        try {
-            const details = await fetchEbayItemDetails(id);
-            const price = parseFloat(details.price || '0');
-            setEditedTitle(details.title);
-
-            // Deep extract specifics from the *entire* details object
-            const normalized = extractItemSpecifics(details);
-            const mergedSpecifics = ensureDefaultSpecifics(normalized);
-
-
-            if (details.weight) mergedSpecifics.Weight = details.weight;
-
-            setScoutResult({
-                itemTitle: details.title,
-                estimatedSoldPrice: price,
-                estimatedShippingCost: 0,
-                estimatedWeight: details.weight || "",
-                confidence: 100,
-                description: details.description || "",
-                itemSpecifics: mergedSpecifics,
-                listingSources: [{ title: 'eBay Import', uri: details.url }]
-            });
-
-            setGeneratedListing(details.description);
-            setListingPlatform('EBAY');
-            setItemCondition(details.condition === 'New' ? 'NEW' : 'USED');
-            alert("Details Imported Successfully!");
-        } catch (e: any) {
-            alert("Import failed: " + e.message);
-        } finally {
-            setIsImporting(false);
-            setImportUrl("");
-        }
     };
 
     const handleRetryAnalysis = async () => {
@@ -849,7 +681,7 @@ function App() {
 
     const handleConditionChange = async (newCondition: 'NEW' | 'USED') => {
         setItemCondition(newCondition);
-        if (scoutResult && scanMode === 'AI') {
+        if (scoutResult) {
             setScoutResult({ ...scoutResult, condition: newCondition });
             setLoadingMessage("Refining price...");
             const newPrice = await refinePriceAnalysis(editedTitle || scoutResult.itemTitle, newCondition);
@@ -936,12 +768,11 @@ function App() {
         // Analytics: Track scan start
         if (cameraMode === 'SCOUT') {
             logEvent(analytics, 'item_scan_started', {
-                mode: scanMode,
                 has_barcode: !!barcode
             });
         }
         // Enforce Paywall (Only for AI Scout Mode)
-        if (cameraMode === 'SCOUT' && scanMode === 'AI' && !canAccess('AI_SCAN')) {
+        if (cameraMode === 'SCOUT' && !canAccess('AI_SCAN')) {
             setStatus(ScoutStatus.IDLE);
             setIsPricingOpen(true);
             return;
@@ -1045,16 +876,12 @@ function App() {
             setListingPlatform(null);
             setCurrentListingPrice(0);
             setItemCondition('USED');
-            setImportUrl("");
             setVisualSearchResults([]);
-            setLensKeyword("");
 
-            if (scanMode === 'LENS') {
-                setEditingItem(prev => prev ? ({ ...prev, title: "Identifying...", imageUrl: compressedMain, additionalImages: compressedAdditional }) : null);
-            }
+
 
             // --- STEP 2: IDENTIFICATION (Phase 1) ---
-            setLoadingMessage(scanMode === 'LENS' ? "Identifying..." : "Identifying...");
+            setLoadingMessage("Identifying...");
 
             // Force UI Repaint so "STOP" button is visible and clickable
             await new Promise(r => setTimeout(r, 100));
@@ -1082,7 +909,6 @@ function App() {
             }
 
             setEditedTitle(initialResult.searchQuery || initialResult.itemTitle);
-            setLensKeyword(initialResult.searchQuery || initialResult.itemTitle);
 
             // --- NON-BLOCKING UI UNLOCK ---
             setLoadingMessage(""); // Dismiss Overlay Immediately
@@ -1116,75 +942,65 @@ function App() {
                     if (data && data.comps) setVisualSearchResults(data.comps);
                 });
 
-                if (scanMode === 'AI') {
-                    setIsBackgroundAnalyzing(true); // START DISCREET INDICATOR
-                    try {
-                        // 2. Start Deep Analysis (Slower) - Specs, Price, Dims
-                        const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
-                        const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 20000)); // 20s timeout
+                setIsBackgroundAnalyzing(true); // START DISCREET INDICATOR
+                try {
+                    // 2. Start Deep Analysis (Slower) - Specs, Price, Dims
+                    const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
+                    const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 20000)); // 20s timeout
 
-                        // 3. Start High-Quality Description Generation (Parallel)
-                        // This uses the specialized text generator that the user likes ("Auto-Write"), ensuring quality.
-                        const descriptionPromise = generateListingDescription(
-                            initialResult.itemTitle,
-                            'USED', // Default condition
-                            'EBAY'
-                        );
+                    // 3. Start High-Quality Description Generation (Parallel)
+                    // This uses the specialized text generator that the user likes ("Auto-Write"), ensuring quality.
+                    const descriptionPromise = generateListingDescription(
+                        initialResult.itemTitle,
+                        'USED', // Default condition
+                        'EBAY'
+                    );
 
-                        // Wait for both Deep Data and Description
-                        // @ts-ignore
-                        // Wait for Deep Data, Description, AND Market Data
-                        // @ts-ignore
-                        const [details, bestDescription, marketStats] = await Promise.all([
-                            Promise.race([detailsPromise, detailsTimeout]) as Promise<Partial<ScoutResult>>,
-                            descriptionPromise,
-                            getSellThroughData(baseResult.searchQuery || baseResult.itemTitle).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 }))
-                        ]);
+                    // Wait for both Deep Data and Description
+                    // @ts-ignore
+                    // Wait for Deep Data, Description, AND Market Data
+                    // @ts-ignore
+                    const [details, bestDescription, marketStats] = await Promise.all([
+                        Promise.race([detailsPromise, detailsTimeout]) as Promise<Partial<ScoutResult>>,
+                        descriptionPromise,
+                        getSellThroughData(baseResult.searchQuery || baseResult.itemTitle).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 }))
+                    ]);
 
-                        const finalResult: ScoutResult = {
-                            ...baseResult,
-                            ...details,
-                            description: bestDescription || details.description || "",
-                            itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {}),
-                            marketData: {
-                                sellThroughRate: marketStats.sellThroughRate,
-                                totalActive: marketStats.activeCount,
-                                totalSold: marketStats.soldCount,
-                                activeComps: (marketStats as any).activeComps || [],
-                                soldComps: (marketStats as any).soldComps || []
-                            }
-                        };
+                    const finalResult: ScoutResult = {
+                        ...baseResult,
+                        ...details,
+                        description: bestDescription || details.description || "",
+                        itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {}),
+                        marketData: {
+                            sellThroughRate: marketStats.sellThroughRate,
+                            totalActive: marketStats.activeCount,
+                            totalSold: marketStats.soldCount,
+                            activeComps: (marketStats as any).activeComps || [],
+                            soldComps: (marketStats as any).soldComps || []
+                        }
+                    };
 
-                        // Update Scout Result
-                        setScoutResult(prev => prev ? ({ ...prev, ...finalResult }) : finalResult);
-                        setEditedTitle(finalResult.itemTitle);
-                        setItemCondition(finalResult.condition || 'USED');
-                        setGeneratedListing({ platform: 'EBAY', content: finalResult.description || "" });
+                    // Update Scout Result
+                    setScoutResult(prev => prev ? ({ ...prev, ...finalResult }) : finalResult);
+                    setEditedTitle(finalResult.itemTitle);
+                    setItemCondition(finalResult.condition || 'USED');
+                    setGeneratedListing({ platform: 'EBAY', content: finalResult.description || "" });
 
-                        // NEW WORKFLOW: Stop at Research Review
-                        setStatus(ScoutStatus.RESEARCH_REVIEW);
+                    // NEW WORKFLOW: Stop at Research Review
+                    setStatus(ScoutStatus.RESEARCH_REVIEW);
 
-                        // Analytics: Track scan success
-                        logEvent(analytics, 'item_scan_success', {
-                            mode: scanMode,
-                            title: finalResult.itemTitle,
-                            confidence: finalResult.confidence
-                        });
-                        // Do NOT open Edit Modal automatically yet. User must confirm.
+                    // Analytics: Track scan success
+                    logEvent(analytics, 'item_scan_success', {
+                        title: finalResult.itemTitle,
+                        confidence: finalResult.confidence
+                    });
+                    // Do NOT open Edit Modal automatically yet. User must confirm.
 
-                    } catch (err) {
-                        console.error("Async Deep Analysis Failed:", err);
-                        setStatus(ScoutStatus.ERROR);
-                    } finally {
-                        setIsBackgroundAnalyzing(false); // STOP DISCREET INDICATOR
-                    }
-                } else if (scanMode === 'LENS') {
-                    // For Lens, we might want to just show results or go to review. 
-                    // Keeping existing Lens behavior for now but ensuring status is set.
-                    setStatus(ScoutStatus.IDLE); // Or keep ANALYZING until user actions?
-                    // Lens updates visualSearchResults via useEffect/callbacks usually.
-                    // If we want Lens to also have a review step, we'd need to adapt.
-                    // For now, Lens just shows visual matches.
+                } catch (err) {
+                    console.error("Async Deep Analysis Failed:", err);
+                    setStatus(ScoutStatus.ERROR);
+                } finally {
+                    setIsBackgroundAnalyzing(false); // STOP DISCREET INDICATOR
                 }
             };
 
@@ -1840,55 +1656,31 @@ function App() {
                     </div>
 
 
-                    {/* SCAN MODE TABS (GATED) */}
-                    <div className="flex bg-slate-200/50 dark:bg-slate-800/80 p-1.5 rounded-2xl mb-6 relative z-10 mx-4 border border-white/20 shadow-sm backdrop-blur-sm">
-                        <button
-                            onClick={() => {
-                                if (!canAccess('AI_GENERATOR')) {
-                                    setIsPricingOpen(true);
-                                } else {
-                                    setScanMode('AI');
-                                }
-                            }}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${scanMode === 'AI' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 ring-1 ring-black/5 dark:ring-white/5' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'}`}
-                        >
-                            <Zap size={14} className={scanMode === 'AI' ? 'fill-current' : ''} />
-                            AI Scan
-                            {!canAccess('AI_GENERATOR') && <Lock size={10} className="text-slate-400" />}
-                        </button>
-                        <button
-                            onClick={() => setScanMode('LENS')}
-                            className={`flex-1 py-2.5 rounded-xl text-xs font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${scanMode === 'LENS' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-neon-green ring-1 ring-black/5 dark:ring-white/5' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'}`}
-                        >
-                            <SearchIcon size={14} className={scanMode === 'LENS' ? 'stroke-[3px]' : ''} /> Lens
-                        </button>
-                    </div>
+                    {/* SCAN MODE TABS REMOVED - CONSOLIDATED TO AI SCAN */}
 
                     {/* BULK MODE TOGGLE (GATED) */}
-                    {scanMode === 'AI' && (
-                        <div className="px-6 mb-4 flex justify-end">
-                            <button
-                                onClick={() => {
-                                    if (!canAccess('BULK_MODE')) {
-                                        setIsPricingOpen(true);
-                                    } else {
-                                        setIsBulkMode(!isBulkMode);
-                                    }
-                                }}
-                                className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all ${isBulkMode ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-slate-500 border border-transparent'}`}
-                            >
-                                <Layers size={12} />
-                                {isBulkMode ? 'Bulk Mode ON' : 'Bulk Mode'}
-                                {!canAccess('BULK_MODE') && <Lock size={10} />}
-                            </button>
-                        </div>
-                    )}
+                    <div className="px-6 mb-4 flex justify-end">
+                        <button
+                            onClick={() => {
+                                if (!canAccess('BULK_MODE')) {
+                                    setIsPricingOpen(true);
+                                } else {
+                                    setIsBulkMode(!isBulkMode);
+                                }
+                            }}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all ${isBulkMode ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-slate-500 border border-transparent'}`}
+                        >
+                            <Layers size={12} />
+                            {isBulkMode ? 'Bulk Mode ON' : 'Bulk Mode'}
+                            {!canAccess('BULK_MODE') && <Lock size={10} />}
+                        </button>
+                    </div>
                     <div className="relative group cursor-pointer" onClick={handleStartScan}>
-                        <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-500 ${scanMode === 'AI' ? 'bg-emerald-500/20 dark:bg-neon-green/20 group-hover:bg-emerald-500/30 dark:group-hover:bg-neon-green/30' : 'bg-blue-500/20 dark:bg-blue-400/20 group-hover:bg-blue-500/30 dark:group-hover:bg-blue-400/30'}`}></div>
-                        <div className={`w-40 h-40 rounded-full glass-orb flex flex-col items-center justify-center relative z-10 group-hover:scale-105 transition-transform duration-300 ${scanMode === 'AI' ? 'border-emerald-500/30' : 'border-blue-500/30'}`}>
+                        <div className="absolute inset-0 rounded-full blur-3xl transition-all duration-500 bg-emerald-500/20 dark:bg-neon-green/20 group-hover:bg-emerald-500/30 dark:group-hover:bg-neon-green/30"></div>
+                        <div className="w-40 h-40 rounded-full glass-orb flex flex-col items-center justify-center relative z-10 group-hover:scale-105 transition-transform duration-300 border-emerald-500/30">
                             <div className="absolute inset-2 border border-gray-200 dark:border-slate-700 rounded-full border-dashed animate-[spin_10s_linear_infinite] opacity-50"></div>
-                            {scanMode === 'AI' ? (<Aperture size={64} className="text-neon-green drop-shadow-[0_0_15px_rgba(57,255,20,0.5)] mb-1" />) : (<CameraIcon size={64} className="text-blue-500 dark:text-blue-400 drop-shadow-md mb-1" />)}
-                            <div className={`text-[10px] font-bold tracking-widest opacity-80 ${scanMode === 'AI' ? 'text-emerald-600 dark:text-neon-green' : 'text-blue-600 dark:text-blue-400'}`}>{scanMode === 'AI' ? 'START SCAN' : 'OPEN CAMERA'}</div>
+                            <Aperture size={64} className="text-neon-green drop-shadow-[0_0_15px_rgba(57,255,20,0.5)] mb-1" />
+                            <div className="text-[10px] font-bold tracking-widest opacity-80 text-emerald-600 dark:text-neon-green">START SCAN</div>
                         </div>
                     </div>
 
@@ -1917,12 +1709,10 @@ function App() {
                                 <button onClick={() => fileInputRef.current?.click()} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-blue-400 text-blue-500 dark:text-blue-400 w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"><Upload size={20} /></button>
                             </div>
                         </div>
-                        {scanMode === 'AI' && (
-                            <button onClick={() => setIsBulkMode(!isBulkMode)} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all ${isBulkMode ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-500' : 'bg-white dark:bg-slate-900/50 text-slate-500 border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm'}`}>
-                                {isBulkMode ? <Layers size={16} /> : <Box size={16} />}
-                                <span className="text-xs font-bold tracking-wider">{isBulkMode ? 'MODE: DEATH PILE (BULK)' : 'MODE: SINGLE ITEM'}</span>
-                            </button>
-                        )}
+                        <button onClick={() => setIsBulkMode(!isBulkMode)} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all ${isBulkMode ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-500' : 'bg-white dark:bg-slate-900/50 text-slate-500 border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm'}`}>
+                            {isBulkMode ? <Layers size={16} /> : <Box size={16} />}
+                            <span className="text-xs font-bold tracking-wider">{isBulkMode ? 'MODE: DEATH PILE (BULK)' : 'MODE: SINGLE ITEM'}</span>
+                        </button>
                     </div>
 
                     {/* ROI Tracker (Sources) */}
@@ -2039,21 +1829,18 @@ function App() {
                                 </button>
                             </div >
                         ) : (<div className="flex justify-between items-end">{scannedBarcode && (<div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20"><ScanLine size={12} /> {scannedBarcode}</div>)}
-                            {scanMode === 'AI' && (
-                                <div className="flex items-center gap-2">
-                                    {isBackgroundAnalyzing && (
-                                        <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
-                                            <span className="relative flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                            </span>
-                                            <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
-                                        </div>
-                                    )}
-                                    <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
-                                </div>
-                            )}
-                            {scanMode === 'LENS' && <span className="text-xs font-mono bg-blue-500/20 backdrop-blur px-2 py-1 rounded text-blue-400 border border-blue-500/30 font-bold">VISUAL SEARCH</span>}
+                            <div className="flex items-center gap-2">
+                                {isBackgroundAnalyzing && (
+                                    <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                        </span>
+                                        <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
+                                    </div>
+                                )}
+                                <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
+                            </div>
                         </div>)
                         }
                     </div >
@@ -2066,90 +1853,14 @@ function App() {
                     ) : scoutResult ? (
                         <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
                             {/* ... Results Content ... */}
-                            {scanMode === 'LENS' && !scoutResult.barcode && (
-                                <div className="space-y-4">
-                                    {/* Research Buttons Row (Using Lens Keyword) */}
-                                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(lensKeyword || editedTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500"><ShoppingCart size={14} /> eBay Sold</a>
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500"><Tag size={14} /> eBay Listed</a>
-                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-white shrink-0 hover:border-slate-500"><Globe size={14} /> Google</a>
-                                        <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(lensKeyword || editedTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500"><Facebook size={14} /> FB Market</a>
-                                    </div>
 
-                                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                                <Tag size={18} className="text-blue-500" /> eBay Matches
-                                            </h3>
-                                            {isVisualSearching && <Loader2 size={16} className="animate-spin text-blue-500" />}
-                                        </div>
-
-                                        {/* Keyword Fallback Input */}
-                                        <div className="flex gap-2 mb-4">
-                                            <input
-                                                type="text"
-                                                placeholder="Search items..."
-                                                value={lensKeyword}
-                                                onChange={(e) => setLensKeyword(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleLensKeywordSearch()}
-                                                className="flex-1 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-                                            />
-                                            <button onClick={handleLensKeywordSearch} className="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold"><SearchIcon size={14} /></button>
-                                        </div>
-
-                                        {/* List Layout for Visual Matches */}
-                                        {visualSearchResults.length > 0 ? (
-                                            <div className="flex flex-col gap-3">
-                                                {visualSearchResults.slice(0, 5).map(item => (
-                                                    <div key={item.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-lg flex gap-3 items-center">
-                                                        {/* Image */}
-                                                        <div className="w-14 h-14 bg-gray-100 dark:bg-slate-950 rounded-md overflow-hidden shrink-0 relative">
-                                                            {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={16} /></div>}
-                                                        </div>
-                                                        {/* Info */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug mb-1">{item.title}</h4>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-black text-blue-600 dark:text-blue-400">${item.price?.toFixed(2)}</span>
-                                                                <span className="text-[10px] text-slate-500">{item.shipping > 0 ? `+${item.shipping?.toFixed(2)} Ship` : 'Free Shipping'}</span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Buttons Column */}
-                                                        <div className="flex flex-col gap-2 w-24 shrink-0">
-                                                            <button
-                                                                onClick={() => handleUsePrice(item)}
-                                                                className="w-full py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 text-[9px] font-bold rounded border border-gray-200 dark:border-slate-700 transition-colors uppercase"
-                                                            >
-                                                                Use Price
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleSelectVisualMatch(item)}
-                                                                className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-bold rounded flex items-center justify-center gap-1 transition-colors shadow-sm uppercase"
-                                                            >
-                                                                Sell Similar
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-6 px-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-                                                <p className="text-[10px] text-slate-500 mb-2">No matches found.</p>
-                                                <button onClick={handlePerformVisualSearch} className="text-blue-500 text-[10px] font-bold hover:underline">Retry Visual Scan</button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
 
                             {/* --- EDITOR & DETAILS (Shared) --- */}
                             <div className="space-y-2">
-                                <div className="flex justify-between items-center"><label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title {scanMode === 'LENS' && '(Manual Entry)'}</label><div className="flex gap-2">
-                                    {scanMode === 'AI' && <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>}
+                                <div className="flex justify-between items-center"><label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title</label><div className="flex gap-2">
+                                    <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>
                                     <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button></div></div>
-                                <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder={scanMode === 'LENS' ? "Enter item name..." : "Item description..."} />
+                                <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
                             </div>
 
                             {/* Description Field with Templates */}
@@ -2207,35 +1918,31 @@ function App() {
                                 />
                             </div>
 
-                            {scanMode === 'AI' && (
-                                <>
-                                    {/* Research Links for Premium - MOVED TO TOP */}
-                                    <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                        <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                        <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                        <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
-                                    </div>
+                            {/* Research Links for Premium - MOVED TO TOP */}
+                            <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
+                                <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
+                                <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
+                                <a href={`https://www.google.com/search?q=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
+                                <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(editedTitle || scoutResult?.itemTitle || "item")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                            </div>
 
-                                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                        <button onClick={() => setIsCompsOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold shrink-0 hover:bg-blue-500 shadow-lg shadow-blue-500/20"><SearchIcon size={14} /> Deep Analysis</button>
+                            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                <button onClick={() => setIsCompsOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold shrink-0 hover:bg-blue-500 shadow-lg shadow-blue-500/20"><SearchIcon size={14} /> Deep Analysis</button>
+                            </div>
+                            {/* Sources Section Restored */}
+                            {scoutResult?.listingSources && scoutResult.listingSources.length > 0 && (
+                                <div className="bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-100 dark:border-slate-800">
+                                    <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-2 flex items-center gap-1">
+                                        <Globe size={10} /> Sources Found
+                                    </h4>
+                                    <div className="space-y-1">
+                                        {scoutResult.listingSources.slice(0, 3).map((source, idx) => (
+                                            <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
+                                                {source.title}
+                                            </a>
+                                        ))}
                                     </div>
-                                    {/* Sources Section Restored */}
-                                    {scoutResult?.listingSources && scoutResult.listingSources.length > 0 && (
-                                        <div className="bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-100 dark:border-slate-800">
-                                            <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-2 flex items-center gap-1">
-                                                <Globe size={10} /> Sources Found
-                                            </h4>
-                                            <div className="space-y-1">
-                                                {scoutResult.listingSources.slice(0, 3).map((source, idx) => (
-                                                    <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
-                                                        {source.title}
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
+                                </div>
                             )}
 
                             <div className="grid grid-cols-2 gap-3">
@@ -2245,13 +1952,11 @@ function App() {
                             <div className="relative">
                                 <div className="flex justify-between items-center mb-1">
                                     <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
-                                    {scanMode === 'LENS' && (
-                                        <div className="flex gap-2">
-                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working perfectly.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Tested</button>
-                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good cosmetic condition with minor wear.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Good Cond.</button>
-                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Sold as-is for parts or repair.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Parts Only</button>
-                                        </div>
-                                    )}
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working perfectly.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Tested</button>
+                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good cosmetic condition with minor wear.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Good Cond.</button>
+                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Sold as-is for parts or repair.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Parts Only</button>
+                                    </div>
                                 </div>
                                 <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" placeholder="Condition notes (e.g. scratches, missing box)..." />
                                 <button onClick={() => toggleRecording('condition')} className={`absolute bottom-2 right-2 p-1.5 rounded-full transition-all ${isRecording === 'condition' ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{isRecording === 'condition' ? <MicOff size={12} /> : <Mic size={12} />}</button>
@@ -2816,91 +2521,89 @@ function App() {
                                     <label className="text-xs font-mono uppercase text-slate-500">Description</label>
 
                                     {/* Templates in Modal */}
-                                    {/* Templates in Modal (Hidden in AI Mode) */}
-                                    {scanMode !== 'AI' && (
-                                        <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2 mt-1 items-center">
-                                            {/* Manage Toggle */}
+                                    {/* Templates in Modal */}
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2 mt-1 items-center">
+                                        {/* Manage Toggle */}
+                                        <button
+                                            onClick={() => setIsManagingTemplates(!isManagingTemplates)}
+                                            className={`text-[10px] px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap font-bold flex items-center gap-1 ${isManagingTemplates ? 'bg-slate-800 text-white border-slate-900' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-slate-500'}`}
+                                        >
+                                            {isManagingTemplates ? <Check size={12} /> : <Settings size={12} />}
+                                        </button>
+
+                                        {/* Add Button (Only in Manage Mode) */}
+                                        {isManagingTemplates && (
                                             <button
-                                                onClick={() => setIsManagingTemplates(!isManagingTemplates)}
-                                                className={`text-[10px] px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap font-bold flex items-center gap-1 ${isManagingTemplates ? 'bg-slate-800 text-white border-slate-900' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-slate-500'}`}
-                                            >
-                                                {isManagingTemplates ? <Check size={12} /> : <Settings size={12} />}
-                                            </button>
-
-                                            {/* Add Button (Only in Manage Mode) */}
-                                            {isManagingTemplates && (
-                                                <button
-                                                    onClick={() => {
-                                                        const txt = prompt("Enter new template text:");
-                                                        if (txt) {
-                                                            const newT = [...customTemplates, txt];
-                                                            setCustomTemplates(newT);
-                                                            localStorage.setItem('sts_custom_templates', JSON.stringify(newT));
-                                                        }
-                                                    }}
-                                                    className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"
-                                                >
-                                                    <Plus size={12} /> Add New
-                                                </button>
-                                            )}
-
-                                            {!isManagingTemplates && (
-                                                <>
-                                                    <button onClick={() => {
-                                                        const currentContent = editingItem.generatedListing?.content || "";
-                                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
-                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
-
-                                                    <button onClick={() => {
-                                                        const currentContent = editingItem.generatedListing?.content || "";
-                                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
-                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
-
-                                                    <button onClick={() => {
-                                                        const currentContent = editingItem.generatedListing?.content || "";
-                                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• For parts or repair only.\n• Does not power on.\n• No returns.";
-                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
-                                                </>
-                                            )}
-
-                                            {customTemplates.map((tmpl, idx) => (
-                                                <div key={idx} className="relative group">
-                                                    <button onClick={() => {
-                                                        const currentContent = editingItem.generatedListing?.content || "";
-                                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
-                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                    }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
-
-                                                    {isManagingTemplates && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (window.confirm("Delete template?")) {
-                                                                    const newT = customTemplates.filter((_, i) => i !== idx);
-                                                                    setCustomTemplates(newT);
-                                                                    localStorage.setItem('sts_custom_templates', JSON.stringify(newT));
-                                                                }
-                                                            }}
-                                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:scale-110 transition-transform"
-                                                        >
-                                                            <X size={8} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-
-                                            {!isManagingTemplates && (
-                                                <button onClick={() => {
-                                                    if (window.confirm("Clear description?")) {
-                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: "" } });
+                                                onClick={() => {
+                                                    const txt = prompt("Enter new template text:");
+                                                    if (txt) {
+                                                        const newT = [...customTemplates, txt];
+                                                        setCustomTemplates(newT);
+                                                        localStorage.setItem('sts_custom_templates', JSON.stringify(newT));
                                                     }
-                                                }} className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Trash2 size={12} /> Clear</button>
-                                            )}
-                                        </div>
-                                    )}
+                                                }}
+                                                className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"
+                                            >
+                                                <Plus size={12} /> Add New
+                                            </button>
+                                        )}
+
+                                        {!isManagingTemplates && (
+                                            <>
+                                                <button onClick={() => {
+                                                    const currentContent = editingItem.generatedListing?.content || "";
+                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
+                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
+                                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
+
+                                                <button onClick={() => {
+                                                    const currentContent = editingItem.generatedListing?.content || "";
+                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
+                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
+                                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
+
+                                                <button onClick={() => {
+                                                    const currentContent = editingItem.generatedListing?.content || "";
+                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• For parts or repair only.\n• Does not power on.\n• No returns.";
+                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
+                                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
+                                            </>
+                                        )}
+
+                                        {customTemplates.map((tmpl, idx) => (
+                                            <div key={idx} className="relative group">
+                                                <button onClick={() => {
+                                                    const currentContent = editingItem.generatedListing?.content || "";
+                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
+                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
+                                                }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
+
+                                                {isManagingTemplates && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (window.confirm("Delete template?")) {
+                                                                const newT = customTemplates.filter((_, i) => i !== idx);
+                                                                setCustomTemplates(newT);
+                                                                localStorage.setItem('sts_custom_templates', JSON.stringify(newT));
+                                                            }
+                                                        }}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:scale-110 transition-transform"
+                                                    >
+                                                        <X size={8} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+
+                                        {!isManagingTemplates && (
+                                            <button onClick={() => {
+                                                if (window.confirm("Clear description?")) {
+                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: "" } });
+                                                }
+                                            }} className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Trash2 size={12} /> Clear</button>
+                                        )}
+                                    </div>
 
                                     <textarea value={editingItem.generatedListing?.content || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm h-32 resize-none focus:border-emerald-500 outline-none transition-all mt-1" placeholder="Item description..." />
                                     <div className="flex justify-end mt-1"><button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"><Wand2 size={10} /> Auto-Write Description</button></div>
