@@ -57,25 +57,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let filterParams = '';
       if (condition === 'NEW') {
-        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value=1000&itemFilter(0).value=1500';
+        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value(0)=1000&itemFilter(0).value(1)=1500';
       } else if (condition === 'USED') {
-        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value=3000';
+        filterParams += '&itemFilter(0).name=Condition&itemFilter(0).value(0)=3000';
       }
 
-      // Filter for SOLD only (not just completed)
-      filterParams += '&itemFilter(1).name=SoldItemsOnly&itemFilter(1).value=true';
-      filterParams += '&itemFilter(2).name=Currency&itemFilter(2).value=USD';
+      const filterIdx = condition ? 1 : 0;
+      filterParams += `&itemFilter(${filterIdx}).name=SoldItemsOnly&itemFilter(${filterIdx}).value=true`;
+      filterParams += `&itemFilter(${filterIdx + 1}).name=Currency&itemFilter(${filterIdx + 1}).value=USD`;
 
       const findingRes = await axios.get(`${findingUrl}&keywords=${encodeURIComponent(query as string)}&paginationInput.entriesPerPage=10&sortOrder=EndTimeSoonest${filterParams}`);
 
-      const searchResult = findingRes.data.findCompletedItemsResponse[0].searchResult[0];
+      const findResponse = findingRes.data.findCompletedItemsResponse[0];
+      if (findResponse.ack[0] !== 'Success' && findResponse.ack[0] !== 'Warning') {
+        const errorMsg = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'Finding API Error';
+        throw new Error(errorMsg);
+      }
+
+      const searchResult = findResponse.searchResult[0];
       const items = (searchResult && searchResult.item) ? searchResult.item : [];
 
       comps = items.map((i: any) => {
         const itemPrice = parseFloat(i.sellingStatus[0].currentPrice[0].__value__);
         let shippingCost = 0;
-        const shippingInfo = i.shippingInfo[0];
-        if (shippingInfo.shippingServiceCost) {
+        const shippingInfo = i.shippingInfo ? i.shippingInfo[0] : null;
+        if (shippingInfo && shippingInfo.shippingServiceCost) {
           shippingCost = parseFloat(shippingInfo.shippingServiceCost[0].__value__);
         }
 

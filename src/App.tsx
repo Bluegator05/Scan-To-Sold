@@ -913,8 +913,9 @@ function App() {
                 initialResult.itemTitle.toLowerCase().includes("item detected") ||
                 initialResult.itemTitle === "Scanning...";
 
-            const displayTitle = isGeneric ? "Scanning..." : (initialResult.searchQuery || initialResult.itemTitle);
-            const displaySearch = isGeneric ? "" : (initialResult.searchQuery || initialResult.itemTitle);
+            const titleToUse = initialResult.searchQuery || initialResult.itemTitle || "Item";
+            const displayTitle = isGeneric ? "Scanning..." : titleToUse;
+            const displaySearch = isGeneric ? "" : titleToUse;
 
             setEditedTitle(displayTitle);
 
@@ -924,7 +925,7 @@ function App() {
 
             // Set Initial "Lite" Result
             const baseResult: ScoutResult = {
-                itemTitle: displayTitle,
+                itemTitle: titleToUse,
                 searchQuery: displaySearch,
                 estimatedSoldPrice: 0,
                 estimatedShippingCost: 0,
