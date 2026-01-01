@@ -21,7 +21,7 @@ import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
 import ResearchScreen from './components/ResearchScreen';
 import { incrementDailyUsage } from './services/paymentService';
-import { checkEbayConnection, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, fetchMarketData, API_BASE_URL } from './services/ebayService';
+import { checkEbayConnection, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, fetchMarketData, getEbayPolicies, getSellThroughData, API_BASE_URL } from './services/ebayService';
 
 const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL;
 
@@ -1504,7 +1504,7 @@ function App() {
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
                                 <Zap className="text-emerald-400" size={18} />
                             </div>
-                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center</h2>
+                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center V2</h2>
                         </div>
                         <div className="flex items-center gap-2">
                             <EbayLogo />
@@ -2021,6 +2021,121 @@ function App() {
             />
         );
     };
+
+    // --- SCOUT IDLE STATE ---
+    const renderScoutView = () => {
+        // Calculate daily listed count
+        const today = new Date().toDateString();
+        const dailyListedCount = inventory.filter(item =>
+            item.status === 'LISTED' && item.ebayListedDate && new Date(item.ebayListedDate).toDateString() === today
+        ).length;
+
+        return (
+            <div className="flex-1 flex flex-col items-center justify-between p-6 bg-slate-950 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+6rem)]">
+                {/* Daily Goal Tracker */}
+                <div className="w-full max-w-sm mb-8">
+                    <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 backdrop-blur-xl">
+                        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-500 mb-2 text-center">Daily Goal</div>
+                        <div className="flex items-center justify-center gap-3">
+                            <div className="w-2 h-2 bg-neon-green rounded-full shadow-[0_0_10px_#39ff14]"></div>
+                            <span className="text-4xl font-black text-white">{dailyListedCount}</span>
+                            <span className="text-xl font-bold text-slate-400">Listed</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* AI SCAN Mode Indicator */}
+                <div className="mb-6">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl">
+                        <Zap size={16} className="text-blue-400" />
+                        <span className="text-sm font-bold text-blue-400 uppercase tracking-wider">AI Scan</span>
+                    </div>
+                </div>
+
+                {/* Bulk Mode Toggle */}
+                <div className="mb-8">
+                    <button
+                        onClick={() => setIsBulkMode(!isBulkMode)}
+                        className={`px-6 py-2 rounded-full font-bold text-sm transition-all ${isBulkMode
+                            ? 'bg-neon-green text-slate-950 shadow-[0_0_20px_rgba(57,255,20,0.3)]'
+                            : 'bg-white text-slate-700 border border-slate-300'
+                            }`}
+                    >
+                        <Layers size={14} className="inline mr-2" />
+                        Bulk Mode
+                    </button>
+                </div>
+
+                {/* Large START SCAN Button */}
+                <div className="flex-1 flex items-center justify-center mb-8">
+                    <button
+                        onClick={() => { setCameraMode('SCOUT'); setStatus(ScoutStatus.SCANNING); }}
+                        className="relative group"
+                    >
+                        {/* Green Glow Effect */}
+                        <div className="absolute inset-0 bg-neon-green rounded-full blur-[60px] opacity-40 group-hover:opacity-60 transition-opacity"></div>
+
+                        {/* Button Circle */}
+                        <div className="relative w-48 h-48 bg-slate-900 rounded-full border-4 border-slate-800 flex flex-col items-center justify-center group-hover:border-neon-green/50 transition-all group-active:scale-95">
+                            <Aperture size={64} className="text-neon-green mb-2" strokeWidth={2} />
+                            <span className="text-neon-green font-black text-sm tracking-[0.2em] uppercase">Start Scan</span>
+                        </div>
+                    </button>
+                </div>
+
+                {/* Active Source */}
+                <div className="w-full max-w-sm mb-6">
+                    <div className="flex items-center justify-center gap-2 text-slate-500">
+                        <span className="text-[10px] font-mono uppercase tracking-[0.3em]">Active Source:</span>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg">
+                            <span className="text-sm font-bold text-white">{activeUnit || 'None'}</span>
+                            <button
+                                onClick={() => setIsUnitModalOpen(true)}
+                                className="text-slate-500 hover:text-neon-green transition-colors"
+                            >
+                                <Edit2 size={12} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Manual Lookup Section */}
+                <div className="w-full max-w-sm space-y-3">
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Manual Lookup (Name or UPC)"
+                            value={manualQuery}
+                            onChange={(e) => setManualQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
+                            className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-neon-green/50 transition-all"
+                        />
+                        <button
+                            onClick={handleManualSearch}
+                            className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-neon-green hover:border-neon-green/50 transition-all"
+                        >
+                            <SearchIcon size={20} />
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-400 hover:border-blue-400/50 transition-all"
+                        >
+                            <Upload size={20} />
+                        </button>
+                    </div>
+
+                    {/* Mode Indicator */}
+                    <div className="flex items-center justify-center gap-2 py-2 px-4 bg-slate-900/50 border border-slate-800 rounded-xl">
+                        <Box size={14} className="text-slate-500" />
+                        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500">
+                            Mode: {isBulkMode ? 'Bulk' : 'Single Item'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderAnalysis = () => {
         if (status === ScoutStatus.RESEARCH_REVIEW) return renderResearchReview();
 
