@@ -46,3 +46,22 @@ body {
     radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.05), transparent 40%);
   background-attachment: fixed;
 }
+
+/* Command Dashboard Styles */
+.vibrant-gradient {
+  background: linear-gradient(135deg, #06b6d4, #14b8a6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-card {
+  background: rgba(30, 37, 48, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: #06b6d4;
+}

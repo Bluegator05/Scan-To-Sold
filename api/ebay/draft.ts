@@ -321,13 +321,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             let cleanVal = val;
             if (typeof val === 'string') {
+                const cleanVal = val as string;
                 // Fix "Unknown" values which eBay rejects for MPN/UPC
-                if (val.toLowerCase() === 'unknown') {
+                if (cleanVal.toLowerCase() === 'unknown') {
                     if (key.toUpperCase() === 'MPN' || key.toUpperCase() === 'UPC') {
-                        cleanVal = "Does Not Apply";
-                    } else {
-                        continue; // Skip other unknown specifics
+                        specificsXml += `
+            <NameValueList>
+                <Name>${escapeXml(key)}</Name>
+                <Value>Does Not Apply</Value>
+            </NameValueList>`;
                     }
+                    continue; // Skip other unknown specifics
                 }
 
                 if (cleanVal.trim() !== '') {

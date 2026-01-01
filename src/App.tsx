@@ -6,6 +6,8 @@ import SettingsModal from './components/SettingsModal';
 import FeedbackModal from './components/FeedbackModal';
 import StatsView from './components/StatsView';
 import CompsModal from './components/CompsModal';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import PreviewModal from './components/PreviewModal';
 import HelpModal from './components/HelpModal';
 import OnboardingTour from './components/OnboardingTour';
@@ -19,7 +21,10 @@ import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
 import ResearchScreen from './components/ResearchScreen';
 import { incrementDailyUsage } from './services/paymentService';
-import { checkEbayConnection, getEbayPolicies, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, getSellThroughData, API_BASE_URL } from './services/ebayService';
+import { checkEbayConnection, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, fetchMarketData, API_BASE_URL } from './services/ebayService';
+
+const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL;
+
 import { compressImage, uploadScanImage } from './services/imageService';
 import { analytics, logEvent } from './lib/firebase';
 import { scheduleGoalReminder, NotificationSettings } from './services/notificationService';
@@ -56,7 +61,18 @@ function App() {
     const { canAccess, getLimit } = useFeatureGate();
 
     const [isLiteMode, setIsLiteMode] = useState(false);
-    const [view, setView] = useState<'command' | 'scout' | 'inventory' | 'stats'>('command');
+    const [view, setView] = useState<'command' | 'scout' | 'inventory' | 'stats'>('scout');
+    const [commandTab, setCommandTab] = useState<'analyze' | 'research' | 'bulk'>('analyze');
+    const [ebayUrl, setEbayUrl] = useState('');
+    const [ebaySearchQuery, setEbaySearchQuery] = useState('');
+    const [isEbayAnalyzing, setIsEbayAnalyzing] = useState(false);
+    const [ebayResult, setEbayResult] = useState<any>(null);
+    const [ebayResearchResult, setEbayResearchResult] = useState<any>(null);
+    const [bulkSellerId, setBulkSellerId] = useState('');
+    const [bulkItems, setBulkItems] = useState<any[]>([]);
+    const [isBulkFetching, setIsBulkFetching] = useState(false);
+    const [bulkProcessResults, setBulkProcessResults] = useState<any>({});
+
     const [inventoryTab, setInventoryTab] = useState<'DRAFT' | 'LISTED' | 'SOLD'>('DRAFT');
     const [inventoryViewMode, setInventoryViewMode] = useState<'FOLDERS' | 'FLAT'>('FOLDERS');
     const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
@@ -1433,7 +1449,344 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [viewingImageIndex, editingItem]);
 
-    // ... (renderInventoryItem, renderInventoryView unchanged)
+    // --- eBay Command Handlers ---
+
+    const handleEbayAnalyze = async () => {
+        if (!ebayUrl) return;
+        setIsEbayAnalyzing(true);
+        try {
+            const itemId = extractEbayId(ebayUrl);
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(itemId || ebayUrl)}`);
+            const data = await response.json();
+            setEbayResult(data);
+        } catch (e) {
+            console.error("eBay Analysis Error:", e);
+            alert("Analysis failed. Please check the URL/ID and try again.");
+        }
+        setIsEbayAnalyzing(false);
+    };
+
+    const handleEbayResearch = async () => {
+        if (!ebaySearchQuery) return;
+        setIsEbayAnalyzing(true);
+        try {
+            const data = await fetchMarketData(ebaySearchQuery);
+            setEbayResearchResult(data);
+        } catch (e) {
+            console.error("eBay Research Error:", e);
+            alert("Research failed. Please try again.");
+        }
+        setIsEbayAnalyzing(false);
+    };
+
+    const handleBulkFetch = async () => {
+        if (!bulkSellerId) return;
+        setIsBulkFetching(true);
+        try {
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}`);
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            setBulkItems(data);
+        } catch (e: any) {
+            console.error("Bulk Fetch Error:", e);
+            alert(`Failed to fetch seller listings: ${e.message}`);
+        }
+        setIsBulkFetching(false);
+    };
+
+
+    const renderCommandView = () => {
+        return (
+            <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden pt-safe">
+                <div className="p-4 border-b border-slate-800 bg-slate-900 sticky top-0 z-10 backdrop-blur-md bg-opacity-80">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                                <Zap className="text-emerald-400" size={18} />
+                            </div>
+                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center</h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <EbayLogo />
+                        </div>
+                    </div>
+
+                    <div className="flex p-1 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                        <button
+                            onClick={() => setCommandTab('analyze')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all duration-300 ${commandTab === 'analyze' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            <Aperture size={14} /> ANALYZE
+                        </button>
+                        <button
+                            onClick={() => setCommandTab('research')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all duration-300 ${commandTab === 'research' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            <Search size={14} /> RESEARCH
+                        </button>
+                        <button
+                            onClick={() => setCommandTab('bulk')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all duration-300 ${commandTab === 'bulk' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            <Layers size={14} /> BULK
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+                    <AnimatePresence mode="wait">
+                        {commandTab === 'analyze' && (
+                            <motion.div
+                                key="analyze"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4"
+                            >
+                                <div className="glass-card p-4 space-y-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Link size={16} className="text-emerald-400" />
+                                        <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Listing Optimizer</h3>
+                                    </div>
+                                    <p className="text-xs text-slate-400">Paste an eBay URL to optimize the title, price, and specifics using AI.</p>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <input
+                                                type="text"
+                                                placeholder="https://ebay.com/itm/..."
+                                                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+                                                value={ebayUrl}
+                                                onChange={(e) => setEbayUrl(e.target.value)}
+                                            />
+                                        </div>
+                                        <button
+                                            disabled={isEbayAnalyzing || !ebayUrl}
+                                            onClick={handleEbayAnalyze}
+                                            className="px-6 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white rounded-lg font-bold text-sm transition-all flex items-center gap-2"
+                                        >
+                                            {isEbayAnalyzing ? <RotateCcw size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                                            {isEbayAnalyzing ? '...' : 'SCAN'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {ebayResult && (
+                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-5 border-l-4 border-l-emerald-500">
+                                        <div className="flex gap-4">
+                                            <img src={ebayResult.image?.imageUrl} className="w-20 h-20 rounded-lg object-cover border border-slate-700" alt="" />
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-white text-sm line-clamp-2 mb-2">{ebayResult.title}</h4>
+                                                <div className="flex gap-3">
+                                                    <div className="text-center">
+                                                        <div className="text-[10px] uppercase text-slate-500">Current</div>
+                                                        <div className="text-sm font-black text-slate-300">${ebayResult.price?.value}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[10px] uppercase text-emerald-500">Market</div>
+                                                        <div className="text-sm font-black text-emerald-400">${ebayResult.marketData?.medianSoldPrice || '...'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 pt-4 border-t border-slate-800 space-y-4">
+                                            <div className="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/20">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Sparkles size={14} className="text-emerald-400" />
+                                                    <span className="text-[10px] font-black uppercase text-emerald-400">AI Suggested Title</span>
+                                                </div>
+                                                <div className="text-sm text-white font-medium">{ebayResult.improvedTitle || ebayResult.title}</div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <button onClick={() => handleSellSimilar(ebayResult)} className="flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all border border-slate-700">
+                                                    <Copy size={14} /> IMPORT AS DRAFT
+                                                </button>
+                                                <a href={ebayResult.itemWebUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs font-bold transition-all border border-blue-500/20">
+                                                    <ExternalLink size={14} /> VIEW ON EBAY
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </motion.div>
+                        )}
+
+                        {commandTab === 'research' && (
+                            <motion.div
+                                key="research"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4"
+                            >
+                                <div className="glass-card p-4 space-y-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <SearchIcon size={16} className="text-emerald-400" />
+                                        <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Market Intelligence</h3>
+                                    </div>
+                                    <p className="text-xs text-slate-400">Analyze market demand, sell-through rate, and pricing tiers for any keyword.</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Example: iPhone 15 Pro Max..."
+                                            className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+                                            value={ebaySearchQuery}
+                                            onChange={(e) => setEbaySearchQuery(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleEbayResearch()}
+                                        />
+                                        <button
+                                            disabled={isEbayAnalyzing || !ebaySearchQuery}
+                                            onClick={handleEbayResearch}
+                                            className="px-6 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white rounded-lg font-bold text-sm transition-all"
+                                        >
+                                            {isEbayAnalyzing ? <RotateCcw size={16} className="animate-spin" /> : 'GO'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {ebayResearchResult && (
+                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="glass-card p-3 text-center">
+                                                <div className="text-[10px] uppercase text-slate-500 mb-1">Sold Price</div>
+                                                <div className="text-lg font-black text-emerald-400">${ebayResearchResult.medianSoldPrice}</div>
+                                            </div>
+                                            <div className="glass-card p-3 text-center">
+                                                <div className="text-[10px] uppercase text-slate-500 mb-1">Sell-Through</div>
+                                                <div className="text-lg font-black text-blue-400">{ebayResearchResult.sellThroughRate}</div>
+                                            </div>
+                                            <div className="glass-card p-3 text-center">
+                                                <div className="text-[10px] uppercase text-slate-500 mb-1">Active</div>
+                                                <div className="text-lg font-black text-slate-300">{ebayResearchResult.activeCount}</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="glass-card p-4">
+                                            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Pricing Tiers</h4>
+                                            <div className="space-y-3">
+                                                {ebayResearchResult.pricingRecommendations && (
+                                                    <>
+                                                        <div className="flex justify-between items-center p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+                                                            <div>
+                                                                <div className="text-[10px] font-bold text-emerald-500 uppercase">Quick Sale</div>
+                                                                <div className="text-xs text-slate-400">1-3 days turnaround</div>
+                                                            </div>
+                                                            <div className="text-lg font-black text-white">${ebayResearchResult.pricingRecommendations.quickSale.price}</div>
+                                                        </div>
+                                                        <div className="flex justify-between items-center p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                                            <div>
+                                                                <div className="text-[10px] font-bold text-emerald-400 uppercase">Competitive</div>
+                                                                <div className="text-xs text-slate-400">3-7 days turnaround</div>
+                                                            </div>
+                                                            <div className="text-lg font-black text-white">${ebayResearchResult.pricingRecommendations.competitive.price}</div>
+                                                        </div>
+                                                        <div className="flex justify-between items-center p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+                                                            <div>
+                                                                <div className="text-[10px] font-bold text-blue-400 uppercase">Premium</div>
+                                                                <div className="text-xs text-slate-400">High margin approach</div>
+                                                            </div>
+                                                            <div className="text-lg font-black text-white">${ebayResearchResult.pricingRecommendations.premium.price}</div>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </motion.div>
+                        )}
+
+                        {commandTab === 'bulk' && (
+                            <motion.div
+                                key="bulk"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4"
+                            >
+                                <div className="glass-card p-4 space-y-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Package size={16} className="text-emerald-400" />
+                                        <h3 className="font-bold text-sm uppercase tracking-wider text-slate-300">Bulk Optimization</h3>
+                                    </div>
+                                    <p className="text-xs text-slate-400">Analyze current listings from any seller to find underpriced or poorly titled items.</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Enter eBay Seller ID..."
+                                            className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg py-3 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+                                            value={bulkSellerId}
+                                            onChange={(e) => setBulkSellerId(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleBulkFetch()}
+                                        />
+                                        <button
+                                            disabled={isBulkFetching || !bulkSellerId}
+                                            onClick={handleBulkFetch}
+                                            className="px-6 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white rounded-lg font-bold text-sm transition-all flex items-center gap-2"
+                                        >
+                                            {isBulkFetching ? <RotateCcw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                            {isBulkFetching ? '...' : 'SCAN'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {bulkItems.map((item, idx) => (
+                                        <motion.div
+                                            key={item.itemId}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: idx * 0.05 }}
+                                            className="glass-card p-3 flex gap-4 items-center"
+                                        >
+                                            <img src={item.image?.imageUrl} className="w-16 h-16 rounded object-cover" alt="" />
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-xs font-bold text-white line-clamp-1">{item.title}</h4>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-xs font-black text-emerald-400">${item.price?.value}</span>
+                                                    <span className="text-[10px] text-slate-500">Current</span>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => { setEbayUrl(item.itemWebUrl); setCommandTab('analyze'); handleEbayAnalyze(); }} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/20 transition-all">
+                                                <Wand2 size={16} />
+                                            </button>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+        );
+    };
+
+    // --- Tab Navigation ---
+
+    const renderBottomNav = () => (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-slate-800 px-6 py-2 pb-safe z-50 shadow-2xl">
+            <div className="flex justify-between items-center max-w-lg mx-auto">
+                <button onClick={() => setView('command')} className={`flex flex-col items-center gap-1 transition-all ${view === 'command' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                    <LayoutDashboard size={20} className={view === 'command' ? 'scale-110' : ''} />
+                    <span className="text-[10px] font-bold">COMMAND</span>
+                </button>
+                <button onClick={() => { setView('scout'); handleStartScan(); }} className={`flex flex-col items-center gap-1 transition-all ${view === 'scout' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                    <ScanLine size={20} className={view === 'scout' ? 'scale-110' : ''} />
+                    <span className="text-[10px] font-bold">SCOUT</span>
+                </button>
+                <button onClick={() => setView('inventory')} className={`flex flex-col items-center gap-1 transition-all ${view === 'inventory' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                    <Package size={20} className={view === 'inventory' ? 'scale-110' : ''} />
+                    <span className="text-[10px] font-bold">INVENTORY</span>
+                </button>
+                <button onClick={() => setView('stats')} className={`flex flex-col items-center gap-1 transition-all ${view === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                    <BarChart3 size={20} className={view === 'stats' ? 'scale-110' : ''} />
+                    <span className="text-[10px] font-bold">STATS</span>
+                </button>
+            </div>
+        </div>
+    );
+
     const renderInventoryItem = (item: InventoryItem) => (
         <div key={item.id} className="p-3 flex gap-3 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg mb-2 shadow-sm">
             <div className="w-16 h-16 bg-gray-200 dark:bg-slate-800 rounded-lg overflow-hidden shrink-0 relative border border-gray-200 dark:border-slate-700">
@@ -1477,6 +1830,7 @@ function App() {
             </div>
         </div>
     );
+
 
     const renderInventoryView = () => {
         const filteredInventory = inventory.filter(item => {
@@ -1621,165 +1975,7 @@ function App() {
         );
     };
 
-    // --- NEW COMMAND DASHBOARD ---
-    const renderCommandView = () => {
-        return (
-            <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 transition-colors duration-300 pt-safe pb-safe">
-                <div className="flex flex-col items-center p-6 space-y-6 shrink-0">
 
-                    {/* Header */}
-                    <div className="w-full flex justify-between items-center mb-4">
-                        <button onClick={() => setIsHelpOpen(true)} className="p-2 rounded-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-neon-green transition-colors shadow-sm"><HelpCircle size={20} /></button>
-                        <div className="flex gap-2">
-                            <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm"><Settings size={20} /></button>
-                            <button onClick={toggleTheme} className="p-2 rounded-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-neon-green transition-colors shadow-sm">{theme === 'dark' ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} />}</button>
-                        </div>
-                    </div>
-
-                    {/* Daily Goal Card */}
-                    <div className="w-full glass-panel rounded-2xl p-6 flex flex-col items-center gap-2 animate-in slide-in-from-top-4 duration-700 bg-gradient-to-br from-white to-slate-100 dark:from-slate-900 dark:to-slate-800 border border-white/20 shadow-xl">
-                        <span className="text-xs font-mono text-slate-500 uppercase tracking-widest font-bold">DAILY GOAL</span>
-                        <div className="relative">
-                            <div className="flex items-center gap-3 relative z-10">
-                                <span className="w-3 h-3 bg-neon-green rounded-full animate-pulse shadow-[0_0_10px_#39ff14]"></span>
-                                <span className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter">{listedTodayCount}</span>
-                                <span className="text-sm font-bold text-slate-400 uppercase self-end mb-2">Listed</span>
-                            </div>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2">Keep up the momentum!</p>
-                    </div>
-
-                    {/* Placeholder for future features (e.g. Recent Activity, Notifications) */}
-                    <div className="w-full grid grid-cols-2 gap-4">
-                        <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center gap-2 opacity-50">
-                            <BarChart3 size={24} className="text-slate-400" />
-                            <span className="text-[10px] uppercase font-bold text-slate-500">Sales Trend</span>
-                        </div>
-                        <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center gap-2 opacity-50">
-                            <Sparkles size={24} className="text-slate-400" />
-                            <span className="text-[10px] uppercase font-bold text-slate-500">AI Tips</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // --- SCOUT VIEW (Scanner) ---
-    // (Renamed from renderIdleState, stripping header/goals to focus on Scanning)
-    const renderScoutView = () => {
-
-        return (
-            <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 transition-colors duration-300 pt-safe pb-safe">
-                <div className="flex flex-col items-center justify-center p-6 space-y-8 shrink-0 animate-in fade-in zoom-in duration-500 min-h-[80vh]">
-                    {/* Simplified Header for Scout */}
-                    <div className="w-full text-center pb-4">
-                        <h2 className="text-[10px] font-black tracking-[0.3em] uppercase text-slate-400">RESEARCH MODE</h2>
-                    </div>
-
-
-                    {/* SCAN MODE TABS REMOVED - CONSOLIDATED TO AI SCAN */}
-
-                    {/* BULK MODE TOGGLE (GATED) */}
-                    <div className="px-6 mb-4 flex justify-end">
-                        <button
-                            onClick={() => {
-                                if (!canAccess('BULK_MODE')) {
-                                    setIsPricingOpen(true);
-                                } else {
-                                    setIsBulkMode(!isBulkMode);
-                                }
-                            }}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all ${isBulkMode ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 text-slate-500 border border-transparent'}`}
-                        >
-                            <Layers size={12} />
-                            {isBulkMode ? 'Bulk Mode ON' : 'Bulk Mode'}
-                            {!canAccess('BULK_MODE') && <Lock size={10} />}
-                        </button>
-                    </div>
-                    <div className="relative group cursor-pointer" onClick={handleStartScan}>
-                        <div className="absolute inset-0 rounded-full blur-3xl transition-all duration-500 bg-emerald-500/20 dark:bg-neon-green/20 group-hover:bg-emerald-500/30 dark:group-hover:bg-neon-green/30"></div>
-                        <div className="w-40 h-40 rounded-full glass-orb flex flex-col items-center justify-center relative z-10 group-hover:scale-105 transition-transform duration-300 border-emerald-500/30">
-                            <div className="absolute inset-2 border border-gray-200 dark:border-slate-700 rounded-full border-dashed animate-[spin_10s_linear_infinite] opacity-50"></div>
-                            <Aperture size={64} className="text-neon-green drop-shadow-[0_0_15px_rgba(57,255,20,0.5)] mb-1" />
-                            <div className="text-[10px] font-bold tracking-widest opacity-80 text-emerald-600 dark:text-neon-green">START SCAN</div>
-                        </div>
-                    </div>
-
-                    {/* Source Selector */}
-                    <div className="flex items-center justify-center gap-2">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Active Source:</span>
-                        {isEditingUnit ? (
-                            <div className="flex items-center gap-2">
-                                <input autoFocus type="text" value={activeUnit} onChange={(e) => setActiveUnit(e.target.value.toUpperCase())} onBlur={() => setIsEditingUnit(false)} className="w-24 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-emerald-500 dark:border-neon-green rounded px-2 py-1 font-mono text-center uppercase focus:outline-none text-xs" />
-                                <button onClick={() => setIsEditingUnit(false)} className="text-emerald-500 dark:text-neon-green"><Save size={14} /></button>
-                            </div>
-                        ) : (
-                            <button onClick={() => setIsEditingUnit(true)} className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1 rounded hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 group transition-all">
-                                <span className="font-mono font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-neon-green text-xs">{activeUnit}</span>
-                                <Edit2 size={10} className="text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-neon-green" />
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col w-full max-w-xs gap-4 relative z-10">
-                        <div className="flex gap-2">
-                            <input ref={scoutInputRef} type="text" value={manualQuery} onChange={(e) => setManualQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()} placeholder="Manual Lookup (Name or UPC)" className="flex-1 glass-panel rounded-xl px-4 text-sm text-white focus:outline-none focus:border-neon-green placeholder-slate-400 h-12" />
-                            <button onClick={handleManualSearch} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-neon-green text-slate-900 dark:text-white w-12 rounded-xl flex items-center justify-center shadow-sm"><SearchIcon size={20} /></button>
-                            <div className="relative">
-                                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                                <button onClick={() => fileInputRef.current?.click()} className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-blue-400 text-blue-500 dark:text-blue-400 w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"><Upload size={20} /></button>
-                            </div>
-                        </div>
-                        <button onClick={() => setIsBulkMode(!isBulkMode)} className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border transition-all ${isBulkMode ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-500' : 'bg-white dark:bg-slate-900/50 text-slate-500 border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm'}`}>
-                            {isBulkMode ? <Layers size={16} /> : <Box size={16} />}
-                            <span className="text-xs font-bold tracking-wider">{isBulkMode ? 'MODE: DEATH PILE (BULK)' : 'MODE: SINGLE ITEM'}</span>
-                        </button>
-                    </div>
-
-                    {/* ROI Tracker (Sources) */}
-                    <div className="w-full max-w-sm pt-8 pb-4">
-                        <div className="flex justify-between items-center mb-3 px-1">
-                            <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-500 flex items-center gap-2"><Warehouse size={12} /> ROI Tracker</h3>
-                            <button onClick={() => { setIsUnitModalOpen(true); setUnitForm({ id: '', storeNumber: '', address: '', cost: '', imageUrl: '' }); }} className="text-[10px] font-bold text-emerald-600 dark:text-neon-green hover:underline">+ New Source</button>
-                        </div>
-                        <div className="space-y-3">
-                            {storageUnits.map(unit => {
-                                const stats = getUnitStats(unit.storeNumber, unit.cost);
-                                return (
-                                    <div key={unit.id} onClick={() => setActiveUnit(unit.storeNumber)} className={`glass-panel rounded-xl p-3 cursor-pointer transition-all hover:scale-[1.02] ${activeUnit === unit.storeNumber ? 'border-neon-green/50 shadow-[0_0_15px_rgba(57,255,20,0.1)]' : ''}`}>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
-                                                    {unit.imageUrl ? <img src={unit.imageUrl} className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-400" />}
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-slate-900 dark:text-white">#{unit.storeNumber}</div>
-                                                    <div className="text-[9px] text-slate-500">${unit.cost} Cost</div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {stats.isBreakEven && <span className="text-[8px] bg-emerald-100 dark:bg-neon-green/20 text-emerald-700 dark:text-neon-green px-1.5 py-0.5 rounded font-bold uppercase">Profitable</span>}
-                                                <button onClick={(e) => { e.stopPropagation(); setIsUnitModalOpen(true); setUnitForm({ id: unit.id, storeNumber: unit.storeNumber, address: unit.address, cost: String(unit.cost), imageUrl: unit.imageUrl || '' }); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-emerald-500 dark:hover:text-neon-green transition-colors"><Edit2 size={12} /></button>
-                                            </div>
-                                        </div>
-                                        <div className="w-full bg-gray-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                            <div className={`h-full rounded-full transition-all duration-1000 ${stats.isBreakEven ? 'bg-emerald-500 dark:bg-neon-green' : 'bg-blue-500'}`} style={{ width: `${stats.progressPercent}%` }}></div>
-                                        </div>
-                                        <div className="flex justify-between mt-1 text-[8px] font-mono text-slate-400">
-                                            <span>Rev: ${stats.totalSoldValue.toFixed(0)}</span>
-                                            <span>Net: {stats.totalProfit > 0 ? '+' : ''}${stats.totalProfit.toFixed(0)}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            {storageUnits.length === 0 && <div className="text-center p-4 text-xs text-slate-500 border border-dashed border-slate-700 rounded-xl">No sources added. Tap + New Source to track ROI.</div>}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
 
 
