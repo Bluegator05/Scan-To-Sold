@@ -1456,12 +1456,27 @@ function App() {
         setIsEbayAnalyzing(true);
         try {
             const itemId = extractEbayId(ebayUrl);
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(itemId || ebayUrl)}`);
+            console.log('eBay URL:', ebayUrl);
+            console.log('Extracted Item ID:', itemId);
+            console.log('Functions URL:', FUNCTIONS_URL);
+            const apiUrl = `${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(itemId || ebayUrl)}`;
+            console.log('API URL:', apiUrl);
+
+            const response = await fetch(apiUrl);
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+
             const data = await response.json();
+            console.log('Response data:', data);
+
+            if (!response.ok) {
+                throw new Error(`API returned ${response.status}: ${JSON.stringify(data)}`);
+            }
+
             setEbayResult(data);
         } catch (e) {
             console.error("eBay Analysis Error:", e);
-            alert("Analysis failed. Please check the URL/ID and try again.");
+            alert(`Analysis failed. Please check the URL/ID and try again.\n\nError: ${e instanceof Error ? e.message : String(e)}`);
         }
         setIsEbayAnalyzing(false);
     };

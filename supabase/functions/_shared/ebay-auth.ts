@@ -10,7 +10,7 @@ export async function getEbayToken(): Promise<string> {
         return accessToken;
     }
 
-    const clientId = Deno.env.get('EBAY_OAUTH_CLIENT_ID');
+    const clientId = Deno.env.get('EBAY_APP_ID');
     const clientSecret = Deno.env.get('EBAY_CERT_ID');
 
     if (!clientId || !clientSecret) {

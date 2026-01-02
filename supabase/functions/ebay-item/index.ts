@@ -40,11 +40,12 @@ serve(async (req) => {
         const token = await getEbayToken();
 
         const response = await fetch(
-            `https://api.ebay.com/buy/browse/v1/item/v1|${itemId}|0`,
+            `https://api.ebay.com/buy/browse/v1/item/${itemId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+                    'X-EBAY-C-ENDUSERCTX': 'affiliateCampaignId=\u003cePNCampaignId\u003e'
                 }
             }
         );
