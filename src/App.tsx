@@ -142,6 +142,10 @@ function App() {
     const [currentListingPrice, setCurrentListingPrice] = useState<number>(0);
     const [isOptimizingImage, setIsOptimizingImage] = useState<boolean>(false);
 
+    useEffect(() => {
+        console.log("🚀 Scan To Sold: EBAY_OPTIMIZER_INTEGRATED_V1");
+    }, []);
+
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [storageUnits, setStorageUnits] = useState<StorageUnit[]>([]);
 
@@ -1598,8 +1602,13 @@ function App() {
                             </div>
                             <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center</h2>
                         </div>
-                        <div className="text-xs font-bold text-slate-500 tracking-widest uppercase">
-                            AI-POWERED INSIGHTS
+                        <div className="flex items-center gap-2">
+                            <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-500 tracking-tighter">
+                                LIVE
+                            </div>
+                            <div className="text-[9px] font-bold text-slate-500 tracking-widest uppercase">
+                                AI-POWERED INSIGHTS
+                            </div>
                         </div>
                     </div>
 
