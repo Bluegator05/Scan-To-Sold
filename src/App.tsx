@@ -25,6 +25,7 @@ import { checkEbayConnection, extractEbayId, fetchEbayItemDetails, searchEbayByI
 
 const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL;
 
+import { supabase } from './lib/supabaseClient';
 import { compressImage, uploadScanImage } from './services/imageService';
 import { analytics, logEvent } from './lib/firebase';
 import { scheduleGoalReminder, NotificationSettings } from './services/notificationService';
@@ -1462,7 +1463,18 @@ function App() {
             const apiUrl = `${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(itemId || ebayUrl)}`;
             console.log('API URL:', apiUrl);
 
-            const response = await fetch(apiUrl);
+            // Get Supabase session for authorization
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVybnZtaWt0emt3ZGxtZmV6bmpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MzU4MjUsImV4cCI6MjA3OTQxMTgyNX0.I6wW-RRlsJC-9xtTTUpnsKcXbTayE9cvyyWcz9jK3B4'
+            };
+
+            if (session?.access_token) {
+                headers['Authorization'] = `Bearer ${session.access_token}`;
+            }
+
+            const response = await fetch(apiUrl, { headers });
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);
 
