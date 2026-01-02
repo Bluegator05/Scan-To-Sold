@@ -25,5 +25,12 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "supabase",
+    "node_modules",
+    "dist",
+    "ios",
+    "temp_import"
+  ]
 }

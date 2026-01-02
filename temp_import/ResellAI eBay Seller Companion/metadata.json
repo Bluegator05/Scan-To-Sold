@@ -1,8 +1,0 @@
-{
-  "name": "ResellAI - The eBay Seller's Companion",
-  "description": "Snap a photo, analyze worth, and generate eBay comparables instantly using AI vision and market analysis.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}

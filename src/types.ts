@@ -128,6 +128,11 @@ export interface ScanLog {
   barcode?: string;
   estimatedValue: number;
   resultStatus: 'SAVED' | 'DISCARDED' | 'SCANNED';
+  tokenUsage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
 }
 
 export type SourceType = 'STORAGE_UNIT' | 'GARAGE_SALE' | 'THRIFT_STORE' | 'RETAIL_STORE' | 'ESTATE_SALE' | 'PERSONAL' | 'OTHER';

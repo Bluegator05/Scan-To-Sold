@@ -1591,6 +1591,7 @@ function App() {
     };
 
 
+
     const renderCommandView = () => {
         return (
             <div className="command-container flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden pt-safe">
@@ -1644,28 +1645,32 @@ function App() {
                                 exit={{ opacity: 0 }}
                                 className="space-y-6"
                             >
-                                <div className="glass-panel p-6 space-y-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Wand2 size={18} className="text-[#06b6d4]" />
-                                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Listing Optimizer</h3>
+                                <div className="glass-panel p-6">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Sparkles size={18} className="text-[#10b981]" />
+                                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Inventory Optimizer</h3>
                                     </div>
-                                    <div className="flex gap-3">
-                                        <div className="relative flex-1">
-                                            <input
-                                                type="text"
-                                                placeholder="Paste eBay URL or ID..."
-                                                className="w-full bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#06b6d4]/50 transition-all shadow-inner"
-                                                value={ebayUrl}
-                                                onChange={(e) => setEbayUrl(e.target.value)}
-                                            />
-                                        </div>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="Paste eBay Listing URL..."
+                                            className="w-full bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#10b981]/50 transition-all shadow-inner"
+                                            value={ebayUrl}
+                                            onChange={(e) => setEbayUrl(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleEbayAnalyze()}
+                                        />
                                         <AnimatedButton
                                             disabled={isEbayAnalyzing || !ebayUrl}
                                             onClick={handleEbayAnalyze}
-                                            className="px-8 font-black text-xs tracking-widest"
-                                        >
-                                            {isEbayAnalyzing ? '...' : 'ANALYZE'}
-                                        </AnimatedButton>
+                                            text="Analyze"
+                                            icon={Search}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '6px',
+                                                top: '6px',
+                                                bottom: '6px'
+                                            }}
+                                        />
                                     </div>
                                 </div>
 
@@ -1760,16 +1765,16 @@ function App() {
                                 exit={{ opacity: 0 }}
                                 className="space-y-6"
                             >
-                                <div className="glass-panel p-6 space-y-4">
-                                    <div className="flex items-center gap-2 mb-2">
+                                <div className="glass-panel p-6">
+                                    <div className="flex items-center gap-2 mb-4">
                                         <TrendingUp size={18} className="text-[#06b6d4]" />
                                         <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Market Intelligence</h3>
                                     </div>
-                                    <div className="flex gap-3">
+                                    <div className="relative">
                                         <input
                                             type="text"
                                             placeholder="Example: iPhone 13 Pro..."
-                                            className="flex-1 bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#06b6d4]/50 transition-all shadow-inner"
+                                            className="w-full bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#06b6d4]/50 transition-all shadow-inner"
                                             value={ebaySearchQuery}
                                             onChange={(e) => setEbaySearchQuery(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleEbayResearch()}
@@ -1777,10 +1782,15 @@ function App() {
                                         <AnimatedButton
                                             disabled={isEbayAnalyzing || !ebaySearchQuery}
                                             onClick={handleEbayResearch}
-                                            className="px-8 font-black text-xs tracking-widest"
-                                        >
-                                            {isEbayAnalyzing ? '...' : 'RESEARCH'}
-                                        </AnimatedButton>
+                                            text="Research"
+                                            icon={TrendingUp}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '6px',
+                                                top: '6px',
+                                                bottom: '6px'
+                                            }}
+                                        />
                                     </div>
                                 </div>
 
@@ -1813,10 +1823,10 @@ function App() {
                                                 </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px' }} className="no-scrollbar">
+                                            <div className="flex gap-5 overflow-x-auto pb-5 no-scrollbar">
                                                 {/* Quick Sale */}
-                                                <div className="pricing-card-container">
-                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--ebay-warning)' }}>
+                                                <div className="pricing-card-container flex-shrink-0">
+                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--warning)' }}>
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <TrendingUp size={14} className="text-[#f59e0b]" />
                                                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Quick Sale</span>
@@ -1829,15 +1839,15 @@ function App() {
                                                             <div className="text-[11px] text-slate-400 leading-normal">{ebayResearchResult.pricingRecommendations?.quickSale?.description}</div>
                                                             <div className="text-[10px] font-black text-white uppercase italic">Target: Liquidity</div>
                                                         </div>
-                                                        <div className="price-card-footer" style={{ background: 'var(--ebay-warning)', color: '#000' }}>
+                                                        <div className="price-card-footer" style={{ background: 'var(--warning)', color: '#000' }}>
                                                             FAST TURNAROUND
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Competitive */}
-                                                <div className="pricing-card-container">
-                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--ebay-accent)' }}>
+                                                <div className="pricing-card-container flex-shrink-0">
+                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <CheckCircle2 size={14} className="text-[#06b6d4]" />
                                                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Competitive</span>
@@ -1850,15 +1860,15 @@ function App() {
                                                             <div className="text-[11px] text-slate-400 leading-normal">{ebayResearchResult.pricingRecommendations?.competitive?.description}</div>
                                                             <div className="text-[10px] font-black text-white uppercase italic">Target: Market Average</div>
                                                         </div>
-                                                        <div className="price-card-footer" style={{ background: 'var(--ebay-accent)' }}>
+                                                        <div className="price-card-footer" style={{ background: 'var(--accent-primary)' }}>
                                                             RECOMMENDED
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Premium */}
-                                                <div className="pricing-card-container">
-                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--ebay-success)' }}>
+                                                <div className="pricing-card-container flex-shrink-0">
+                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--success)' }}>
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <Sparkles size={14} className="text-[#10b981]" />
                                                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Premium</span>
@@ -1871,7 +1881,7 @@ function App() {
                                                             <div className="text-[11px] text-slate-400 leading-normal">{ebayResearchResult.pricingRecommendations?.premium?.description}</div>
                                                             <div className="text-[10px] font-black text-white uppercase italic">Target: Max Margin</div>
                                                         </div>
-                                                        <div className="price-card-footer" style={{ background: 'var(--ebay-success)' }}>
+                                                        <div className="price-card-footer" style={{ background: 'var(--success)' }}>
                                                             MAX PROFIT
                                                         </div>
                                                     </div>
@@ -1901,120 +1911,117 @@ function App() {
                                 exit={{ opacity: 0 }}
                                 className="space-y-6"
                             >
-                                <div className="glass-panel p-6 space-y-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Layers size={18} className="text-[#06b6d4]" />
-                                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Bulk Listing Scout</h3>
+                                <div className="glass-panel p-6">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Layers size={18} className="text-[#a855f7]" />
+                                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Bulk Optimization</h3>
                                     </div>
                                     <div className="flex gap-3">
                                         <input
                                             type="text"
                                             placeholder="Enter eBay Seller ID..."
-                                            className="flex-1 bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#06b6d4]/50 transition-all shadow-inner"
+                                            className="flex-1 bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#a855f7]/50 transition-all shadow-inner"
                                             value={bulkSellerId}
                                             onChange={(e) => setBulkSellerId(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleBulkFetch()}
                                         />
                                         <AnimatedButton
                                             disabled={isBulkFetching || !bulkSellerId}
                                             onClick={handleBulkFetch}
+                                            text="Fetch"
+                                            icon={Search}
                                             className="px-8 font-black text-xs tracking-widest"
-                                        >
-                                            {isBulkFetching ? '...' : 'FETCH'}
-                                        </AnimatedButton>
+                                        />
                                     </div>
+                                    <p className="mt-3 text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                        Fetching oldest active listings for performance review
+                                    </p>
                                 </div>
 
                                 {bulkItems.length > 0 && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="space-y-6"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="space-y-4"
                                     >
-                                        <div className="glass-panel p-6">
-                                            <div className="flex items-center justify-between mb-6">
-                                                <div>
-                                                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Listing Queue</h4>
-                                                    <div className="text-xs text-slate-500">{bulkItems.length} items found</div>
-                                                </div>
-                                                <AnimatedButton
-                                                    onClick={processBulkOptimization}
-                                                    className="px-6 py-2 text-[10px]"
-                                                >
-                                                    OPTIMIZE ALL
-                                                </AnimatedButton>
-                                            </div>
+                                        <div className="flex justify-between items-center px-1">
+                                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Listing Queue</h4>
+                                            <AnimatedButton
+                                                onClick={processBulkOptimization}
+                                                text="Optimize All"
+                                                icon={Zap}
+                                                className="px-6 py-2 text-[10px] font-black"
+                                            />
+                                        </div>
 
-                                            <div className="space-y-3">
-                                                {bulkItems.map((item, idx) => (
-                                                    <div key={item.itemId} className="glass-card overflow-hidden border border-white/5">
-                                                        <div
-                                                            className="p-3 flex gap-4 items-center cursor-pointer hover:bg-white/5 transition-all"
-                                                            onClick={() => setExpandedBulkItem(expandedBulkItem === item.itemId ? null : item.itemId)}
-                                                        >
-                                                            <div className="relative">
-                                                                <img src={item.image?.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-white/10" alt="" />
-                                                                {item.status === 'complete' && (
-                                                                    <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#10b981] flex items-center justify-center text-[8px] text-white shadow-lg">
-                                                                        ✓
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <h4 className="text-[11px] font-bold text-white line-clamp-1">{item.title}</h4>
-                                                                <div className="flex items-center gap-3 mt-1">
-                                                                    <span className="text-[11px] font-black text-[#06b6d4]">${item.price?.value}</span>
-                                                                    {item.score && (
-                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.score > 80 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>
-                                                                            {item.score}% Score
-                                                                        </span>
-                                                                    )}
+                                        <div className="space-y-3">
+                                            {bulkItems.map((item, idx) => (
+                                                <div key={item.itemId} className="glass-card overflow-hidden border border-white/5">
+                                                    <div
+                                                        className="p-3 flex gap-4 items-center cursor-pointer hover:bg-white/5 transition-all"
+                                                        onClick={() => setExpandedBulkItem(expandedBulkItem === item.itemId ? null : item.itemId)}
+                                                    >
+                                                        <div className="relative">
+                                                            <img src={item.image?.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-white/10" alt="" />
+                                                            {item.status === 'complete' && (
+                                                                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#10b981] flex items-center justify-center text-[8px] text-white shadow-lg">
+                                                                    ✓
                                                                 </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {item.status === 'processing' ? (
-                                                                    <RotateCcw size={14} className="animate-spin text-[#06b6d4]" />
-                                                                ) : item.status === 'complete' ? (
-                                                                    <ChevronRight size={14} className={`text-slate-600 transition-transform ${expandedBulkItem === item.itemId ? 'rotate-90' : ''}`} />
-                                                                ) : (
-                                                                    <Wand2 size={14} className="text-slate-600 hover:text-[#06b6d4] transition-colors" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-[11px] font-bold text-white line-clamp-1">{item.title}</h4>
+                                                            <div className="flex items-center gap-3 mt-1">
+                                                                <span className="text-[11px] font-black text-[#06b6d4]">${item.price?.value}</span>
+                                                                {item.score && (
+                                                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.score > 80 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>
+                                                                        {item.score}% Score
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         </div>
-
-                                                        <AnimatePresence>
-                                                            {expandedBulkItem === item.itemId && bulkProcessResults[item.itemId] && (
-                                                                <motion.div
-                                                                    initial={{ height: 0, opacity: 0 }}
-                                                                    animate={{ height: 'auto', opacity: 1 }}
-                                                                    exit={{ height: 0, opacity: 0 }}
-                                                                    className="border-t border-white/5 bg-[#0a0e13]/50 p-4 space-y-4"
-                                                                >
-                                                                    <div className="space-y-2">
-                                                                        <div className="text-[9px] font-black uppercase text-[#10b981] tracking-widest">Optimized Title</div>
-                                                                        <div className="text-xs text-white bg-[#141921] p-3 rounded-lg border border-white/5 leading-relaxed">
-                                                                            {bulkProcessResults[item.itemId].improvedTitle}
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="grid grid-cols-2 gap-3">
-                                                                        <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
-                                                                            <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Target Price</div>
-                                                                            <div className="text-sm font-black text-white">${bulkProcessResults[item.itemId].pricingRecommendations?.competitive?.price}</div>
-                                                                        </div>
-                                                                        <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
-                                                                            <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Action</div>
-                                                                            <div className="flex gap-2">
-                                                                                <a href={item.itemWebUrl} target="_blank" rel="noreferrer" className="text-[10px] text-[#06b6d4] font-bold">Edit Listing</a>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </motion.div>
+                                                        <div className="flex items-center gap-2">
+                                                            {item.status === 'processing' ? (
+                                                                <RotateCcw size={14} className="animate-spin text-[#06b6d4]" />
+                                                            ) : item.status === 'complete' ? (
+                                                                <ChevronRight size={14} className={`text-slate-600 transition-transform ${expandedBulkItem === item.itemId ? 'rotate-90' : ''}`} />
+                                                            ) : (
+                                                                <Wand2 size={14} className="text-slate-600 hover:text-[#06b6d4] transition-colors" />
                                                             )}
-                                                        </AnimatePresence>
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
+
+                                                    <AnimatePresence>
+                                                        {expandedBulkItem === item.itemId && bulkProcessResults[item.itemId] && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="border-t border-white/5 bg-[#0a0e13]/50 p-4 space-y-4"
+                                                            >
+                                                                <div className="space-y-2">
+                                                                    <div className="text-[9px] font-black uppercase text-[#10b981] tracking-widest">Optimized Title</div>
+                                                                    <div className="text-xs text-white bg-[#141921] p-3 rounded-lg border border-white/5 leading-relaxed">
+                                                                        {bulkProcessResults[item.itemId].improvedTitle}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
+                                                                        <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Target Price</div>
+                                                                        <div className="text-sm font-black text-white">${bulkProcessResults[item.itemId].pricingRecommendations?.competitive?.price}</div>
+                                                                    </div>
+                                                                    <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
+                                                                        <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Action</div>
+                                                                        <div className="flex gap-2">
+                                                                            <a href={item.itemWebUrl} target="_blank" rel="noreferrer" className="text-[10px] text-[#06b6d4] font-bold">Edit Listing</a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            ))}
                                         </div>
                                     </motion.div>
                                 )}
@@ -2028,19 +2035,41 @@ function App() {
 
     // --- Components ---
 
-    const AnimatedButton = ({ onClick, children, disabled, className = "", style = {} }: any) => {
+    const AnimatedButton = ({ onClick, text, children, icon: Icon, style, disabled, className = "" }: any) => {
+        const content = text || (typeof children === 'string' ? children : null);
+        const letters = content ? content.split("") : [];
+
         return (
-            <div className="btn-wrapper" style={style}>
+            <div className={`btn-wrapper ${className}`} style={style}>
                 <button
-                    className={`btn ${className}`}
+                    className="btn"
                     onClick={onClick}
                     disabled={disabled}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: disabled ? 0.6 : 1,
+                        cursor: disabled ? 'not-allowed' : 'pointer'
+                    }}
                 >
-                    {typeof children === 'string' ? children.split('').map((char, i) => (
-                        <span key={i} className="btn-letter" style={{ animationDelay: `${i * 0.05}s` }}>
-                            {char === ' ' ? '\u00A0' : char}
-                        </span>
-                    )) : children}
+                    {Icon && <Icon className="btn-svg" size={18} style={{ flexShrink: 0 }} />}
+                    {content ? (
+                        <div className="txt-wrapper" style={{ flexShrink: 0 }}>
+                            <span className="txt-1">
+                                {letters.map((char: string, i: number) => (
+                                    <span key={i} className="btn-letter" style={{ animationDelay: `${i * 0.05}s` }}>{char === " " ? "\u00A0" : char}</span>
+                                ))}
+                            </span>
+                            <span className="txt-2">
+                                {letters.map((char: string, i: number) => (
+                                    <span key={i} className="btn-letter" style={{ animationDelay: `${i * 0.05}s` }}>{char === " " ? "\u00A0" : char}</span>
+                                ))}
+                            </span>
+                        </div>
+                    ) : children}
                 </button>
             </div>
         );
