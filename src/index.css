@@ -47,6 +47,190 @@ body {
   background-attachment: fixed;
 }
 
+/* Command Dashboard & eBay Optimizer Styles */
+:root {
+  --ebay-bg-primary: #0a0e13;
+  --ebay-bg-secondary: #141921;
+  --ebay-bg-tertiary: #1e2530;
+  --ebay-accent: #06b6d4;
+  --ebay-accent-secondary: #14b8a6;
+  --ebay-success: #10b981;
+  --ebay-warning: #f59e0b;
+  --ebay-error: #ef4444;
+  --ebay-text-secondary: #94a3b8;
+  --ebay-text-tertiary: #64748b;
+}
+
+.command-container {
+  --bg-primary: var(--ebay-bg-primary);
+  --bg-secondary: var(--ebay-bg-secondary);
+  --bg-tertiary: var(--ebay-bg-tertiary);
+  --accent-primary: var(--ebay-accent);
+  --accent-secondary: var(--ebay-accent-secondary);
+  --text-primary: #f9fafb;
+  --text-secondary: var(--ebay-text-secondary);
+  --text-tertiary: var(--ebay-text-tertiary);
+  --success: var(--ebay-success);
+  --warning: var(--ebay-warning);
+  --error: var(--ebay-error);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+.command-container .glass-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.command-container .glass-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.command-container .glass-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+
+/* Premium Animated Buttons */
+.btn-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.btn {
+  --border-radius: 24px;
+  --padding: 4px;
+  --transition: 0.4s;
+  --button-color: var(--ebay-accent);
+  --highlight-color-hue: 210deg;
+
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6em 1.4em;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: 500;
+  color: white;
+  background-color: var(--button-color);
+  border: solid 1px #fff2;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: box-shadow var(--transition), border var(--transition), background-color var(--transition);
+}
+
+.btn-letter {
+  position: relative;
+  display: inline-block;
+  color: #fff;
+  transition: color var(--transition), text-shadow var(--transition), opacity var(--transition);
+}
+
+.btn:hover .btn-letter {
+  animation: letter-anim 2s ease-in-out infinite;
+}
+
+@keyframes letter-anim {
+  50% {
+    text-shadow: 0 0 3px #fff8;
+    color: #fff;
+  }
+}
+
+/* Pricing Cards */
+.pricing-card-container {
+  position: relative;
+  width: 210px;
+  height: 130px;
+  margin-bottom: 20px;
+}
+
+.price-card {
+  position: absolute;
+  width: 210px;
+  height: 130px;
+  border-radius: 20px;
+  background: var(--ebay-bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  color: #fff;
+  z-index: 10;
+  transition: .4s ease-in-out;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.price-card:hover {
+  background-color: var(--ebay-bg-secondary);
+  border-color: var(--ebay-accent);
+  cursor: pointer;
+}
+
+.price-card-expansion {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  height: 130px;
+  left: 5px;
+  border-radius: 25px;
+  background: var(--ebay-bg-secondary);
+  border: 1px solid var(--border-subtle);
+  z-index: 5;
+  transition: .4s ease-in-out;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.price-card:hover+.price-card-expansion {
+  height: 310px;
+  opacity: 1;
+  transform: translateY(10px);
+}
+
+.price-card-details {
+  margin-top: 120px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.price-card:hover+.price-card-expansion .price-card-details {
+  opacity: 1;
+}
+
+.price-card-footer {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  background: var(--ebay-accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: .4s ease-in-out;
+  opacity: 0;
+}
+
+.price-card:hover+.price-card-expansion .price-card-footer {
+  opacity: 1;
+  bottom: 0;
+}
+
 /* Command Dashboard Styles */
 .vibrant-gradient {
   background: linear-gradient(135deg, #06b6d4, #14b8a6);
