@@ -60,18 +60,16 @@ serve(async (req) => {
 
         console.log('Fetching item from eBay API...');
         const response = await fetch(
-            `https://api.ebay.com/buy/browse/v1/item/${itemId}`,
+            `https://api.ebay.com/buy/browse/v1/item/v1|${itemId}|0`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-                    'X-EBAY-C-ENDUSERCTX': 'affiliateCampaignId=<ePNCampaignId>'
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
                 }
             }
         );
 
         console.log('eBay API Response Status:', response.status);
-        console.log('eBay API Response Headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
             const errorText = await response.text();
