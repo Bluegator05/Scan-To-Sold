@@ -3084,6 +3084,14 @@ function App() {
                     </div>
                 )
             }
+            {/* Hidden File Inputs */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+            />
         </div >
     );
 };
