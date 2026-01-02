@@ -135,3 +135,96 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
     throw new Error(e.message || "Optimization Failed");
   }
 };
+
+// eBay Listing Optimization (for Command Tab)
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+
+interface ListingData {
+  title: string;
+  price: string;
+  category?: string;
+  condition?: string;
+  specifics?: any[];
+  url: string;
+}
+
+interface AnalysisMetric {
+  label: string;
+  value: number;
+  color: string;
+}
+
+interface MarketData {
+  median: string;
+  range: string;
+  sellThrough: string;
+  velocity: 'High' | 'Medium' | 'Low';
+}
+
+interface Issue {
+  type: 'warning' | 'info' | 'success' | 'error';
+  text: string;
+}
+
+export interface AnalysisResult {
+  title: string;
+  price: string;
+  score: number;
+  metrics: AnalysisMetric[];
+  market: MarketData;
+  issues: Issue[];
+  improvedTitle: string;
+}
+
+export const analyzeListingWithGemini = async (listingData: ListingData): Promise<AnalysisResult | null> => {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+  const prompt = `
+    Analyze this eBay listing and return a structured JSON object for optimization.
+    Use the provided listing data, including "Item Specifics", and market context to give high-quality, actionable advice.
+    CRITICAL: Acknowledge the "Condition" of the item (New vs Used). Pricing recommendations and market comparisons MUST be based on the same condition.
+    Pay close attention to whether critical item specifics (like Brand, MPN, UPC, Material, etc.) are present and accurate, as these heavily influence eBay search ranking.
+
+    Listing Data:
+    - Title: ${listingData.title}
+    - Current Price: ${listingData.price}
+    - Category: ${listingData.category}
+    - Condition: ${listingData.condition}
+    - Item Specifics: ${JSON.stringify(listingData.specifics)}
+    - URL: ${listingData.url}
+
+    The response MUST be a JSON object with these EXACT keys:
+    1. "title": The original product title.
+    2. "price": The current price.
+    3. "score": A numeric health score (0-100) based on title quality, pricing competitiveness, and metadata.
+    4. "metrics": Array of 4 objects { "label": string, "value": number (0-100), "color": string }
+       - Labels: "Title Quality", "Price Value", "Search Rank", "Market Demand"
+       - Colors: Use "var(--success)" for >70, "var(--warning)" for 40-70, "var(--error)" for <40.
+    5. "market": Object { "median": string, "range": string, "sellThrough": string, "velocity": "High" | "Medium" | "Low" }.
+    6. "issues": Array of objects { "type": "warning" | "info" | "success" | "error", "text": string } explaining specific improvements.
+    7. "improvedTitle": A high-converting, SEO-optimized title. 
+       CRITICAL RULES:
+       - MUST be a COMPLETE title with NO cut-off words (e.g., "Boo" instead of "Book" is WRONG)
+       - MUST be under 80 characters total (including spaces)
+       - Try to use 70-79 characters to maximize SEO while ensuring completeness
+       - Include: Brand, Model, Key Features, Condition, Size/Color if applicable
+       - Pack in high-value keywords but ONLY complete words
+       - If a word won't fit, use a shorter alternative or omit it entirely
+       Example: "Warhammer 40k Codex Adeptus Astartes Blood Angels 7th Edition Hardcover"
+
+    Return ONLY the raw JSON object.
+    `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const cleanedText = text.replace(/```json|```/g, "").trim();
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Gemini Analysis Error:", error);
+    return null;
+  }
+};

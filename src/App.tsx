@@ -73,6 +73,7 @@ function App() {
     const [bulkItems, setBulkItems] = useState<any[]>([]);
     const [isBulkFetching, setIsBulkFetching] = useState(false);
     const [bulkProcessResults, setBulkProcessResults] = useState<any>({});
+    const [expandedBulkItem, setExpandedBulkItem] = useState<string | null>(null);
 
     const [inventoryTab, setInventoryTab] = useState<'DRAFT' | 'LISTED' | 'SOLD'>('DRAFT');
     const [inventoryViewMode, setInventoryViewMode] = useState<'FOLDERS' | 'FLAT'>('FOLDERS');
