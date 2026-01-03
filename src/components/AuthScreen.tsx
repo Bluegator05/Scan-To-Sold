@@ -113,7 +113,7 @@ const AuthScreen: React.FC<{ onLiteMode?: () => void }> = ({ onLiteMode }) => {
             <h2 className="text-3xl font-black text-white tracking-tight">Scan<span className="text-neon-green">To</span>Sold</h2>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-950/80 rounded-full border border-slate-800 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse shadow-[0_0_5px_#39ff14]"></div>
-              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-semibold">Reseller OS v1.0</span>
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-semibold">Reseller OS v1.1</span>
             </div>
           </div>
 
