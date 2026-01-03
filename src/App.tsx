@@ -1608,7 +1608,7 @@ function App() {
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
                                 <Zap className="text-emerald-400" size={18} />
                             </div>
-                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center</h2>
+                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center <span className="text-[8px] opacity-30">v1.1</span></h2>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-500 tracking-tighter">
