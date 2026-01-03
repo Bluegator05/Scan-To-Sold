@@ -12,6 +12,8 @@ serve(async (req) => {
     try {
         const url = new URL(req.url);
         const query = decodeURIComponent(url.pathname.split('/').pop() || '');
+        const condition = url.searchParams.get('condition');
+        const categoryId = url.searchParams.get('categoryId');
 
         if (!query) {
             return new Response(
@@ -20,8 +22,20 @@ serve(async (req) => {
             );
         }
 
+        // Map common Browse API conditions to Finding API Condition IDs
+        const mapCondition = (cond: string | null) => {
+            if (!cond || cond === 'null') return null;
+            const c = cond.toUpperCase();
+            if (c.includes('NEW')) return '1000';
+            if (c.includes('USED') || c.includes('GOOD') || c.includes('POOR')) return '3000';
+            if (c.includes('REFURBISHED')) return '2500';
+            return null;
+        };
+
+        const conditionId = mapCondition(condition);
+
         // Check cache
-        const cacheKey = `sold:${query}`;
+        const cacheKey = `sold:${query}:${condition || 'any'}:${categoryId || 'any'}`;
         const cached = getCachedData(cacheKey);
         if (cached) {
             return new Response(JSON.stringify(cached), {
@@ -34,6 +48,14 @@ serve(async (req) => {
 
         // Try Finding API first
         try {
+            const itemFilters: any[] = [
+                { name: 'SoldItemsOnly', value: 'true' }
+            ];
+
+            if (conditionId) {
+                itemFilters.push({ name: 'Condition', value: conditionId });
+            }
+
             const findingParams = new URLSearchParams({
                 'OPERATION-NAME': 'findCompletedItems',
                 'SERVICE-VERSION': '1.13.0',
@@ -41,11 +63,19 @@ serve(async (req) => {
                 'RESPONSE-DATA-FORMAT': 'JSON',
                 'REST-PAYLOAD': '',
                 'keywords': query,
-                'itemFilter(0).name': 'SoldItemsOnly',
-                'itemFilter(0).value': 'true',
                 'paginationInput.entriesPerPage': '100',
                 'sortOrder': 'EndTimeSoonest'
             });
+
+            // Add item filters to URL params (indexed format)
+            itemFilters.forEach((filter, index) => {
+                findingParams.append(`itemFilter(${index}).name`, filter.name);
+                findingParams.append(`itemFilter(${index}).value`, filter.value);
+            });
+
+            if (categoryId && categoryId !== 'null') {
+                findingParams.append('categoryId', categoryId);
+            }
 
             const findingResponse = await fetch(
                 `https://svcs.ebay.com/services/search/FindingService/v1?${findingParams}`,
@@ -65,10 +95,15 @@ serve(async (req) => {
 
             if (rootResponse?.ack?.[0] === 'Success') {
                 const items = rootResponse.searchResult?.[0]?.item || [];
-                setCachedData(cacheKey, items);
-                return new Response(JSON.stringify(items), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-                });
+                const count = rootResponse.searchResult?.[0]?.['@count'] || '0';
+
+                // ONLY return if we actually found items. Otherwise, let it fall back to SerpApi.
+                if (items.length > 0 && count !== '0') {
+                    setCachedData(cacheKey, items);
+                    return new Response(JSON.stringify(items), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+                }
             }
         } catch (findingErr) {
             console.error('Finding API failed:', findingErr);
@@ -85,23 +120,45 @@ serve(async (req) => {
                 num: '100'
             });
 
+            if (condition) {
+                // SerpApi uses LH_ItemCondition: 3 (Used), 10 (New)
+                const c = condition.toUpperCase();
+                if (c.includes('NEW')) serpParams.append('LH_ItemCondition', '10');
+                else if (c.includes('USED')) serpParams.append('LH_ItemCondition', '3');
+            }
+
             const serpResponse = await fetch(`https://serpapi.com/search?${serpParams}`);
             const serpData = await serpResponse.json();
             const organicResults = serpData.organic_results || [];
 
             // Normalize to Finding API format
-            const items = organicResults.map((item: any) => ({
-                itemId: [item.listing_id],
-                title: [item.title],
-                sellingStatus: [{
-                    currentPrice: [{
-                        '__value__': item.price?.extracted?.toString() || "0",
-                        '@currencyId': 'USD'
+            const items = organicResults.map((item: any) => {
+                // Try to find a sold date in extensions (e.g., "Sold Oct 31, 2025")
+                const extensions = item.extensions || [];
+                const soldDateExt = extensions.find((ext: string) => ext.toLowerCase().includes('sold'));
+
+                // If it has a sold date extension, it's a recorded sale even if the listing is active
+                const isSoldRecord = !!soldDateExt || item.status === 'Sold';
+
+                return {
+                    itemId: [item.listing_id],
+                    title: [item.title],
+                    sellingStatus: [{
+                        currentPrice: [{
+                            '__value__': item.price?.extracted?.toString() || "0",
+                            '@currencyId': 'USD'
+                        }],
+                        // Use 'EndedWithSales' to satisfy the frontend filter
+                        sellingState: [isSoldRecord ? 'EndedWithSales' : 'Active']
                     }],
-                    sellingState: ['EndedWithSales']
-                }],
-                viewItemURL: [item.link]
-            }));
+                    // Map the sold date to endTime for the UI
+                    listingInfo: [{
+                        endTime: [soldDateExt ? soldDateExt.replace(/Sold /i, '') : '']
+                    }],
+                    viewItemURL: [item.link],
+                    galleryURL: [item.thumbnail]
+                };
+            });
 
             setCachedData(cacheKey, items);
             return new Response(JSON.stringify(items), {

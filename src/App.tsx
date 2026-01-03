@@ -63,12 +63,10 @@ function App() {
 
     const [isLiteMode, setIsLiteMode] = useState(false);
     const [view, setView] = useState<'command' | 'scout' | 'inventory' | 'stats'>('scout');
-    const [commandTab, setCommandTab] = useState<'analyze' | 'research' | 'bulk'>('analyze');
-    const [ebayUrl, setEbayUrl] = useState('');
-    const [ebaySearchQuery, setEbaySearchQuery] = useState('');
-    const [isEbayAnalyzing, setIsEbayAnalyzing] = useState(false);
-    const [ebayResult, setEbayResult] = useState<any>(null);
-    const [ebayResearchResult, setEbayResearchResult] = useState<any>(null);
+    const [commandTab, setCommandTab] = useState<'analyze' | 'bulk'>('analyze');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isIntelligenceAnalyzing, setIsIntelligenceAnalyzing] = useState(false);
+    const [intelligenceResult, setIntelligenceResult] = useState<any>(null);
     const [bulkSellerId, setBulkSellerId] = useState('');
     const [bulkItems, setBulkItems] = useState<any[]>([]);
     const [isBulkFetching, setIsBulkFetching] = useState(false);
@@ -1457,67 +1455,73 @@ function App() {
 
     // --- eBay Command Handlers ---
 
-    const handleEbayAnalyze = async () => {
-        if (!ebayUrl) return;
-        setIsEbayAnalyzing(true);
+    const handleIntelligenceSearch = async (overriddenQuery?: string) => {
+        const queryToUse = overriddenQuery || searchQuery;
+        if (!queryToUse) return;
+
+        setIsIntelligenceAnalyzing(true);
+        setIntelligenceResult(null); // Clear previous result
+
         try {
-            const itemId = extractEbayId(ebayUrl);
-            const apiUrl = `${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(itemId || ebayUrl)}`;
+            const ebayId = extractEbayId(queryToUse);
 
-            const { data: { session } } = await supabase.auth.getSession();
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json'
-            };
+            if (ebayId) {
+                // URL-based Analysis (Listing Optimizer)
+                const apiUrl = `${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(ebayId)}`;
+                const { data: { session } } = await supabase.auth.getSession();
+                const headers: HeadersInit = { 'Content-Type': 'application/json' };
+                if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            if (session?.access_token) {
-                headers['Authorization'] = `Bearer ${session.access_token}`;
-            }
+                const response = await fetch(apiUrl, { headers });
+                if (!response.ok) throw new Error(`API returned ${response.status}`);
+                const data = await response.json();
 
-            const response = await fetch(apiUrl, { headers });
-            const data = await response.json();
+                // 1. AI Analysis
+                const aiResponse = await analyzeListingWithGemini({
+                    title: data.title,
+                    price: `${data.price.value} ${data.price.currency}`,
+                    category: data.categoryPath,
+                    condition: data.condition,
+                    url: queryToUse,
+                    specifics: data.localizedAspects || []
+                });
 
-            if (!response.ok) {
-                throw new Error(`API returned ${response.status}`);
-            }
+                // 2. Market Data
+                const marketData = await fetchMarketData(data.title, data.condition);
 
-            // Perform AI analysis
-            const aiResponse = await analyzeListingWithGemini({
-                title: data.title,
-                price: `${data.price.value} ${data.price.currency}`,
-                category: data.categoryPath,
-                condition: data.condition,
-                url: ebayUrl,
-                specifics: data.localizedAspects || []
-            });
-
-            if (aiResponse) {
-                setEbayResult({
-                    ...aiResponse,
+                const finalResult = {
+                    ...(aiResponse || {}),
+                    title: aiResponse?.title || data.title,
+                    improvedTitle: aiResponse?.improvedTitle || data.title,
                     originalData: data,
                     itemWebUrl: data.itemWebUrl,
-                    image: data.image
-                });
+                    image: data.image,
+                    isUrlSearch: true,
+                    // Market data merge
+                    soldItems: marketData?.soldItems || [],
+                    activeItems: marketData?.activeItems || [],
+                    soldCount: marketData?.soldCount || 0,
+                    sellThroughRate: marketData?.sellThroughRate || 'N/A',
+                    medianSoldPrice: marketData?.medianSoldPrice || 0,
+                    pricingRecommendations: marketData?.pricingRecommendations || null
+                };
+
+                setIntelligenceResult(finalResult);
             } else {
-                setEbayResult(data);
+                // Keyword-based Research
+                const marketData = await fetchMarketData(queryToUse);
+                setIntelligenceResult({
+                    ...marketData,
+                    title: queryToUse,
+                    isUrlSearch: false
+                });
             }
         } catch (e) {
-            console.error("eBay Analysis Error:", e);
-            alert(`Analysis failed: ${e instanceof Error ? e.message : String(e)}`);
+            console.error("Intelligence Search Error:", e);
+            alert(`Search failed: ${e instanceof Error ? e.message : String(e)}`);
+        } finally {
+            setIsIntelligenceAnalyzing(false);
         }
-        setIsEbayAnalyzing(false);
-    };
-
-    const handleEbayResearch = async () => {
-        if (!ebaySearchQuery) return;
-        setIsEbayAnalyzing(true);
-        try {
-            const data = await fetchMarketData(ebaySearchQuery);
-            setEbayResearchResult(data);
-        } catch (e) {
-            console.error("eBay Research Error:", e);
-            alert("Research failed. Please try again.");
-        }
-        setIsEbayAnalyzing(false);
     };
 
     const handleBulkFetch = async () => {
@@ -1571,9 +1575,12 @@ function App() {
                 });
 
                 if (aiResponse) {
-                    setBulkProcessResults((prev: any) => ({
+                    setBulkProcessResults(prev => ({
                         ...prev,
-                        [currentId]: aiResponse
+                        [currentId]: {
+                            ...aiResponse,
+                            improvedTitle: typeof aiResponse.improvedTitle === 'object' ? JSON.stringify(aiResponse.improvedTitle) : String(aiResponse.improvedTitle || '')
+                        }
                     }));
                     setBulkItems(prev => prev.map(item =>
                         item.itemId === currentId ? { ...item, status: 'complete', score: aiResponse.score } : item
@@ -1618,13 +1625,7 @@ function App() {
                             onClick={() => setCommandTab('analyze')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black tracking-widest transition-all duration-300 ${commandTab === 'analyze' ? 'bg-[#06b6d4] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            <Aperture size={14} /> ANALYZE
-                        </button>
-                        <button
-                            onClick={() => setCommandTab('research')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black tracking-widest transition-all duration-300 ${commandTab === 'research' ? 'bg-[#06b6d4] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            <Search size={14} /> RESEARCH
+                            <Aperture size={14} /> INTELLIGENCE
                         </button>
                         <button
                             onClick={() => setCommandTab('bulk')}
@@ -1653,16 +1654,16 @@ function App() {
                                     <div className="relative">
                                         <input
                                             type="text"
-                                            placeholder="Paste eBay Listing URL..."
+                                            placeholder="Paste eBay URL or Keywords..."
                                             className="w-full bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#10b981]/50 transition-all shadow-inner"
-                                            value={ebayUrl}
-                                            onChange={(e) => setEbayUrl(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleEbayAnalyze()}
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleIntelligenceSearch()}
                                         />
                                         <AnimatedButton
-                                            disabled={isEbayAnalyzing || !ebayUrl}
-                                            onClick={handleEbayAnalyze}
-                                            text="Analyze"
+                                            disabled={isIntelligenceAnalyzing || !searchQuery}
+                                            onClick={() => handleIntelligenceSearch()}
+                                            text="Search"
                                             icon={Search}
                                             style={{
                                                 position: 'absolute',
@@ -1674,228 +1675,204 @@ function App() {
                                     </div>
                                 </div>
 
-                                {ebayResult && (
+                                {intelligenceResult && (
                                     <motion.div
                                         initial={{ opacity: 0, scale: 0.98 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         className="space-y-6"
                                     >
-                                        <div className="glass-panel p-6 flex gap-6 items-start">
-                                            <div className="relative">
-                                                <img src={ebayResult.image?.imageUrl} className="w-24 h-24 rounded-xl object-cover border border-white/10 shadow-xl" alt="" />
-                                                <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-[#141921] border-2 border-[#06b6d4] flex items-center justify-center font-black text-[#06b6d4] text-xs shadow-lg">
-                                                    {ebayResult.score}%
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-white text-base leading-tight mb-2 line-clamp-2">{ebayResult.title}</h4>
-                                                <div className="flex gap-4">
-                                                    <div>
-                                                        <div className="text-[10px] font-black uppercase text-slate-500 mb-0.5 tracking-tighter">Current Price</div>
-                                                        <div className="text-lg font-black text-white">${ebayResult.originalData?.price?.value}</div>
+                                        {/* URL-Specific Analysis Section */}
+                                        {intelligenceResult.isUrlSearch && (
+                                            <>
+                                                <div className="glass-panel p-6 flex gap-6 items-start">
+                                                    <div className="relative">
+                                                        <img src={intelligenceResult.image?.imageUrl} className="w-24 h-24 rounded-xl object-cover border border-white/10 shadow-xl" alt="" />
+                                                        <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-[#141921] border-2 border-[#06b6d4] flex items-center justify-center font-black text-[#06b6d4] text-xs shadow-lg">
+                                                            {String(intelligenceResult.score || 0)}%
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <div className="text-[10px] font-black uppercase text-[#10b981] mb-0.5 tracking-tighter">Market Target</div>
-                                                        <div className="text-lg font-black text-[#10b981]">${ebayResult.pricingRecommendations?.competitive?.price || '...'}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="glass-panel p-5 space-y-4">
-                                                <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Health Metrics</h5>
-                                                <div className="space-y-3">
-                                                    {Object.entries(ebayResult.metrics || {}).map(([key, value]: [string, any]) => (
-                                                        <div key={key}>
-                                                            <div className="flex justify-between text-[10px] font-bold uppercase mb-1">
-                                                                <span className="text-slate-400">{key}</span>
-                                                                <span className={value > 80 ? 'text-[#10b981]' : value > 60 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}>{value}%</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-bold text-white text-base leading-tight mb-2 line-clamp-2">{typeof intelligenceResult.title === 'object' ? JSON.stringify(intelligenceResult.title) : String(intelligenceResult.title || '')}</h4>
+                                                        <div className="flex gap-4">
+                                                            <div>
+                                                                <div className="text-[10px] font-black uppercase text-slate-500 mb-0.5 tracking-tighter">Current Price</div>
+                                                                <div className="text-lg font-black text-white">${typeof intelligenceResult.originalData?.price?.value === 'object' ? JSON.stringify(intelligenceResult.originalData.price.value) : String(intelligenceResult.originalData?.price?.value || 0)}</div>
                                                             </div>
-                                                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                                                <motion.div
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${value}%` }}
-                                                                    className={`h-full ${value > 80 ? 'bg-[#10b981]' : value > 60 ? 'bg-[#f59e0b]' : 'bg-[#ef4444]'}`}
-                                                                />
+                                                            <div>
+                                                                <div className="text-[10px] font-black uppercase text-[#10b981] mb-0.5 tracking-tighter">Market Target</div>
+                                                                <div className="text-lg font-black text-[#10b981]">{typeof intelligenceResult.market?.median === 'object' ? JSON.stringify(intelligenceResult.market.median) : (intelligenceResult.market?.median || '...')}</div>
                                                             </div>
                                                         </div>
-                                                    ))}
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="glass-panel p-5">
-                                                <h5 className="text-[10px] font-black uppercase text-[#ef4444] tracking-widest mb-4">Actionable Fixes</h5>
-                                                <div className="space-y-3">
-                                                    {(ebayResult.issues || []).map((issue: string, i: number) => (
-                                                        <div key={i} className="flex gap-2 items-start">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-[#ef4444] mt-1 shrink-0" />
-                                                            <p className="text-[11px] text-slate-300 leading-normal">{issue}</p>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="glass-panel p-5 space-y-4">
+                                                        <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Health Metrics</h5>
+                                                        <div className="space-y-3">
+                                                            {(intelligenceResult.metrics || []).map((metric: any, i: number) => (
+                                                                <div key={i}>
+                                                                    <div className="flex justify-between text-[10px] font-bold uppercase mb-1">
+                                                                        <span className="text-slate-400">{String(metric.label || '')}</span>
+                                                                        <span className={Number(metric.value) > 80 ? 'text-[#10b981]' : Number(metric.value) > 60 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}>{String(metric.value || 0)}%</span>
+                                                                    </div>
+                                                                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                                                        <motion.div
+                                                                            initial={{ width: 0 }}
+                                                                            animate={{ width: `${Number(metric.value) || 0}%` }}
+                                                                            className={`h-full ${Number(metric.value) > 80 ? 'bg-[#10b981]' : Number(metric.value) > 60 ? 'bg-[#f59e0b]' : 'bg-[#ef4444]'}`}
+                                                                            style={{ background: String(metric.color || '') }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
-                                                    ))}
+                                                    </div>
+
+                                                    <div className="glass-panel p-5">
+                                                        <h5 className="text-[10px] font-black uppercase text-[#ef4444] tracking-widest mb-4">Actionable Fixes</h5>
+                                                        <div className="space-y-3">
+                                                            {(intelligenceResult.issues || []).map((issue: any, i: number) => (
+                                                                <div key={i} className="flex gap-2 items-start">
+                                                                    <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${issue.type === 'error' ? 'bg-[#ef4444]' : issue.type === 'warning' ? 'bg-[#f59e0b]' : 'bg-[#10b981]'}`} />
+                                                                    <p className="text-[11px] text-slate-300 leading-normal">{typeof issue.text === 'object' ? JSON.stringify(issue.text) : (issue.text || '')}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="glass-panel p-6 border-l-4 border-l-[#06b6d4]">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Sparkles size={16} className="text-[#10b981]" />
-                                                <span className="text-[10px] font-black uppercase text-[#10b981] tracking-widest">AI Optimized Title</span>
-                                            </div>
-                                            <div className="text-sm text-white font-medium leading-relaxed mb-4">{ebayResult.improvedTitle}</div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleSellSimilar(ebayResult.originalData)} className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black tracking-widest uppercase transition-all border border-white/5">
-                                                    Import Draft
-                                                </button>
-                                                <a href={ebayResult.itemWebUrl} target="_blank" rel="noreferrer" className="flex-1 py-3 px-4 bg-[#06b6d4]/10 hover:bg-[#06b6d4]/20 text-[#06b6d4] rounded-xl text-[10px] font-black tracking-widest uppercase transition-all border border-[#06b6d4]/20 flex items-center justify-center gap-2">
-                                                    View eBay <ExternalLink size={12} />
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </motion.div>
-                        )}
+                                                <div className="glass-panel p-6 border-l-4 border-l-[#06b6d4]">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <Sparkles size={16} className="text-[#10b981]" />
+                                                            <span className="text-[10px] font-black uppercase text-[#10b981] tracking-widest">AI Optimized Title</span>
+                                                        </div>
+                                                        <span className={`text-[10px] font-mono font-bold ${(intelligenceResult.improvedTitle?.length || 0) > 80 ? 'text-red-400' : (intelligenceResult.improvedTitle?.length || 0) >= 75 ? 'text-[#10b981]' : 'text-yellow-400'}`}>
+                                                            {(typeof intelligenceResult.improvedTitle === 'string' ? intelligenceResult.improvedTitle : '').length}/80
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-sm text-white font-medium leading-relaxed mb-4">{typeof intelligenceResult.improvedTitle === 'object' ? JSON.stringify(intelligenceResult.improvedTitle) : (intelligenceResult.improvedTitle || '')}</div>
+                                                    <a href={intelligenceResult.itemWebUrl} target="_blank" rel="noreferrer" className="w-full py-3 px-4 bg-[#06b6d4]/10 hover:bg-[#06b6d4]/20 text-[#06b6d4] rounded-xl text-[10px] font-black tracking-widest uppercase transition-all border border-[#06b6d4]/20 flex items-center justify-center gap-2">
+                                                        View on eBay <ExternalLink size={12} />
+                                                    </a>
+                                                    <AnimatedButton
+                                                        onClick={() => handleIntelligenceSearch(intelligenceResult.improvedTitle)}
+                                                        text="Run Deeper Market Research"
+                                                        icon={Search}
+                                                        className="w-full mt-3 bg-white/5 border border-white/5 hover:bg-white/10 text-white font-black text-[10px] tracking-widest uppercase"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
 
-                        {commandTab === 'research' && (
-                            <motion.div
-                                key="research"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="space-y-6"
-                            >
-                                <div className="glass-panel p-6">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <TrendingUp size={18} className="text-[#06b6d4]" />
-                                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Market Intelligence</h3>
-                                    </div>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            placeholder="Example: iPhone 13 Pro..."
-                                            className="w-full bg-[#1e2530] border border-white/5 rounded-xl py-3.5 px-5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#06b6d4]/50 transition-all shadow-inner"
-                                            value={ebaySearchQuery}
-                                            onChange={(e) => setEbaySearchQuery(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleEbayResearch()}
-                                        />
-                                        <AnimatedButton
-                                            disabled={isEbayAnalyzing || !ebaySearchQuery}
-                                            onClick={handleEbayResearch}
-                                            text="Research"
-                                            icon={TrendingUp}
-                                            style={{
-                                                position: 'absolute',
-                                                right: '6px',
-                                                top: '6px',
-                                                bottom: '6px'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {ebayResearchResult && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="space-y-6"
-                                    >
+                                        {/* Market Metrics Summary */}
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="glass-panel p-5 text-center group">
                                                 <div className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest group-hover:text-[#06b6d4] transition-colors">Sold Price</div>
-                                                <div className="text-2xl font-black text-white">${ebayResearchResult.medianSoldPrice}</div>
+                                                <div className="text-2xl font-black text-white">${typeof intelligenceResult.medianSoldPrice === 'object' ? JSON.stringify(intelligenceResult.medianSoldPrice) : String(intelligenceResult.medianSoldPrice || 0)}</div>
                                             </div>
                                             <div className="glass-panel p-5 text-center group">
                                                 <div className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest group-hover:text-[#10b981] transition-colors">Sell-Through</div>
-                                                <div className="text-2xl font-black text-[#10b981]">{ebayResearchResult.sellThroughRate}</div>
+                                                <div className="text-2xl font-black text-[#10b981]">{typeof intelligenceResult.sellThroughRate === 'object' ? JSON.stringify(intelligenceResult.sellThroughRate) : String(intelligenceResult.sellThroughRate || '0%')}</div>
                                             </div>
                                             <div className="glass-panel p-5 text-center group">
                                                 <div className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest group-hover:text-[#f59e0b] transition-colors">Active</div>
-                                                <div className="text-2xl font-black text-slate-300">{ebayResearchResult.activeCount}</div>
+                                                <div className="text-2xl font-black text-slate-300">{typeof intelligenceResult.activeCount === 'object' ? JSON.stringify(intelligenceResult.activeCount) : String(intelligenceResult.activeCount || intelligenceResult.activeItems?.length || 0)}</div>
                                             </div>
                                         </div>
 
-                                        <div className="glass-panel p-6">
-                                            <div className="flex items-center justify-between mb-8">
-                                                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pricing Strategy</h4>
-                                                <div className="px-3 py-1 bg-[#06b6d4]/10 rounded-full text-[10px] font-bold text-[#06b6d4] border border-[#06b6d4]/20 capitalize">
-                                                    Market Trend: Stable
+                                        {/* Pricing Strategies */}
+                                        {intelligenceResult.pricingRecommendations && (
+                                            <div className="glass-panel p-6">
+                                                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Pricing Strategy</h4>
+                                                <div className="flex gap-5 overflow-x-auto pb-5 no-scrollbar">
+                                                    {(['quickSale', 'competitive', 'premium'] as const).map((tier) => {
+                                                        const rec = (intelligenceResult.pricingRecommendations as any)[tier];
+                                                        if (!rec) return null;
+                                                        const colors: any = { quickSale: '#f59e0b', competitive: '#06b6d4', premium: '#10b981' };
+                                                        const labels: any = { quickSale: 'Quick Sale', competitive: 'Competitive', premium: 'Premium' };
+                                                        const icons: any = { quickSale: TrendingUp, competitive: CheckCircle2, premium: Sparkles };
+                                                        const Icon = icons[tier];
+
+                                                        return (
+                                                            <div key={tier} className="pricing-card-container flex-shrink-0">
+                                                                <div className="price-card" style={{ borderLeft: `4px solid ${colors[tier]}` }}>
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <Icon size={14} style={{ color: colors[tier] }} />
+                                                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{labels[tier]}</span>
+                                                                    </div>
+                                                                    <div className="text-2xl font-black text-white">${typeof rec.price === 'object' ? JSON.stringify(rec.price) : String(rec.price || 0)}</div>
+                                                                    <div className="mt-auto text-[10px] text-slate-500 font-bold uppercase">{tier === 'quickSale' ? '1-3 Days' : tier === 'competitive' ? '3-7 Days' : '7+ Days'}</div>
+                                                                </div>
+                                                                <div className="price-card-expansion">
+                                                                    <div className="price-card-details space-y-2">
+                                                                        <div className="text-[11px] text-slate-400 leading-normal">{typeof rec.description === 'object' ? JSON.stringify(rec.description) : String(rec.description || '')}</div>
+                                                                    </div>
+                                                                    <div className="price-card-footer" style={{ background: colors[tier], color: tier === 'quickSale' ? '#000' : '#fff' }}>
+                                                                        {tier === 'quickSale' ? 'FAST' : tier === 'competitive' ? 'RECOMMENDED' : 'MAX PROFIT'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
+                                        )}
 
-                                            <div className="flex gap-5 overflow-x-auto pb-5 no-scrollbar">
-                                                {/* Quick Sale */}
-                                                <div className="pricing-card-container flex-shrink-0">
-                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--warning)' }}>
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <TrendingUp size={14} className="text-[#f59e0b]" />
-                                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Quick Sale</span>
-                                                        </div>
-                                                        <div className="text-2xl font-black text-white">${ebayResearchResult.pricingRecommendations?.quickSale?.price}</div>
-                                                        <div className="mt-auto text-[10px] text-slate-500 font-bold uppercase">1-3 Days</div>
-                                                    </div>
-                                                    <div className="price-card-expansion">
-                                                        <div className="price-card-details space-y-2">
-                                                            <div className="text-[11px] text-slate-400 leading-normal">{ebayResearchResult.pricingRecommendations?.quickSale?.description}</div>
-                                                            <div className="text-[10px] font-black text-white uppercase italic">Target: Liquidity</div>
-                                                        </div>
-                                                        <div className="price-card-footer" style={{ background: 'var(--warning)', color: '#000' }}>
-                                                            FAST TURNAROUND
-                                                        </div>
+                                        {/* Comps List */}
+                                        <div className="space-y-6">
+                                            {intelligenceResult.activeItems && intelligenceResult.activeItems.length > 0 && (
+                                                <div className="glass-panel p-6">
+                                                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Similar Active Listings</h4>
+                                                    <div className="space-y-3">
+                                                        {intelligenceResult.activeItems.map((comp: any, idx: number) => (
+                                                            <div key={idx} className="bg-slate-900/50 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors">
+                                                                <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
+                                                                    {comp.image?.imageUrl ? <img src={comp.image.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                                                    <a href={comp.itemWebUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-300 hover:text-white hover:underline line-clamp-2 leading-snug">{comp.title}</a>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="text-sm font-black text-white">${typeof comp.price?.value === 'object' ? JSON.stringify(comp.price.value) : Number(comp.price?.value || 0).toFixed(2)}</span>
+                                                                        <span className="text-[9px] text-slate-500 font-mono uppercase text-right">Active</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
+                                            )}
 
-                                                {/* Competitive */}
-                                                <div className="pricing-card-container flex-shrink-0">
-                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <CheckCircle2 size={14} className="text-[#06b6d4]" />
-                                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Competitive</span>
-                                                        </div>
-                                                        <div className="text-2xl font-black text-white">${ebayResearchResult.pricingRecommendations?.competitive?.price}</div>
-                                                        <div className="mt-auto text-[10px] text-slate-500 font-bold uppercase">3-7 Days</div>
-                                                    </div>
-                                                    <div className="price-card-expansion">
-                                                        <div className="price-card-details space-y-2">
-                                                            <div className="text-[11px] text-slate-400 leading-normal">{ebayResearchResult.pricingRecommendations?.competitive?.description}</div>
-                                                            <div className="text-[10px] font-black text-white uppercase italic">Target: Market Average</div>
-                                                        </div>
-                                                        <div className="price-card-footer" style={{ background: 'var(--accent-primary)' }}>
-                                                            RECOMMENDED
-                                                        </div>
-                                                    </div>
+                                            <div className="glass-panel p-6">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Recent Sold Listings</h4>
+                                                    {intelligenceResult.soldItems && intelligenceResult.soldItems.length > 0 && (
+                                                        <span className="text-[10px] font-mono text-slate-500">{intelligenceResult.soldCount || intelligenceResult.soldItems.length} Sold Total</span>
+                                                    )}
                                                 </div>
-
-                                                {/* Premium */}
-                                                <div className="pricing-card-container flex-shrink-0">
-                                                    <div className="price-card" style={{ borderLeft: '4px solid var(--success)' }}>
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <Sparkles size={14} className="text-[#10b981]" />
-                                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Premium</span>
-                                                        </div>
-                                                        <div className="text-2xl font-black text-white">${ebayResearchResult.pricingRecommendations?.premium?.price}</div>
-                                                        <div className="mt-auto text-[10px] text-slate-500 font-bold uppercase">7+ Days</div>
+                                                {intelligenceResult.soldItems && intelligenceResult.soldItems.length > 0 ? (
+                                                    <div className="space-y-3">
+                                                        {intelligenceResult.soldItems.map((comp: any, idx: number) => (
+                                                            <div key={idx} className="bg-slate-900/50 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors">
+                                                                <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
+                                                                    {comp.image?.imageUrl ? <img src={comp.image.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                                                    <a href={comp.itemWebUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-300 hover:text-white hover:underline line-clamp-2 leading-snug">{comp.title}</a>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="text-sm font-black text-[#10b981]">${typeof comp.price?.value === 'object' ? JSON.stringify(comp.price.value) : Number(comp.price?.value || 0).toFixed(2)}</span>
+                                                                        <span className="text-[8px] text-slate-500 font-mono uppercase text-right">Sold {comp.endTime ? new Date(comp.endTime).toLocaleDateString() : ''}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                    <div className="price-card-expansion">
-                                                        <div className="price-card-details space-y-2">
-                                                            <div className="text-[11px] text-slate-400 leading-normal">{ebayResearchResult.pricingRecommendations?.premium?.description}</div>
-                                                            <div className="text-[10px] font-black text-white uppercase italic">Target: Max Margin</div>
-                                                        </div>
-                                                        <div className="price-card-footer" style={{ background: 'var(--success)' }}>
-                                                            MAX PROFIT
-                                                        </div>
+                                                ) : (
+                                                    <div className="p-4 bg-slate-900/30 border border-dashed border-slate-800 rounded-xl text-center">
+                                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">No Recent Sales Found</p>
                                                     </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="mt-4 p-4 bg-white/5 border border-white/5 rounded-xl flex gap-3 items-center">
-                                                <div className="w-8 h-8 rounded-lg bg-[#06b6d4]/10 flex items-center justify-center text-[#06b6d4]">
-                                                    <Zap size={16} />
-                                                </div>
-                                                <div className="text-[11px] text-slate-400 leading-relaxed">
-                                                    <strong className="text-white">Pro Tip:</strong> FREE SHIPPING often increases buyer confidence.
-                                                    Estimated shipping cost for this item: <span className="text-[#10b981] font-black">${ebayResearchResult.pricingRecommendations?.shippingEstimate || '10.00'}</span>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     </motion.div>
@@ -1969,12 +1946,12 @@ function App() {
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <h4 className="text-[11px] font-bold text-white line-clamp-1">{item.title}</h4>
+                                                            <h4 className="text-[11px] font-bold text-white line-clamp-1">{typeof item.title === 'object' ? JSON.stringify(item.title) : String(item.title || '')}</h4>
                                                             <div className="flex items-center gap-3 mt-1">
-                                                                <span className="text-[11px] font-black text-[#06b6d4]">${item.price?.value}</span>
+                                                                <span className="text-[11px] font-black text-[#06b6d4]">${typeof item.price?.value === 'object' ? JSON.stringify(item.price.value) : String(item.price?.value || 0)}</span>
                                                                 {item.score && (
                                                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.score > 80 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>
-                                                                        {item.score}% Score
+                                                                        {String(item.score || 0)}% Score
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -2001,14 +1978,14 @@ function App() {
                                                                 <div className="space-y-2">
                                                                     <div className="text-[9px] font-black uppercase text-[#10b981] tracking-widest">Optimized Title</div>
                                                                     <div className="text-xs text-white bg-[#141921] p-3 rounded-lg border border-white/5 leading-relaxed">
-                                                                        {bulkProcessResults[item.itemId].improvedTitle}
+                                                                        {typeof bulkProcessResults[item.itemId].improvedTitle === 'object' ? JSON.stringify(bulkProcessResults[item.itemId].improvedTitle) : String(bulkProcessResults[item.itemId].improvedTitle || '')}
                                                                     </div>
                                                                 </div>
 
                                                                 <div className="grid grid-cols-2 gap-3">
                                                                     <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
                                                                         <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Target Price</div>
-                                                                        <div className="text-sm font-black text-white">${bulkProcessResults[item.itemId].pricingRecommendations?.competitive?.price}</div>
+                                                                        <div className="text-sm font-black text-white">{typeof bulkProcessResults[item.itemId].market?.median === 'object' ? JSON.stringify(bulkProcessResults[item.itemId].market.median) : String(bulkProcessResults[item.itemId].market?.median || '...')}</div>
                                                                     </div>
                                                                     <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
                                                                         <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Action</div>
@@ -2116,9 +2093,9 @@ function App() {
             <div className="flex-1 min-w-0 flex flex-col justify-between" onClick={() => openEditModal(item)}>
                 <div>
                     <div className="flex justify-between items-start">
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.title}</h4>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{typeof item.title === 'object' ? JSON.stringify(item.title) : String(item.title || '')}</h4>
                         <span className={`font-mono font-bold text-xs ${item.calculation.netProfit > 0 ? 'text-emerald-600 dark:text-neon-green' : 'text-red-500'}`}>
-                            {item.status === 'SOLD' ? 'SOLD' : `$${item.calculation.soldPrice.toFixed(0)}`}
+                            {item.status === 'SOLD' ? 'SOLD' : `$${typeof item.calculation.soldPrice === 'object' ? JSON.stringify(item.calculation.soldPrice) : Number(item.calculation.soldPrice || 0).toFixed(0)}`}
                         </span>
                     </div>
                     <div className="flex gap-2 text-[10px] text-slate-500 mt-1">
@@ -3358,24 +3335,7 @@ function App() {
                 {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />) : view === 'command' ? (renderCommandView()) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderScoutView() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
             </main>
 
-            {status !== ScoutStatus.SCANNING && (<nav className="h-auto min-h-[4rem] bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 flex items-start pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] justify-around shrink-0 shadow-lg z-50">
-                <button onClick={() => { setView('command'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'command' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                    <LayoutDashboard size={24} />
-                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Command</span>
-                </button>
-                <button onClick={() => { setView('scout'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'scout' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                    <Search size={24} />
-                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Scout</span>
-                </button>
-                <button onClick={() => { setView('stats'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'stats' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                    <BarChart3 size={24} />
-                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Insights</span>
-                </button>
-                <button onClick={() => { setView('inventory'); setStatus(ScoutStatus.IDLE); }} className={`flex flex-col items-center gap-1 p-2 transition-all ${view === 'inventory' ? 'text-emerald-600 dark:text-neon-green scale-110' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                    <Package size={24} />
-                    <span className="text-[8px] font-black tracking-widest uppercase mt-1">Inventory</span>
-                </button>
-            </nav>)}
+            {status !== ScoutStatus.SCANNING && renderBottomNav()}
             {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
 
             {/* Loading Overlay */}

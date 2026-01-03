@@ -115,8 +115,12 @@ export const fetchMarketData = async (query: string, condition?: string) => {
     const categoryId = extractCategoryId(activeItems);
     const categoryName = activeItems[0]?.categories?.[0]?.categoryName || 'Unknown';
 
-    const searchSold = async (q: string, catId: string | null) => {
-      const soldUrl = `${FUNCTIONS_URL}/ebay-sold/${encodeURIComponent(q)}?${condition ? `condition=${encodeURIComponent(condition)}` : ''}${catId ? `&categoryId=${catId}` : ''}`;
+    const searchSold = async (q: string, catId: string | null, forceAnyCondition: boolean = false) => {
+      const activeCondition = forceAnyCondition ? null : condition;
+      let soldUrl = `${FUNCTIONS_URL}/ebay-sold/${encodeURIComponent(q)}?${activeCondition ? `condition=${encodeURIComponent(activeCondition)}` : ''}`;
+      if (catId && catId !== 'null') {
+        soldUrl += `&categoryId=${catId}`;
+      }
       const res = await fetch(soldUrl);
       if (res.status === 429) return { error: 'RATE_LIMIT' };
       if (res.status === 500) return { error: 'API_BLOCKED' };
@@ -133,21 +137,44 @@ export const fetchMarketData = async (query: string, condition?: string) => {
     } else {
       actualSoldItems = (soldItemsRaw || []).filter((item: any) => {
         const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
-        return sellingState === 'EndedWithSales';
+        // ALLOW: EndedWithSales (traditional) OR Sold (multi-quantity record)
+        return sellingState === 'EndedWithSales' || sellingState === 'Sold';
       });
-      if (actualSoldItems.length === 0) isSoldBlocked = true;
+      if (actualSoldItems.length === 0 && !soldItemsRaw?.error) isSoldBlocked = false;
     }
 
     // Fallback for empty sold results
-    if (!isSoldBlocked && actualSoldItems.length === 0) {
+    if (actualSoldItems.length === 0 && !isSoldBlocked) {
       const cleaned = cleanQuery(query);
       if (cleaned && cleaned !== query.toLowerCase()) {
         const fallbackSold = await searchSold(cleaned, categoryId);
         if (fallbackSold?.error === 'RATE_LIMIT') throw new Error("RATE_LIMIT");
-        actualSoldItems = (fallbackSold || []).filter((item: any) => {
+        let fallbackItems = (fallbackSold || []).filter((item: any) => {
           const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
-          return sellingState === 'EndedWithSales';
+          return sellingState === 'EndedWithSales' || sellingState === 'Sold';
         });
+
+        // Try without categoryId
+        if (fallbackItems.length === 0 && categoryId) {
+          const noCatSold = await searchSold(cleaned, null);
+          fallbackItems = (noCatSold || []).filter((item: any) => {
+            const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
+            return sellingState === 'EndedWithSales' || sellingState === 'Sold';
+          });
+        }
+
+        // Try without condition
+        if (fallbackItems.length === 0 && condition) {
+          const noCondRes = await searchSold(cleaned, null, true);
+          fallbackItems = (noCondRes || []).filter((item: any) => {
+            const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
+            return sellingState === 'EndedWithSales' || sellingState === 'Sold';
+          });
+        }
+
+        if (fallbackItems.length > 0) {
+          actualSoldItems = fallbackItems;
+        }
       }
     }
 
@@ -185,15 +212,20 @@ export const fetchMarketData = async (query: string, condition?: string) => {
       activeCount,
       soldCount: actualSoldCount,
       sellThroughRate: (isSoldBlocked || actualSoldItems.length === 0) ? 'N/A' : `${sellThroughRate.toFixed(1)}%`,
-      items: activeItems.slice(0, 5),
-      categoryName,
-      isSoldBlocked,
+      isSoldBlocked: isSoldBlocked || actualSoldItems.length === 0,
+      activeItems: activeItems.slice(0, 5).map((item: any) => ({
+        title: item.title,
+        price: item.price,
+        image: item.image,
+        itemWebUrl: item.itemWebUrl || item.itemHref
+      })),
       pricingRecommendations: soldPrices.length > 0 ? calculatePricingRecommendations(soldPrices, medianSoldPrice) : calculatePricingRecommendations(activePrices, medianActive),
       soldItems: actualSoldItems.slice(0, 5).map((item: any) => ({
         title: item.title[0],
         price: { value: item.sellingStatus[0].currentPrice[0].__value__, currency: item.sellingStatus[0].currentPrice[0]['@currencyId'] },
         image: { imageUrl: item.galleryURL?.[0] || '' },
-        itemWebUrl: item.viewItemURL[0]
+        itemWebUrl: item.viewItemURL[0],
+        endTime: item.listingInfo?.[0]?.endTime || item.endTime?.[0] || ''
       }))
     };
 

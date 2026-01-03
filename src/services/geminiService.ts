@@ -206,13 +206,14 @@ export const analyzeListingWithGemini = async (listingData: ListingData): Promis
     6. "issues": Array of objects { "type": "warning" | "info" | "success" | "error", "text": string } explaining specific improvements.
     7. "improvedTitle": A high-converting, SEO-optimized title. 
        CRITICAL RULES:
+       - MUST be EXACTLY 80 characters or less (including spaces)
        - MUST be a COMPLETE title with NO cut-off words (e.g., "Boo" instead of "Book" is WRONG)
-       - MUST be under 80 characters total (including spaces)
-       - Try to use 70-79 characters to maximize SEO while ensuring completeness
+       - ALWAYS aim for 75-80 characters to maximize SEO impact
        - Include: Brand, Model, Key Features, Condition, Size/Color if applicable
        - Pack in high-value keywords but ONLY complete words
-       - If a word won't fit, use a shorter alternative or omit it entirely
-       Example: "Warhammer 40k Codex Adeptus Astartes Blood Angels 7th Edition Hardcover"
+       - If a word won't fit completely, use a shorter synonym or omit it
+       - Count characters carefully - getting close to 80 is better than being short
+       Example (77 chars): "Warhammer 40k Codex Adeptus Astartes Blood Angels 7th Edition Hardcover"
 
     Return ONLY the raw JSON object.
     `;

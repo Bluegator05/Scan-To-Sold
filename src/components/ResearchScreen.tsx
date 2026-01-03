@@ -75,7 +75,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
 
                 <div className="flex-1 mx-4 text-center">
                     <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-0.5">RESEARCH DASHBOARD</div>
-                    <h2 className="text-sm font-bold text-white truncate max-w-[200px] mx-auto leading-tight">{itemTitle}</h2>
+                    <h2 className="text-sm font-bold text-white truncate max-w-[200px] mx-auto leading-tight">{typeof itemTitle === 'object' ? JSON.stringify(itemTitle) : String(itemTitle || '')}</h2>
                 </div>
 
                 <button
@@ -93,14 +93,14 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                     <div className="flex justify-between items-start">
                         <div>
                             <span className="inline-block text-blue-400 text-xs font-bold mb-1 uppercase tracking-wider">
-                                {itemSpecifics?.['Brand'] || itemSpecifics?.['Category'] || "Identified Item"}
+                                {typeof itemSpecifics?.['Brand'] === 'object' ? JSON.stringify(itemSpecifics['Brand']) : String(itemSpecifics?.['Brand'] || itemSpecifics?.['Category'] || "Identified Item")}
                             </span>
-                            <h2 className="text-xl font-bold text-white leading-tight mt-1">{itemTitle}</h2>
+                            <h2 className="text-xl font-bold text-white leading-tight mt-1">{typeof itemTitle === 'object' ? JSON.stringify(itemTitle) : String(itemTitle || '')}</h2>
                         </div>
                         <div className="text-right pl-4 shrink-0">
                             <p className="text-[10px] text-slate-500 uppercase font-mono">Est. Value</p>
                             <p className="text-2xl font-black text-neon-green">
-                                ${estimatedSoldPrice.toFixed(0)}
+                                ${typeof estimatedSoldPrice === 'object' ? JSON.stringify(estimatedSoldPrice) : Number(estimatedSoldPrice || 0).toFixed(0)}
                             </p>
                         </div>
                     </div>
@@ -196,7 +196,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                     <div>
                         <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1 block">Optimized Title</label>
                         <div className="text-sm font-medium text-white bg-slate-950 p-3 rounded-lg border border-slate-800 select-all">
-                            {optimizedTitle || itemTitle}
+                            {typeof optimizedTitle === 'object' ? JSON.stringify(optimizedTitle) : String(optimizedTitle || itemTitle || '')}
                         </div>
                     </div>
 
@@ -205,11 +205,11 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                         <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 block">Detected Specifics</label>
                         <div className="flex flex-wrap gap-2">
                             <span className="px-3 py-1 rounded-full bg-slate-800 text-white text-xs font-semibold border border-slate-700">
-                                {condition}
+                                {typeof condition === 'object' ? JSON.stringify(condition) : String(condition || '')}
                             </span>
                             {Object.entries(itemSpecifics || {}).slice(0, 6).map(([key, val], i) => (
                                 <span key={i} className="px-3 py-1 bg-slate-800 text-blue-400 text-xs rounded-full font-medium border border-slate-700">
-                                    <span className="opacity-50 mr-1">{key}:</span>{val}
+                                    <span className="opacity-50 mr-1">{String(key)}:</span>{typeof val === 'object' ? JSON.stringify(val) : String(val || '')}
                                 </span>
                             ))}
                         </div>
@@ -219,7 +219,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                     <div>
                         <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1 block">Description Preview</label>
                         <div className="text-xs text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800 max-h-32 overflow-y-auto leading-relaxed">
-                            {description}
+                            {typeof description === 'object' ? JSON.stringify(description) : String(description || '')}
                         </div>
                     </div>
                 </div>
@@ -262,13 +262,13 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                             {/* Content */}
                             <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                                 <h4 className="text-xs font-medium text-slate-300 line-clamp-2 leading-snug group-hover:text-white transition-colors">
-                                    {comp.title}
+                                    {typeof comp.title === 'object' ? JSON.stringify(comp.title) : String(comp.title || '')}
                                 </h4>
 
                                 <div className="flex items-end justify-between mt-1">
                                     <div>
                                         <div className={`text-sm font-black ${activeTab === 'SOLD' ? (marketData?.isEstimated ? 'text-yellow-400' : 'text-neon-green') : 'text-white'}`}>
-                                            ${comp.price.toFixed(2)}
+                                            ${typeof comp.price === 'object' ? JSON.stringify(comp.price) : Number(comp.price || 0).toFixed(2)}
                                         </div>
                                     </div>
 

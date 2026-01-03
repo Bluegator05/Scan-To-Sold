@@ -99,52 +99,7 @@ body {
     transform: translateY(-2px);
 }
 
-/* Premium Animated Buttons */
-.btn-wrapper {
-    position: relative;
-    display: inline-block;
-}
 
-.btn {
-    --border-radius: 24px;
-    --padding: 4px;
-    --transition: 0.4s;
-    --button-color: var(--ebay-accent);
-    --highlight-color-hue: 210deg;
-
-    user-select: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.6em 1.4em;
-    font-family: inherit;
-    font-size: 1em;
-    font-weight: 500;
-    color: white;
-    background-color: var(--button-color);
-    border: solid 1px #fff2;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: box-shadow var(--transition), border var(--transition), background-color var(--transition);
-}
-
-.btn-letter {
-    position: relative;
-    display: inline-block;
-    color: #fff;
-    transition: color var(--transition), text-shadow var(--transition), opacity var(--transition);
-}
-
-.btn:hover .btn-letter {
-    animation: letter-anim 2s ease-in-out infinite;
-}
-
-@keyframes letter-anim {
-    50% {
-        text-shadow: 0 0 3px #fff8;
-        color: #fff;
-    }
-}
 
 /* Pricing Cards */
 .pricing-card-container {
