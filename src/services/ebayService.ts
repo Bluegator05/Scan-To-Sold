@@ -4,7 +4,8 @@ import { Browser } from '@capacitor/browser';
 
 // --- CONFIGURATION ---
 export const API_BASE_URL = "https://www.scantosold.com";
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL;
+const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL || "https://urnvmiktzkwdlmfeznjj.supabase.co/functions/v1";
+const SERPAPI_KEY_FALLBACK = "e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57";
 // ---------------------
 
 const EBAY_TOKEN_KEY = 'sts_ebay_connected';
@@ -142,6 +143,46 @@ export const fetchMarketData = async (query: string, condition?: string) => {
       });
       if (actualSoldItems.length === 0 && !soldItemsRaw?.error) isSoldBlocked = false;
     }
+
+    // --- FRONTEND FALLBACK TO SERPAPI (If Supabase returns empty) ---
+    if (actualSoldItems.length === 0) {
+      console.log("No sold data from Supabase, trying direct SerpApi fallback...");
+      try {
+        const serpParams = new URLSearchParams({
+          engine: 'ebay',
+          _nkw: query,
+          LH_Sold: '1',
+          LH_Complete: '1',
+          api_key: SERPAPI_KEY_FALLBACK,
+          num: '5'
+        });
+        const serpRes = await fetch(`https://serpapi.com/search?${serpParams}`);
+        const serpData = await serpRes.json();
+        const organicResults = serpData.organic_results || [];
+
+        if (organicResults.length > 0) {
+          actualSoldItems = organicResults.map((item: any) => ({
+            title: [item.title],
+            sellingStatus: [{
+              currentPrice: [{
+                '__value__': item.price?.extracted?.toString() || "0",
+                '@currencyId': 'USD'
+              }],
+              sellingState: ['EndedWithSales']
+            }],
+            listingInfo: [{
+              endTime: [item.extensions?.find((ext: string) => ext.toLowerCase().includes('sold'))?.replace(/Sold /i, '') || '']
+            }],
+            viewItemURL: [item.link],
+            galleryURL: [item.thumbnail]
+          }));
+          isSoldBlocked = false;
+        }
+      } catch (serpErr) {
+        console.error("Direct SerpApi fallback failed:", serpErr);
+      }
+    }
+    // -------------------------------------------------------------
 
     // Fallback for empty sold results
     if (actualSoldItems.length === 0 && !isSoldBlocked) {
