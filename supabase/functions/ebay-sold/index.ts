@@ -97,26 +97,35 @@ serve(async (req) => {
                 const items = rootResponse.searchResult?.[0]?.item || [];
                 const count = rootResponse.searchResult?.[0]?.['@count'] || '0';
 
+                console.log(`[FindingAPI] Successfully found ${items.length} items (Count: ${count})`);
+
                 // ONLY return if we actually found items. Otherwise, let it fall back to SerpApi.
                 if (items.length > 0 && count !== '0') {
                     setCachedData(cacheKey, items);
                     return new Response(JSON.stringify(items), {
                         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                     });
+                } else {
+                    console.log('[FindingAPI] No items found, falling back to SerpApi...');
                 }
+            } else {
+                console.error('[FindingAPI] API returned failure:', rootResponse?.errorMessage?.[0]?.error?.[0]?.message?.[0]);
             }
         } catch (findingErr) {
-            console.error('Finding API failed:', findingErr);
+            console.error('[FindingAPI] Exception:', findingErr.message);
         }
 
         // Fallback to SerpApi
-        if (SERPAPI_KEY && SERPAPI_KEY !== 'YOUR_FREE_KEY_HERE') {
+        const ACTUAL_SERPAPI_KEY = SERPAPI_KEY || 'e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57';
+
+        if (ACTUAL_SERPAPI_KEY && ACTUAL_SERPAPI_KEY !== 'YOUR_FREE_KEY_HERE') {
+            console.log('[SerpApi] Attempting fallback for query:', query);
             const serpParams = new URLSearchParams({
                 engine: 'ebay',
                 _nkw: query,
                 LH_Sold: '1',
                 LH_Complete: '1',
-                api_key: SERPAPI_KEY,
+                api_key: ACTUAL_SERPAPI_KEY,
                 num: '100'
             });
 
@@ -129,7 +138,13 @@ serve(async (req) => {
 
             const serpResponse = await fetch(`https://serpapi.com/search?${serpParams}`);
             const serpData = await serpResponse.json();
+
+            if (serpData.search_metadata?.status !== 'Success') {
+                console.error('[SerpApi] Error:', serpData.search_metadata?.error || 'Unknown error');
+            }
+
             const organicResults = serpData.organic_results || [];
+            console.log(`[SerpApi] Found ${organicResults.length} organic results`);
 
             // Normalize to Finding API format
             const items = organicResults.map((item: any) => {

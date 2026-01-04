@@ -48,10 +48,13 @@ serve(async (req) => {
         );
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[BrowseAPI] Error Response:', errorText);
             throw new Error(`eBay API error: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log(`[BrowseAPI] Successfully found ${data.itemSummaries?.length || 0} active items (Total: ${data.total || 0})`);
         setCachedData(cacheKey, data);
 
         return new Response(JSON.stringify(data), {
