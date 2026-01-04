@@ -146,7 +146,7 @@ export const fetchMarketData = async (query: string, condition?: string) => {
 
     // --- FRONTEND FALLBACK TO SERPAPI (If Supabase returns empty) ---
     if (actualSoldItems.length === 0) {
-      console.log("No sold data from Supabase, trying direct SerpApi fallback...");
+      console.log("No sold data from Supabase, trying direct SerpApi fallback via CORS proxy...");
       try {
         const serpParams = new URLSearchParams({
           engine: 'ebay',
@@ -156,16 +156,21 @@ export const fetchMarketData = async (query: string, condition?: string) => {
           api_key: SERPAPI_KEY_FALLBACK,
           num: '5'
         });
-        const serpRes = await fetch(`https://serpapi.com/search?${serpParams}`);
-        const serpData = await serpRes.json();
+        const targetUrl = `https://serpapi.com/search?${serpParams}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
+        const serpRes = await fetch(proxyUrl);
+        const proxyData = await serpRes.json();
+        const serpData = typeof proxyData.contents === 'string' ? JSON.parse(proxyData.contents) : proxyData;
         const organicResults = serpData.organic_results || [];
 
         if (organicResults.length > 0) {
+          console.log(`SerpApi fallback found ${organicResults.length} items.`);
           actualSoldItems = organicResults.map((item: any) => ({
             title: [item.title],
             sellingStatus: [{
               currentPrice: [{
-                '__value__': item.price?.extracted?.toString() || "0",
+                '__value__': item.price?.extracted?.toString() || (item.price?.raw?.replace(/[^0-9.]/g, '') || "0"),
                 '@currencyId': 'USD'
               }],
               sellingState: ['EndedWithSales']
@@ -177,6 +182,8 @@ export const fetchMarketData = async (query: string, condition?: string) => {
             galleryURL: [item.thumbnail]
           }));
           isSoldBlocked = false;
+        } else {
+          console.log("SerpApi also returned no results.");
         }
       } catch (serpErr) {
         console.error("Direct SerpApi fallback failed:", serpErr);
