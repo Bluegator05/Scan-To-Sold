@@ -151,10 +151,9 @@ export const fetchMarketData = async (query: string, condition?: string) => {
         const serpParams = new URLSearchParams({
           engine: 'ebay',
           _nkw: query,
-          LH_Sold: '1',
-          LH_Complete: '1',
+          show_only: 'Sold',
           api_key: SERPAPI_KEY_FALLBACK,
-          num: '5'
+          num: '10'
         });
         const targetUrl = `https://serpapi.com/search?${serpParams}`;
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -165,7 +164,7 @@ export const fetchMarketData = async (query: string, condition?: string) => {
         const organicResults = serpData.organic_results || [];
 
         if (organicResults.length > 0) {
-          console.log(`SerpApi fallback found ${organicResults.length} items.`);
+          console.log(`SerpApi fallback found ${organicResults.length} SOLD items.`);
           actualSoldItems = organicResults.map((item: any) => ({
             title: [item.title],
             sellingStatus: [{
@@ -176,7 +175,7 @@ export const fetchMarketData = async (query: string, condition?: string) => {
               sellingState: ['EndedWithSales']
             }],
             listingInfo: [{
-              endTime: [item.extensions?.find((ext: string) => ext.toLowerCase().includes('sold'))?.replace(/Sold /i, '') || '']
+              endTime: [item.sold_date || item.extensions?.find((ext: string) => ext.toLowerCase().includes('sold'))?.replace(/Sold /i, '') || '']
             }],
             viewItemURL: [item.link],
             galleryURL: [item.thumbnail]

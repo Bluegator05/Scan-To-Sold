@@ -1,0 +1,1888 @@
+{
+  "search_metadata": {
+    "id": "695a6f2518dc93a9487ab79c",
+    "status": "Success",
+    "json_endpoint": "https://serpapi.com/searches/9862d42ba1aafb4e/695a6f2518dc93a9487ab79c.json",
+    "created_at": "2026-01-04 13:46:13 UTC",
+    "processed_at": "2026-01-04 13:46:13 UTC",
+    "ebay_url": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster",
+    "raw_html_file": "https://serpapi.com/searches/9862d42ba1aafb4e/695a6f2518dc93a9487ab79c.html",
+    "total_time_taken": 1.59
+  },
+  "search_parameters": {
+    "engine": "ebay",
+    "_nkw": "vintage toaster"
+  },
+  "search_information": {
+    "organic_results_state": "Results for exact spelling",
+    "total_results": 4300,
+    "query_displayed": "vintage toaster"
+  },
+  "categories": [
+    {
+      "name": "All"
+    },
+    {
+      "id": 1,
+      "name": "Collectibles"
+    },
+    {
+      "id": 13905,
+      "name": "Kitchen & Home"
+    },
+    {
+      "id": 261757,
+      "name": "Small Appliances"
+    },
+    {
+      "id": 11654,
+      "name": "Toasters"
+    },
+    {
+      "id": 261708,
+      "name": "Other Small Kitchen Appliances"
+    },
+    {
+      "id": 11655,
+      "name": "Waffle Makers"
+    },
+    {
+      "id": 261703,
+      "name": "Flat Irons"
+    },
+    {
+      "id": 4037,
+      "name": "Electric Fans"
+    },
+    {
+      "id": 261705,
+      "name": "Grills & Griddles"
+    },
+    {
+      "id": 29809,
+      "name": "Juicers"
+    },
+    {
+      "id": 163015,
+      "name": "Meat Grinders"
+    },
+    {
+      "id": 11652,
+      "name": "Coffee Makers"
+    },
+    {
+      "id": 11700,
+      "name": "Home & Garden"
+    },
+    {
+      "id": 11450,
+      "name": "Clothing, Shoes & Accessories"
+    },
+    {
+      "id": 220,
+      "name": "Toys & Hobbies"
+    },
+    {
+      "id": 237,
+      "name": "Dolls & Bears"
+    },
+    {
+      "id": 20081,
+      "name": "Antiques"
+    },
+    {
+      "id": 888,
+      "name": "Sporting Goods"
+    },
+    {
+      "id": 14339,
+      "name": "Crafts"
+    },
+    {
+      "id": 619,
+      "name": "Musical Instruments & Gear"
+    },
+    {
+      "id": 267,
+      "name": "Books & Magazines"
+    },
+    {
+      "id": 870,
+      "name": "Pottery & Glass"
+    },
+    {
+      "id": 11232,
+      "name": "Movies & TV"
+    },
+    {
+      "id": 281,
+      "name": "Jewelry & Watches"
+    },
+    {
+      "id": 6000,
+      "name": "eBay Motors"
+    },
+    {
+      "id": 58058,
+      "name": "Computers/Tablets & Networking"
+    },
+    {
+      "id": 45100,
+      "name": "Entertainment Memorabilia"
+    },
+    {
+      "id": 550,
+      "name": "Art"
+    },
+    {
+      "id": 64482,
+      "name": "Sports Mem, Cards & Fan Shop"
+    },
+    {
+      "id": 12576,
+      "name": "Business & Industrial"
+    },
+    {
+      "id": 1249,
+      "name": "Video Games & Consoles"
+    },
+    {
+      "id": 99,
+      "name": "Everything Else"
+    },
+    {
+      "id": 11233,
+      "name": "Music"
+    },
+    {
+      "id": 293,
+      "name": "Consumer Electronics"
+    },
+    {
+      "id": 3252,
+      "name": "Travel"
+    }
+  ],
+  "organic_results": [
+    {
+      "title": "Vintage Mid Century West Bend C3232 Two Slice Chrome Toaster",
+      "link": "https://www.ebay.com/itm/187865496548?_skw=vintage+toaster&itmmeta=01KE4M4BW5B7VN6AT7PKN241X7&hash=item2bbda7fbe4:g:EEwAAOSw2TxoLwb8&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1fiAZwY5Lz5wwIhRkWIhPEed01qvrdJmXa60Ezh8%2BlPySYtQWOeYrQsTvHL6y80CKmY5%2FAlarWozoURelnss7IkEesi5LV4HRyFzCpWPqFIvKFBVxS26LGOHHSsH8%2B5r3%2FtHq3xgCwanRsxPcTXq4AryrUGzb5OFHGkMaxb%2FfWKQknF27NKvA49Pj5UvlKNBzNVIywyFPPwu3EeDUpjchSLsss4bNMTiWWwBJjAB%2B%2BhN2QqS1m3qaU86y0s%2BK7kWGk%3D%7Ctkp%3ABlBMUKa-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=187865496548",
+      "product_id": "187865496548",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$39.99",
+        "extracted": 39.99
+      },
+      "shipping": {
+        "raw": "+$10.83 delivery",
+        "extracted": 10.83
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/EEwAAOSw2TxoLwb8/s-l500.jpg",
+      "seller": {
+        "username": "robot-hands",
+        "reviews": 19300,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage 1920s Toaster - Superstar Aristrocrat No. 450, NOS with original box",
+      "link": "https://www.ebay.com/itm/358071388372?_skw=vintage+toaster&itmmeta=01KE4M4BW5WP0JNTR21S9V1KPA&hash=item535eb7c8d4:g:bXgAAeSw3B5pVZ41&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1c3YhijpQ4DyCVLfUdKoEmZ%2FMktE4Ev%2BvwTM4NTs0iVpG4B33LQhfRm7cRd00Zj4NgQ3lQ2wspQZ2nBB1deVbVzeJlfS5%2FqPR1SbN1u7I%2Bp5m6KPlUP0%2F0hEFna0DFH2Jlke%2B5YJ2AqpjvQ4%2FjW7%2F8SgWPP8%2BFMUDpLlDwI93P3Vak9fr55Gqs4RwS00XgaFjvHEg%2F4wWay7r%2BtpLlH1Q%2Fvzu3wbfWB7jVNYEYxmtKMLtfBTdRUqrhLvVUD%2F7g0De8%3D%7Ctkp%3ABk9SR6a-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=358071388372",
+      "product_id": "358071388372",
+      "condition": "New (Other)",
+      "price": {
+        "raw": "$150.00",
+        "extracted": 150.0
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/bXgAAeSw3B5pVZ41/s-l500.jpg",
+      "seller": {
+        "username": "diwalkerskis",
+        "reviews": 0,
+        "positive_feedback_in_percentage": 0
+      }
+    },
+    {
+      "title": "Vintage Sears & Roebuck 4-Slice Toaster Chrome & Yellow Retro Kitchen Appliance",
+      "link": "https://www.ebay.com/itm/277620569931?_skw=vintage+toaster&itmmeta=01KE4M4BW587BGGZM3GKGHWMK5&hash=item40a379b74b:g:D~4AAeSwp6NpVrIx&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1dlBS2QMrFXhYAQgWKq2OpUUGszKiw5E5Y9uWDSmqDr8%2FCqeesWxMn5PAfQftmiJLj8hT0AbSa6n2BZ7QTTk3HJNem963PXZO7OypUECcollueHI1GHZwDsOvpXIMp5zq9U23FasVT%2BjEN%2FuKaUYflh3pWVGajwe1CSv6t9NfvEQVEMHBPe9OfeJf9sUbOy8irukD3uGMYcBu8wElkGssAd3%2BoqGgKD3D%2BuBaGln1AehrWH%2BAvjWeTmaYB%2Be5Fii6proWZcgKcZuR2xyVS0EVTcFNLnNXbBuWEANm7s1c3dFQ%3D%3D%7Ctkp%3ABk9SR6a-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=277620569931",
+      "product_id": "277620569931",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$49.00",
+        "extracted": 49.0
+      },
+      "shipping": {
+        "raw": "+$12.80 delivery",
+        "extracted": 12.8
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/D~4AAeSwp6NpVrIx/s-l140.jpg",
+      "seller": {
+        "username": "kaitlyns-attic",
+        "reviews": 709,
+        "positive_feedback_in_percentage": 99.5
+      }
+    },
+    {
+      "new_listing": true,
+      "title": "Vintage Sunbeam T-35 Chrome Toaster 1950's Auto Drop Radiant Control - Working",
+      "link": "https://www.ebay.com/itm/147071507552?_skw=vintage+toaster&itmmeta=01KE4M4BW527306W8NCQNMRXQ3&hash=item223e251c60:g:rV4AAeSwW2VpWZKP&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1db24oRNSV3eyljl%2F0g%2BF4xhnH6iXW7PPP6Ec6cyTvAzJuI%2Fj0yqBINiqDAGfUwh1YomdcT9de9dN2J3GxEQmTKOdMSt%2B37Qs4aeMxsqUoeRXBpKbgI9h3nD7O7qIAHkvJU4lhC1v8BY3fFFJJj8SCZ5%2FeayBbgMUqQSoA2WfDU0aZqAyY2Vns76cNhnXduE1HS9gQWeQoQLHPJoXY4winA1XRNRoLEY1LMk8bp7wjhCB1u3z4OSoyA%2FpVyZIm3Rb%2FB7U4UXcImTUyAwQHdjvwJucGduZUvE%2BQtWcyZCzDrYA%3D%3D%7Ctkp%3ABk9SR6a-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=147071507552",
+      "product_id": "147071507552",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$114.95",
+        "extracted": 114.95
+      },
+      "shipping": {
+        "raw": "+$13.00 delivery",
+        "extracted": 13.0
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/rV4AAeSwW2VpWZKP/s-l140.jpg",
+      "seller": {
+        "username": "ziggszags",
+        "reviews": 960,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "VTG Antique Electric Toaster - Art Deco - Son Chief Series 680 - Tested",
+      "link": "https://www.ebay.com/itm/267465854034?_skw=vintage+toaster&itmmeta=01KE4M4BW52774N6NMASWPP3RA&hash=item3e46350c52:g:QQkAAeSwg8ZpEeZG&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1dvvEveGwYbfThiaI%2BJv7YggDzHxdiSDU6D4T2SjImKYuhZWfeEGZgqzNsQJUJrHRveCfvvZnyZXF%2B%2BoPFJbldafovdXoSlNULn31DrTWGdhM5l%2Bnttc2oPseNPHnAmTW6efAhZkGP7R3%2BYknGJkEfVjQ52xcLyVwCcxAEnUfSpzLI%2FOWsonPXjFVcau3K5Sucd6lRC4s2%2FeVbYihQvN9UMnLxiIV8iIy4n7OHifD1bWIGSRXw%2BJFrzUbod0pF9XSqNc73hRRjiyECwohojtinaiZ9OilMQCs1eCeTOJ27D4g%3D%3D%7Ctkp%3ABk9SR6a-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267465854034",
+      "product_id": "267465854034",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$8.95",
+        "extracted": 8.95
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/QQkAAeSwg8ZpEeZG/s-l140.jpg",
+      "seller": {
+        "username": "2026seller",
+        "reviews": 3200,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "new_listing": true,
+      "title": "Westinghouse Turnover Toaster Model TTC-134 1950's Chrome & Wood 2 Slice -Works",
+      "link": "https://www.ebay.com/itm/227158789018?_skw=vintage+toaster&itmmeta=01KE4M4BW5PAT4K86SJ0PSFKBE&hash=item34e3b80b9a:g:IxEAAeSwHd1pTwYM&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fpJsWsmXLtUQmMd7W1%2Bew9gbwFugZBBk0jVu3jQlzt065KtOFvLNrfKsUrVGj8YFwJR0r3zQ5uod8gk3KwNxvu25tdsf19e5zaiczuDHgctbQKaebtCRgo%2BRGKWTu7sATdNgA%2Fy6aIoU2LPJzm77QrbAGmut%2BnDidxSSwoB74wOlJpDJwRN3UL%2F6Tneike%2B0H%2BRCrrP10RkxQgTXbD9joTgDT03utAJhXKdFMzFaoC%2Fp6EQiYXGEBvsz1H9sTKzop74fT7WYafIOEKmO6xRB7naJnDs%2B58yX5TY%2FSuBRiYSw%3D%3D%7Ctkp%3ABk9SR6a-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=227158789018",
+      "product_id": "227158789018",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$28.99",
+        "extracted": 28.99
+      },
+      "shipping": {
+        "raw": "+$11.56 delivery",
+        "extracted": 11.56
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/IxEAAeSwHd1pTwYM/s-l140.jpg",
+      "seller": {
+        "username": "kansasjjb",
+        "reviews": 10600,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage Toaster Electric Knapp- Monarch Co St Louis USA 1930s Tested Works READ",
+      "link": "https://www.ebay.com/itm/389379975336?_skw=vintage+toaster&itmmeta=01KE4M4BW5K1EJD33T3BDJ9T9V&hash=item5aa8dae8a8:g:PDgAAeSwAyxpQecK&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1eImrzikaRzSh79LQoj1K1V03mFiWol%2FgOxkgamy0LDl13p7thi5PXVnqdEJvEJ%2B9mqvpdkdJiAcJRdZS%2Fjw7VQZA01Q2wmVc5rm2bCB0bHhpYS%2BN6MntOn6JTtSe4O%2FSZnLkoqXWzpxNtvBKoUPvnLcETtWTXWYIEneuS08fn8NRfI8jauMiTKQF6PX7mGFH%2Fuo2egFABdttSHWhewUhvQbLcC%2Fk1SB9%2FhTdP%2FgGrXj8hpZrSmxe77ogTrwSFd1I%2BUbMUL8bHahVIfkqGbEoD0OHDQPMrncEuJY1BpnOrG%2BA%3D%3D%7Ctkp%3ABk9SR6a-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=389379975336",
+      "product_id": "389379975336",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$44.88",
+        "extracted": 44.88
+      },
+      "shipping": {
+        "raw": "+$10.27 delivery",
+        "extracted": 10.27
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/PDgAAeSwAyxpQecK/s-l140.jpg",
+      "seller": {
+        "username": "beachbumtreasurehunter",
+        "reviews": 359,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "1920's Universal E944 Flip Side Toaster, Landers, Frary & Clark, heats up",
+      "link": "https://www.ebay.com/itm/366089224826?_skw=vintage+toaster&itmmeta=01KE4M4BW5E6H52D9W0H4RQ783&hash=item553c9e427a:g:RrIAAeSwlo1pRHBB&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1cD4Gkm2HwwTLAMYzbytT7l1pf7%2BhcmH9mM0Mi4dawLe%2FRzZ4pEEqzajTKGRGaEG9geKvrfO4HWg36VjT4Inz94X4KGuPuMPjv%2FsrDKYofMa%2Bvbk%2BEnQq%2BeCrcOHd88JmvQML8Y4BkIU1E%2FwhmkfgaIvBh%2BNKmycg1xGXWu4qjlt4qrVNawI0VyOLATD2GNpp0%2Bvo2aR46yqOliGZRUzVIFZeq0pAxFYqHLAgQgy1biBNV40fQD6s9%2B2zReXpa4AZg%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=366089224826",
+      "product_id": "366089224826",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$30.00",
+        "extracted": 30.0
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/RrIAAeSwlo1pRHBB/s-l140.jpg",
+      "seller": {
+        "username": "imajgin",
+        "reviews": 10400,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage General Electric 2-Slice Mid Century Modern Toaster #149T82 Works Prop",
+      "link": "https://www.ebay.com/itm/366087929829?_skw=vintage+toaster&itmmeta=01KE4M4BW5BKQV4BQJ326PD4H7&hash=item553c8a7fe5:g:c5wAAeSwz2NpUd2Q&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1fZln7%2BhCC4yLut50nzM9DOZocqNknx14OadRW--7W3HSmG12xLIVDJ5q%2B6GtXS659Y6mEQ5hTwvzuAw0YR%2FsAInxfohGp1QX%2BZiSlggFD7BbUHaj5KkTsA%2FjkcqNSQRvM4D%2F6P4K5iCLT0fVqBR1FlR0Ph3XYONiCvDi3a6ysarEvcGxbtFC959UJ52pFF2QoJOF6jxEEJ2rRx0sViC7jlR5HDx1oPjqtvnvWhYb0I7eIsBimVSU8T1c%2Fb4Zq81j8%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=366087929829",
+      "product_id": "366087929829",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$34.95",
+        "extracted": 34.95
+      },
+      "shipping": {
+        "raw": "+$17.10 delivery",
+        "extracted": 17.1
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/c5wAAeSwz2NpUd2Q/s-l140.jpg",
+      "seller": {
+        "username": "casscoll_34",
+        "reviews": 1600,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage Super Star No. 45 Two Slice Electric Toaster - No Cord, Works, 1930s",
+      "link": "https://www.ebay.com/itm/267526817114?_skw=vintage+toaster&itmmeta=01KE4M4BW5Z0M2ZA86KXJP2XER&hash=item3e49d7455a:g:e-MAAeSw4cVpUY1H&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1dIsjnBlMq8wlBjEm2IFs%2B4JGP%2FqhkAl8prwF699i0BPVvvkjLoAQBySVtetEyAgG9Jfhf9ZXMX%2BpX7xFUwWqw7WAq7FeFTNd%2FGo5mxslQtsDx82j76tES%2B9lzT372xhQaHy9tnqc85gJTU0wkBONDWDB9wMoUh7EpcVcKQQfGWCdCxTCmuMPHqC1JLK9H9wrHGr4tMCkKaBIc4t0RR0Q2R4yPFBycuRXSZ%2F2k9Mhp9I4LYqS2w%2FoA9Lv6SPV5114lRM2ORCkL71h56f5Di0YpTwTqI%2FICWYLkg0wlYjChNkQ%3D%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267526817114",
+      "product_id": "267526817114",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$14.99",
+          "extracted": 14.99
+        },
+        "to": {
+          "raw": "$22.99",
+          "extracted": 22.99
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:13 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/e-MAAeSw4cVpUY1H/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage Dualit 2+1 Combi Toaster 3-Slot Chrome – Made in England – Tested Works",
+      "link": "https://www.ebay.com/itm/257283332833?_skw=vintage+toaster&itmmeta=01KE4M4BW5M402FH720RFAN5EG&hash=item3be7481ae1:g:P~wAAeSwlklpUrJ-&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cyoDqqazhEJ%2B3uBBW3VNe9pJUp65%2BR4g7jKS9J9Ea9v1eBjC47dspWImzQyCJEXyu%2BQNA4PLwdVFPeb3XXBHhWtoEuw1cPmU7WI%2BI7SuJqiWN8yMLEvTejgQnlGmxZpxQG0gzfoNkGZogXDl8j4veU33WR7FXHxOdehu87U24nboaVI8zDxEWJ9jI%2FJzGRJuuiDa2%2Bg8okOyrq8EAEJMiqMM0Bc%2BN%2B%2FlaPKb9twWqlRGnPEmUiJoqlXgYtYjZVtyFhdZHuImeH%2Fd0tuK%2BPJJ2suzXLzEHhlCgxLNzlEfmNfw%3D%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=257283332833",
+      "product_id": "257283332833",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$118.33",
+        "extracted": 118.33
+      },
+      "shipping": {
+        "raw": "+$14.24 delivery in 2-4 days",
+        "extracted": 14.24
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "thumbnail": "https://i.ebayimg.com/images/g/P~wAAeSwlklpUrJ-/s-l140.jpg",
+      "seller": {
+        "username": "super10nano",
+        "reviews": 6200,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "new_listing": true,
+      "title": "Vintage Sunbeam Model T-20B Toaster Chrome Black Retro Sleek Automatic",
+      "link": "https://www.ebay.com/itm/267532684277?_skw=vintage+toaster&itmmeta=01KE4M4BW5P64T8YJZPKD1QKR9&hash=item3e4a30cbf5:g:RfAAAeSw0OVpWT20&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1cWrdnMQVQgZye7H6UKAIEXTifUO2hEco6JMIjxS5WtAO%2FW4sMlluIS5gaOWstK5UgqtciKXHUWTewptz8wzIqC6Mmc6jodv8FQyw72Vuex2YEB0QZqBa4FZV7O9lno5tihNtJDbC49%2Fahoj960YuSnWJWG7e94iN2HFZ0LMoMXJXB13LuzzW3r6DYYhiAPyhJZuvh7X%2BcOdmuJhmFsvn2aPmfYYPG7GVaiO4YXthjGcnFVLQNH90D2wEUzQOn7uDE%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267532684277",
+      "product_id": "267532684277",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$140.00",
+        "extracted": 140.0
+      },
+      "shipping": {
+        "raw": "+$20.70 delivery",
+        "extracted": 20.7
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/RfAAAeSw0OVpWT20/s-l140.jpg",
+      "seller": {
+        "username": "jenny2500",
+        "reviews": 3200,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "TOASTMASTER 2-Slice Pastry Toaster Model B707 VTG USA 70s 80s WORKS Chrome White",
+      "link": "https://www.ebay.com/itm/317691570906?_skw=vintage+toaster&itmmeta=01KE4M4BW50BTGAENJYHW47H2J&hash=item49f7e4aada:g:VHwAAeSwSzBpSz9f&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fBorFNkqBMJ3%2BU3EWi46ySfS98Gc8qWvRmzl2ndmfyvzW3Bf22XTo2zxMpjDDZk6pMKEiazm7L1fEkXixlZPeVWDA7%2Bi4Xj41pLyBbRdMM5xpudyc34OE0SM15jZwPhD4as92d4%2BiuKDZdIRxw9jTVm9uazwsFsFXQs0w%2BekRumkAhcQC0i6GyxDQdroCcgLFU7oLjKRZ3fl1rvoHFHl5WHISQ6ehi5Eifar2wc%2BQ4eHIE%2B8lllg%2BBY7QYpn0Asj4VO%2FLcgBs%2FywWmszquHfhBCQmPXH94b6m2RGrNuKT7Zg%3D%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=317691570906",
+      "product_id": "317691570906",
+      "condition": "$21.99",
+      "price": {
+        "raw": "$17.59",
+        "extracted": 17.59
+      },
+      "old_price": {
+        "raw": "$21.99",
+        "extracted": 21.99,
+        "discount": "$17.59"
+      },
+      "shipping": {
+        "raw": "+$9.27 delivery",
+        "extracted": 9.27
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/VHwAAeSwSzBpSz9f/s-l140.jpg",
+      "seller": {
+        "username": "c13rk37",
+        "reviews": 1200,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Culinary Chef 2 Slice Retro Toaster, White | Classic Compact Bread Toaster",
+      "link": "https://www.ebay.com/itm/176993012547?_skw=vintage+toaster&itmmeta=01KE4M4BW56WBHVEANTSNJ1DMH&hash=item29359b0b43:g:B7QAAOSwYr9n9X-4&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1dgYoV4sKk1Jl1fnUMd6tIebUJzlZvTAhNR%2BukLlSTYfnBm0RwAgWhi53XT5zVTB%2FYsOd9eOdI1COeYNCJ%2FDy9%2BDEgDHkdecFY93roUGyoJHnT7DjKIEQHpk0H46PxLY0WBjXpSgofdSAhUxL46O3qAI0BGzB5vzlk26ydzf2CVwVPeAmbsAKVwry8412BKX1ZxWXl9eP0%2F%2B%2FRiaFg0T%2F88l4%2F1STuEldvwBTDi%2B6Who371L4JurFwMGGiHwhy1y%2FM%3D%7Ctkp%3ABlBMUKi-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=176993012547",
+      "product_id": "176993012547",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$39.00",
+        "extracted": 39.0
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/B7QAAOSwYr9n9X-4/s-l140.jpg",
+      "seller": {
+        "username": "curtisinter_0",
+        "reviews": 141,
+        "positive_feedback_in_percentage": 97.1
+      }
+    },
+    {
+      "title": "Culinary Chef, 2 Slice Retro Toaster, Black",
+      "link": "https://www.ebay.com/itm/176993002268?_skw=vintage+toaster&itmmeta=01KE4M4BW53BKMAG62DRVVC942&hash=item29359ae31c:g:MQ8AAOSw4yJn9X6v&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1e5I7ry8pBo4BrMOeUq0O1ccBG7tVpb%2B%2B1M4F04m3mRfNSKkAduOSJCxtq3lt5gItRr0snyhVEdrf%2B3sVigci0yBMx%2FocHQNG5B5Lz%2BoHTiVcTgdkXfhtS4XdAZ9vkBd99ZAeUfXVUwFo6H3aw5HC83AYi%2FSFskzvFOxaci1QhUlRCRAXP49nF72lz9dux%2BNq8vxa92eXJgd2TUeHhmN6d%2FfLZNZdyzmTsq9Y59x7MKd8pN0cDMYCMsfap%2FcnzmPkk%3D%7Ctkp%3ABlBMUKi-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=176993002268",
+      "product_id": "176993002268",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$39.00",
+        "extracted": 39.0
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/MQ8AAOSw4yJn9X6v/s-l140.jpg",
+      "seller": {
+        "username": "curtisinter_0",
+        "reviews": 141,
+        "positive_feedback_in_percentage": 97.1
+      }
+    },
+    {
+      "title": "Vintage MCM Toastmaster 4-Slice Toaster Chrome 1970’s -WORKS Model D126A VGC",
+      "link": "https://www.ebay.com/itm/177735872588?_skw=vintage+toaster&itmmeta=01KE4M4BW58DR1TZ32V05BMZQT&hash=item2961e2304c:g:nhAAAeSwNoNpV~aR&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1d9R0G3GHsKHAeR2z8WJzHpL86EtRtZMaH9uR9ChN%2BLdm%2B5KRQXQUVqG2yFv1JQPWMdJ2vvsUnVyRn9J66TXlslEtHrVzPbIelSa%2B7CElYK8yImKLKuNHRMV%2BWDQQkllYOhxiao1BBQedp1Amzj1xju8o3LgBPEjTVl%2BY%2Bfs8V7HAyOhilcnZSsjhgI8D%2F65yt37mHTvM726NwjwxdpPnvX1g8Z2LkIW1RfttY3zgf1G2kFLqzF7HmEvUKWwVOMrz%2BKjKZLD3WCe9U8juB7ufUxkXO09PyU5cUTYY%2BA85mG7A%3D%3D%7Ctkp%3ABFBMqL6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=177735872588",
+      "product_id": "177735872588",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$65.00",
+        "extracted": 65.0
+      },
+      "shipping": {
+        "raw": "+$20.18 delivery",
+        "extracted": 20.18
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/nhAAAeSwNoNpV~aR/s-l140.jpg",
+      "seller": {
+        "username": "natefostersr1",
+        "reviews": 1500,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage Unmarked 1930s Flip Flop Electric Toaster w/ Attached Cord, Works",
+      "link": "https://www.ebay.com/itm/267528023202?_skw=vintage+toaster&itmmeta=01KE4M4BW5NCP8J9HDQBXR3Z6Y&hash=item3e49e9aca2:g:hHUAAeSweVlpUyEf&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1flxjZA0ceFqNuqwZTjC05ImJa0JuBXajajRlyInZWPB9k4lpYNA2v1qYxxjN9Z0R2b0G8bVQ2czdv8fMaln%2FTlw8%2BpLbomDQ8WbZJMZkJXdk1q9RuARkJw8jwoo%2FNVHUNBMe177Ej%2BZy9YnQkAunAtguvo3zCSgvxS%2BRB9OcvbcowRIkNdl4OZy0VBAqrUiyusYdom0ez0AN9hA07qgfd1B18wv8hQ2Qu9b3EjFNLH8gwp7MVHLex5m4K%2BwtKK5%2F0TaOCvmihkjxhSmg%2FQCtoQbdLrnZjViz8br42WiCHd5Q%3D%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267528023202",
+      "product_id": "267528023202",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$12.99",
+          "extracted": 12.99
+        },
+        "to": {
+          "raw": "$19.99",
+          "extracted": 19.99
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:19 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/hHUAAeSweVlpUyEf/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage Merit Made Electric Toaster Model Z w/ Attached Cord, Works, Read, 1930s",
+      "link": "https://www.ebay.com/itm/267525696755?_skw=vintage+toaster&itmmeta=01KE4M4BW5W3K226BGGYZZRMAY&hash=item3e49c62cf3:g:-QcAAeSwk89pUF2x&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1d0njc9rA8z5GZYawWgKpkDOYqbDLjw3nkTwBJ45grwcyTni5iVytQHj8n6VDb9ezg3c1Zn07Dhl0SY29HI%2FwSPZwvBpjU5LIX5bTrR04WFoRI8qoIWbCYEppI8BTAXl6z6FAKbOjB27lg8dlnnJrgV1llo3YtYgZFdDn%2BqYFHNvsS9f82wo2YZ%2B%2FbFkzFstcP6K7WpY%2BeDiCv4TE--tmzGhLRWd5sPvUbDXmOKFubs8sr5H8IH%2BikJwxa4tdZjAd0%3D%7Ctkp%3ABk9SR6i-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267525696755",
+      "product_id": "267525696755",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$11.99",
+          "extracted": 11.99
+        },
+        "to": {
+          "raw": "$19.99",
+          "extracted": 19.99
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:06 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/-QcAAeSwk89pUF2x/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage Toastmaster Model S131 1950s/1960s Chrome Automatic Pop Up Toaster WORKS",
+      "link": "https://www.ebay.com/itm/187855151118?_skw=vintage+toaster&itmmeta=01KE4M4BW50CHYG2B16GTTTECJ&hash=item2bbd0a200e:g:Qn4AAeSwjfBpREg~&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1dH6LWcOFJ2BuHdtftkCn7ww%2FiOqOxQOlLXzhl6deqz7PhUvidHF%2BNtC0wY1Qx8b5ytHtHJwxXPXE77jfHM676o5EHIi0%2Frn9GZkBGLVRO%2FtT%2FpLBfDRmxtV%2B0%2BSyh9dZ5SXE%2B1av64EfaAKooVJSZPJoSZatSqZKmotNcchrrCJaL29lBiQPKtHcGvxwzHl18tHdFoqIkSRTcpUNPExy2CO2aCMb4Zj71qpBeb58ef%2Fi%2BVHVwNKv1suy9vQOey%2FNU%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=187855151118",
+      "product_id": "187855151118",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$79.95",
+        "extracted": 79.95
+      },
+      "shipping": {
+        "raw": "+$17.10 delivery",
+        "extracted": 17.1
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/Qn4AAeSwjfBpREg~/s-l140.jpg",
+      "seller": {
+        "username": "services_by_jtl",
+        "reviews": 5200,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "General Mills Vintage chrome pop up Electric Toaster Model GM5A Gets Hot",
+      "link": "https://www.ebay.com/itm/205923661829?_skw=vintage+toaster&itmmeta=01KE4M4BW5SW8N5XWAC6TG938D&hash=item2ff201b805:g:vSQAAeSwMQhpQL4x&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1czcUF7h3KAhJ3X5oZ8ubOGgyZeFrc4B3Ysv7RLIX7iZQw1yKHYJGolGV7PVQFgfWcW9XPju%2BxAB9tfv1b5RmqZUBhhOyh%2FGpWBt%2F2UzOS4rAURDqGdHbKDzs2Em69NoKRmDZj5pHZpLutgr%2FZxyDQxL%2BQ51QOcqPoyL%2BPqbPuZsElwM4C%2FGIrpdAPGtdIEtZ7TYSN5fcetg11go5t7kN%2BcZMZrEMdhLprufz1eSRybjgV%2BtmxGR5%2By5nWwGLSBrwQ%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=205923661829",
+      "product_id": "205923661829",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$17.95",
+        "extracted": 17.95
+      },
+      "shipping": {
+        "raw": "+$10.63 delivery",
+        "extracted": 10.63
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/vSQAAeSwMQhpQL4x/s-l140.jpg",
+      "seller": {
+        "username": "one_sk_shop",
+        "reviews": 249,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Antique 1930s SUPER STAR Art Deco Chrome Toaster New York NY Wood Knobs NYC",
+      "link": "https://www.ebay.com/itm/187883667248?_skw=vintage+toaster&itmmeta=01KE4M4BW5T7J2NB2PA54X6VG5&hash=item2bbebd3f30:g:RoQAAeSwhuhpTxsH&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1e06zTND5Vvt3g955AJTRh41NV7yteHcmPAnWEygCG27T%2FCObOJ0Ue68Yo%2F8g%2BWR5h55T6yax5yqb8ifaiwWX3i%2Bli0sWZpiGeKL7VwasSHT%2FeMw5mlLxax141wLc6k%2Fo3SzepG6qn1nM30vCti7bF2%2FsAGVShzDQvV5e%2BGkolksEtltQqSGSoxjKwcYqo0mKIHL8jQdq%2BlmVbJyZ52W4GKoE9VgxAuijvtzneAxlGdk%2BBbR3rVe6cPjAbi6jazZ9U3jAT9ynjVCpefTfySwGn%2FL1QgdLk8fQ7jGJUIAuU3cQ%3D%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=187883667248",
+      "product_id": "187883667248",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$269.00",
+        "extracted": 269.0
+      },
+      "shipping": {
+        "raw": "+$14.75 delivery",
+        "extracted": 14.75
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/RoQAAeSwhuhpTxsH/s-l140.jpg",
+      "seller": {
+        "username": "cosmic_goods",
+        "reviews": 4700,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage Faberware Toaster Chrome Wood Grain 2 slice Model 292 Kitchen (TESTED)",
+      "link": "https://www.ebay.com/itm/227130604403?_skw=vintage+toaster&itmmeta=01KE4M4BW6A6940WYEJSY7FEPB&hash=item34e209fb73:g:WEQAAeSwVbFpPbiM&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1d0WTfb7sG7AcNU9Or4r7kyyRdlPHhqHE9x%2FrPtsIpLIRjlfAhYP2U97nBxlBAcfcssacsuKQP33Uo%2FhHM4Sx6LEJkhR%2FNOguGWSgoh0CZBl8N4uvcfrQesjfCbCkUd12UQMim0cxB4ZAuF3w%2FRPkJTe5u%2F04jOwmxJJ9sY8MSW44UD3g2E0SwdA3OUp5eXBKXLZUTqW9Y9ZfzoqdpXivGVzpiKKnDskOBLJcMP7tU34r%2BcEkJqHAC8i7W6dmlmR3g%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=227130604403",
+      "product_id": "227130604403",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$29.99",
+        "extracted": 29.99
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "watchers": "12 watchers",
+      "extracted_watchers": 12,
+      "bids": {
+        "count": 12
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/WEQAAeSwVbFpPbiM/s-l140.jpg",
+      "seller": {
+        "username": "bulldogmomma1965",
+        "reviews": 1000,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage Westinghouse TO91 Chrome 2 Slice Toaster MCM PLEASE READ",
+      "link": "https://www.ebay.com/itm/197951769271?_skw=vintage+toaster&itmmeta=01KE4M4BW66XPEANRS05XYPS40&hash=item2e16d84ab7:g:dIkAAeSwKcVpQOg~&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1flwBsKhoTRYDB41O4qS2ee65smn4%2BFe2zTbbKrOvXXlY70CePmDsNpCo8a7ZqrWJs0BJT%2B9WNprhGxo3e0RXMxG7gcWLPDzaDfkV4DUseauBffU9WTzFeRvCeDLY3HKAdGNxLigBPQKE10tuVeJyP3BYopilFA7DV8ZGhsOztfHDkBamwCj3PdpSzBTQ7Z9tKptvRtQZ81o6%2FcCHy0JQolXkTu0qklVjfjiDRRnVHNodF6UH2uPoZDJ4FV1jFczfdCTL4C2XLoBZ5MzRhbrLrIs80%2FcEYHSgszMxMMQWAc6Q%3D%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=197951769271",
+      "product_id": "197951769271",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$49.99",
+        "extracted": 49.99
+      },
+      "shipping": {
+        "raw": "+$12.15 delivery",
+        "extracted": 12.15
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "thumbnail": "https://i.ebayimg.com/images/g/dIkAAeSwKcVpQOg~/s-l140.jpg",
+      "seller": {
+        "username": "nickygsvintagesteez",
+        "reviews": 3200,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage General Electric Pop Up Toaster Cat. No. 169T81 Bakelite Brown Clean!!",
+      "link": "https://www.ebay.com/itm/157550418498?_skw=vintage+toaster&itmmeta=01KE4M4BW6ZAZQS5XE8WRBR2Q5&hash=item24aebc9a42:g:3BUAAeSwK8JpQ0oA&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1fmrYORrC3KOhHpmvT7EgFalJptx8uEWo%2BzTx2PFMtHnmbRz51kWtpM%2B%2B0lJhOq%2Bzwbiaj02CwAguBCmRw7b60U7iyN0uLPH6%2Bzm5tCba5ShajWzjnna6LCfgpezvJAx3hX%2BBfu47csjrCfBhFLzdwBh7nqkTBmMbs%2FJLNUcu6kIfeGGJ6fAUBiZ9L1vhhsFjFlo6AQMskunxd%2FwBljAXZFyFq7pAvp2by59%2FgW%2BQbjcG%2F3Fw%2BZHBSX9icVHqGNpTU%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=157550418498",
+      "product_id": "157550418498",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$59.95",
+        "extracted": 59.95
+      },
+      "shipping": {
+        "raw": "+$14.87 delivery",
+        "extracted": 14.87
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/3BUAAeSwK8JpQ0oA/s-l140.jpg",
+      "seller": {
+        "username": "woodydog5",
+        "reviews": 940,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vtg MCM SCM Proctor Silex Starflight Chrome Almond Toaster Tested Works 20629",
+      "link": "https://www.ebay.com/itm/335824770595?_skw=vintage+toaster&itmmeta=01KE4M4BW6V2WXV6D14DC4XEGW&hash=item4e30b75623:g:8jwAAeSwhDhnuOCm&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fidCExL9ym6c4Dwi0y4swJrj1Nqf20ozeC6Y4VRdDMv0s%2FJAXDQf7xbu3a2EHzvDHwzvHfOrcYCKwm1yT1WN9ldepTfM%2FqcdD3tGf9I0F18m4YDqi6WK0Qa4zkkLynW9M3%2B1eBXh6pbEeF5mdiJt9ct%2Bp2WCxfJs48GKj9BCqjxqR5zEQ7tyMGaSNtlzRsaGzAoOs3ciVxKuxJnmYbUwj0McYKo31xysQeXGkcDQRuZj2iTuP9wGHMaE%2Bw1TwhCAeRFcEVHJQeYsQCqHy7Q5VF9FFoblIP9aw2aQDdM9VJiQ%3D%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=335824770595",
+      "product_id": "335824770595",
+      "condition": "$49.99",
+      "price": {
+        "raw": "$37.49",
+        "extracted": 37.49
+      },
+      "old_price": {
+        "raw": "$49.99",
+        "extracted": 49.99,
+        "discount": "$37.49"
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/8jwAAeSwhDhnuOCm/s-l140.jpg",
+      "seller": {
+        "username": "calimartrading",
+        "reviews": 10900,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Antique Landers, Frary & Clark Universal E7732 Electric Toaster w/ Cord, Works",
+      "link": "https://www.ebay.com/itm/267529817067?_skw=vintage+toaster&itmmeta=01KE4M4BW61Y9TPWHW3X8J5TP8&hash=item3e4a050beb:g:PF0AAeSwcCppVcMn&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1coGzkWfMQfPOfiykVsKqBn6kD7n6chhbaJn49xvlxMJI%2FGPtAXcp8kQ2Z4NxLdS%2FsKEHZ5KwAJ9vNd6qQlIr9p7K3CRt%2FKltab%2Fc%2BRXXiGt9YK%2F1i%2FjMVqUsLPOlvkxYphZMei1eOAAW64bHHYpY5P3Wn2sKhvX%2BPw0bE7v%2By5El1qD59d%2B2jWUCHgDuZdNYYuZryrkLTzojeB61aPEXRdd4cu6ZqYPO%2BUPcddYVshU%2F9XPEyQVbPLTHm7Do2klCc%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267529817067",
+      "product_id": "267529817067",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$26.00",
+        "extracted": 26.0
+      },
+      "shipping": "3 bids · Time left7d 9h left  (01/11, 04:26 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/PF0AAeSwcCppVcMn/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage 1970’s Sunbeam Metal Toaster MCM Mid Century 4 Slice Bright Yellow (36)",
+      "link": "https://www.ebay.com/itm/357474766967?_skw=vintage+toaster&itmmeta=01KE4M4BW6ZHTDP7RJEW81H5YS&hash=item533b281077:g:jUAAAeSwH09ooewy&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1duh36BSwY%2Frekt1FUFqUSgwkTlW2X39JejQVPRH0ydX07DwFDPizfDvHUt2maVjbeVWx3PT4VbWFoOdSCvWB9webNykVlupHTrHP70DJSlaNnRJ6rUotKXa%2BxzgFt--KwvcRwzO4mEFZ5WRJ92yzDu%2Bw9zlktnxdVodosWRakSExgVvdTU0TKgrnqzuhFwhS8CL9qLHvCUlhR4%2BoJCLHRpuE7rLFJ9i9%2BK%2F3q7O5VHgxu%2FAE41o4lCfSFu0S84KrU%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=357474766967",
+      "product_id": "357474766967",
+      "condition": "$99.00",
+      "price": {
+        "raw": "$59.40",
+        "extracted": 59.4
+      },
+      "old_price": {
+        "raw": "$99.00",
+        "extracted": 99.0,
+        "discount": "$59.40"
+      },
+      "shipping": {
+        "raw": "+$8.20 delivery",
+        "extracted": 8.2
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "watchers": "11 watchers",
+      "extracted_watchers": 11,
+      "top_rated": true,
+      "bids": {
+        "count": 11
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/jUAAAeSwH09ooewy/s-l140.jpg",
+      "seller": {
+        "username": "ncconsignonline",
+        "reviews": 1300,
+        "positive_feedback_in_percentage": 99.5
+      }
+    },
+    {
+      "title": "Vintage Toastmaster 1B24 Electric Pop-Up Toaster w/ Attached Cord, Works",
+      "link": "https://www.ebay.com/itm/267525743873?_skw=vintage+toaster&itmmeta=01KE4M4BW6100V9DZZWEY0P64M&hash=item3e49c6e501:g:wa0AAeSwma5pUGQT&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1e%2BUWHP4Lg1pIMntK18l24VLAs9lqI9vMX55FxWp5hKtjkzsS%2BTDu5RSApADOePjlDsk8AgpBk6Cv%2BG7Eq%2BJ8erqedJwxggtn4goLcUmVTwLyAWmQ9SStmHekoeLS6VbwhdEr6erxK07FGoBIkYmEE1II3Aam9k1DVu9WLgU%2BsIicuyS9JSXh%2BfbgyMF6dsPPeuVX2lpI2xR5%2BtVn%2Boaw4hxJNTzRUtu0Ktv9j6dSVMi4tgabEw%2FnqoVsDb58fOiGo%3D%7Ctkp%3ABk9SR6q-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267525743873",
+      "product_id": "267525743873",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$16.16",
+          "extracted": 16.16
+        },
+        "to": {
+          "raw": "$42.00",
+          "extracted": 42.0
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:08 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/wa0AAeSwma5pUGQT/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Culinary Chef 2-Slice Retro Toaster – Bold Red Finish, Wide Slots & Precision Br",
+      "link": "https://www.ebay.com/itm/176993009860?_skw=vintage+toaster&itmmeta=01KE4M4BW6H5ZVH25919F62N2Q&hash=item29359b00c4:g:k~sAAOSw4WJn9X8-&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1dMp%2Fz9WPUX3mFuTIUd%2BhY2qEu3cGbWVBY0yfyCL4gL7Yg%2FcvjuppDfO65EBC%2FE2dxCrY3u7vk5eC6Dxg%2BmV5PFvXvuKIyMxZ%2BbHS6kXIqaI6pNjh%2FKGScceuTfPmC%2B86sbRblr8x24X9dSgFo8ePKIi6KgD9aKdxQ9ZFS9kZt96QILD6gQNC8O0EpIUGvlmABWo6iM8VM4hdCM3uBGB4yZoMSomzpBEdx49KdCeIsKQezoBBYS9al4tE752aiuErQ%3D%7Ctkp%3ABlBMUKq-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=176993009860",
+      "product_id": "176993009860",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$39.00",
+        "extracted": 39.0
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/k~sAAOSw4WJn9X8-/s-l140.jpg",
+      "seller": {
+        "username": "curtisinter_0",
+        "reviews": 141,
+        "positive_feedback_in_percentage": 97.1
+      }
+    },
+    {
+      "title": "Vintage Proctor 2 Slice Toaster Model 1484D Art Deco Chrome 1950’s Working",
+      "link": "https://www.ebay.com/itm/116934954774?_skw=vintage+toaster&itmmeta=01KE4M4BW61P0ZS0JZP0QS6MF8&hash=item1b39ddcf16:g:xNcAAeSwob9pREMy&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1d%2F9mH3XX011VNMwJ4Uz1BjJG1GruKuqwoHAsIFFWcrtTReNB97j0msY0d3qFAI83886KGKAv61zGHxprxlAhzSPxgUHGeA1d4ggPRE8hL8loKKviQA0ZVTbCpbxw9jD5ENgzKCJIHliFuNHo6hU67cswW%2BqlNx46PX0XS%2FQxwmbOq7qiIcKE5iyrO261qr7VeUUliPt7LPt%2FYno%2BXQ%2BruXSrIR98N3FIrxWeWIppxoI6wnGRYhRphqeqFPjSy22s0rD70M%2FTEmTRi664%2BNKPcJjRyodfOeRnJYwXFomufWHw%3D%3D%7Ctkp%3ABFBMqr6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=116934954774",
+      "product_id": "116934954774",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$54.99",
+        "extracted": 54.99
+      },
+      "shipping": {
+        "raw": "+$16.86 delivery",
+        "extracted": 16.86
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/xNcAAeSwob9pREMy/s-l140.jpg",
+      "seller": {
+        "username": "may52866",
+        "reviews": 1400,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage ToastMaster TMT4 4 Slice Toaster Wide Slots 1700 Watt High Speed Lift",
+      "link": "https://www.ebay.com/itm/376753667252?_skw=vintage+toaster&itmmeta=01KE4M4BW6G2ZPN5N32K10MXBR&hash=item57b844bcb4:g:7N0AAeSwRo9pMdyg&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fJ2OAc6anlf3csKXVaEavRNjonJ%2ByTBnzwdjmI9peqQp1X%2BWYLJLJ2dT0M7i3ALm0Us2UJIser%2BnTBxVKf4wlreWQxJ%2B2ZKn6RmwVMab5QddwCysVXwyeZufGVwCkJEpZ4D94NpzJzyP%2F%2BA44fHbhq3vvHiYsvNmZ0pXl%2B0tcndGFsDmr1hQ3yauEiod90s8qJ1S9ScZ404aST8UVw5ZnnscvvbOLH4guy95sOa%2FeiK1uGhiekn7RnHxGE5SwKQ9COhZpHhMNVbe7AtZ3OmWzjv%2BieFLbzylnY3FTiUQhhbA%3D%3D%7Ctkp%3ABFBMqr6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=376753667252",
+      "product_id": "376753667252",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$35.99",
+        "extracted": 35.99
+      },
+      "shipping": {
+        "raw": "+$12.53 delivery",
+        "extracted": 12.53
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/7N0AAeSwRo9pMdyg/s-l140.jpg",
+      "seller": {
+        "username": "thriftytheology",
+        "reviews": 255,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage 1930-40s Sunbeam Model T-9 Art Deco Style Chrome Toaster",
+      "link": "https://www.ebay.com/itm/406143285058?_skw=vintage+toaster&itmmeta=01KE4M4BW6JTWC8ZGDGCYXWNK3&hash=item5e9006b742:g:9ScAAeSw2z9oo4NK&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1deHWeJDcerqRlIVcq02QlWO49YIn5bQ8vZDYSKuN3AvrpSsxpx4aPpq2PT5GycAF9FVS1Hw2RiMvXyRzvrYrq5UrmRcWEhkJfYapw51WicxItwWa6LjG1mtRsPV4kMZVMtpX9JIMHAv0v7TfCYGlqWHA5RPg%2FwUNOQIxv7%2FFHbJQb9XXfta3pz%2BlLNKtXq6pRR9XHAZKQSJEcyVsfMEPaXoSzDgr%2BpHacJEBY83taLKO27BkSLszie8230GbNZpI4lvaJtlKIgeIcOFsap3WFlehyEyAL4ViIEmjNoPZtKrw%3D%3D%7Ctkp%3ABFBMrL6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=406143285058",
+      "product_id": "406143285058",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$60.00",
+        "extracted": 60.0
+      },
+      "shipping": {
+        "raw": "+$10.30 delivery",
+        "extracted": 10.3
+      },
+      "location": "Located in United States",
+      "watchers": "22 watchers",
+      "extracted_watchers": 22,
+      "bids": {
+        "count": 22
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/9ScAAeSw2z9oo4NK/s-l140.jpg",
+      "seller": {
+        "username": "jhtyl_6",
+        "reviews": 214,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "new_listing": true,
+      "title": "Vintage 1930’s Deco Toastmaster 1B6 Daisy Art Deco 2-Slice Chrome Toaster Tested",
+      "link": "https://www.ebay.com/itm/236563256031?_skw=vintage+toaster&itmmeta=01KE4M4BW6QX7JDJP8Q2969GF3&hash=item371444d2df:g:MlwAAeSwabBpPfWD&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1esVQmfH0xXjwO18lgNDcOwFKZ%2FGPEXiIHuEV8NPIIwxEaQHmUdaiyBd4zw1nIjDZ7SnW53ZSJQoG%2Foyp2HUOplna2Jv%2B0x%2BdSD2O8mWAxTjGay3GHv5XlmPYjj6x%2BV5ni3%2FV0AVQTEAeQu78O1%2F0RpFa6Ok2prhqgnllijj3rNtnFExY9052jwegkGTPmFAK52sStB7Nr%2BPE2jlx%2BycExWVsbhVfuJ2vIbr9Nia3QLpvd2efXDopGdxrgD2IsU4gPAur6T0gE%2Bi9cP6nccW2EtGR7jNAgSHVPIe0P7O3pUQg%3D%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=236563256031",
+      "product_id": "236563256031",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$39.99",
+          "extracted": 39.99
+        },
+        "to": {
+          "raw": "$59.99",
+          "extracted": 59.99
+        }
+      },
+      "shipping": "0 bids · Time left6d 9h left  (Sat, 04:36 PM)",
+      "returns": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/MlwAAeSwabBpPfWD/s-l140.jpg",
+      "seller": {
+        "username": "natejustfine",
+        "reviews": 1000,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "VTG Turnover Electric Toaster (No Power cord)",
+      "link": "https://www.ebay.com/itm/147069487413?_skw=vintage+toaster&itmmeta=01KE4M4BW667DNYMMBESN5Q8JK&hash=item223e064935:g:7foAAeSwWNNpWE3k&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1fXZheq4mQyH45a%2FYvmelUoi0pGaEqs1vXBgQPHdRJ6twaBdyV3MGRIjgD1q6Fi8tNn90suRbhXDIbS%2Fb9uiFqcpF9ua%2FovQcvH%2BZJ%2F5wXB5xlHTZWftbUMGLOwb67KSvKaGp1NkV9lIJLGjPUK9WNzLCwniLaFfm6tUbdKI1gKtrHNSkRNKxdLR2l6P58N%2FnGIbe7kL3XLwYMWWc9FqdhMJqDf3FQGUZsj5gVaC4Xk4Cv2whVGdyhMCLtp2dSHbfw%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=147069487413",
+      "product_id": "147069487413",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$9.99",
+        "extracted": 9.99
+      },
+      "shipping": "0 bids · Time left5d 11h left  (Fri, 06:02 PM)",
+      "returns": "Benefits charity",
+      "thumbnail": "https://i.ebayimg.com/images/g/7foAAeSwWNNpWE3k/s-l140.jpg",
+      "seller": {
+        "username": "salvationarmyfortwortharc",
+        "reviews": 6600,
+        "positive_feedback_in_percentage": 99.6
+      }
+    },
+    {
+      "title": "Sunbeam T-20 Toaster Radiant Control VTG Chrome Art Deco June 1951 Works READ",
+      "link": "https://www.ebay.com/itm/146628365185?_skw=vintage+toaster&itmmeta=01KE4M4BW6T0XWZRDBHP128TJV&hash=item2223bb4b81:g:Bn8AAOSwiIZn-9kd&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1c8RRsutF3Fr%2FmGWkXx1gM5VbfL1YuyVizRKqNGIsZ5oUIezli%2Fgzi4z%2B7kQcAI1%2FeD2viXnjWkgIkKE5LvGUwXusmf2c4ACCdZZHPxFozHNoQ6j29EswZ6jNL1O16Mw6LtS6qyXjfg853zT1S%2FnwoZCVyKkofk6LghQtEeECEv7KNt4Sw4tj5ZUrM9Slg1imSd2mqLtUDok8j%2FZ3t3aLAaXbZ9tNECvC6gkY3sYXGrJh18yj04Gk3C3nKjtGp5vsNBZnqyohCSgs91awKwNJ35M1%2B7c1CBv34lr561RWzgug%3D%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=146628365185",
+      "product_id": "146628365185",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$99.00",
+        "extracted": 99.0
+      },
+      "shipping": {
+        "raw": "+$14.00 delivery",
+        "extracted": 14.0
+      },
+      "location": "Located in United States",
+      "watchers": "14 watchers",
+      "extracted_watchers": 14,
+      "bids": {
+        "count": 14
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/Bn8AAOSwiIZn-9kd/s-l140.jpg",
+      "seller": {
+        "username": "pjpickers",
+        "reviews": 1400,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "sunbeam radiant control toaster 20-3 AG Auto Drop Works Looks Great",
+      "link": "https://www.ebay.com/itm/147060936828?_skw=vintage+toaster&itmmeta=01KE4M4BW6CJ2HWKQEEEK643W6&hash=item223d83d07c:g:YyIAAeSwsGFpUnqF&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1cYCeH7CZx7GLTQHZdT0GiSFqFpLFf08NXzdDh%2FLurFM7Ig7%2Bs6LzTAnX0Vqg4V0ZZ1o4735vyEiuStVnp86%2BJhJnHNwX%2BAP1gmzMRF6gkyNnJ1AglsjpPsY%2BEh7ik2UwusGE%2FMTsNlMYagxU4ogXnWirEUVudNtIWONUg0EwzLEkdoC9qCQPP11BtPSvT1cKG61uJGMvXQ7GvJUYvtzIpaIGqjb7BpNc0JDNWDSeTjiaDSdYnD8LyORnh4z1SZrxw%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=147060936828",
+      "product_id": "147060936828",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$149.90",
+        "extracted": 149.9
+      },
+      "shipping": {
+        "raw": "+$18.00 delivery",
+        "extracted": 18.0
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/YyIAAeSwsGFpUnqF/s-l140.jpg",
+      "seller": {
+        "username": "jb5-25",
+        "reviews": 1500,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage Proctor Silex Chrome 4 Slice Toaster T522B 70s w/t OG BOX 🔥 Tested 🔥",
+      "link": "https://www.ebay.com/itm/389098306111?_skw=vintage+toaster&itmmeta=01KE4M4BW6MAJ07DWS9SV6MZFM&hash=item5a9810fa3f:g:0wYAAeSwVOJo71si&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1ejHDX18ZSj5kcMiO7iU8s33eqTwT8TTY33zku9mx5nsKTn9UN0FNKFl7OltPXTRGG9ItIJCN6DVZb68DpvpbWN5D5Iv8t4UAyTcIMu%2BHT1hq%2FH%2B%2BbmQ2HK%2BRCZf%2BtFe55UKOZaUkeo6iXfhPVtzHz8MQxeOfyQKGSpa4boO2EWPn7eUxz8r%2BxQsVDPQszxNLLzIY3kevMqgywQyuONPuvzQlqPjfQDegMAGJdca6RwRKMh%2FIGOYNylIHbZH%2BdCSpI%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=389098306111",
+      "product_id": "389098306111",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$24.87",
+        "extracted": 24.87
+      },
+      "shipping": {
+        "raw": "+$27.37 delivery",
+        "extracted": 27.37
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/0wYAAeSwVOJo71si/s-l140.jpg",
+      "seller": {
+        "username": "tramar_1289",
+        "reviews": 249,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Antique Torrid Pushomatic Auto Turn Electric Toaster w/ Cord, Works - Wilcott",
+      "link": "https://www.ebay.com/itm/267528000890?_skw=vintage+toaster&itmmeta=01KE4M4BW6PPDB3DW92SQ4WR3E&hash=item3e49e9557a:g:80QAAeSwYlJpUxdP&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1fG317M%2BRZn8%2BiZERaOc9aK8bijKCFb%2Bg2dzIHg9FAPw0n6DiCjRqinsurfH6LJE21x9uQ1wSR2SPKlKjxzji7uVEQ5wmIAoAKIUyhD7gLzzWmvPtUjS7aZIp8tC7aMAc0Ko%2FryvtWHF1V97HL5kpHrtPmO0WY01sEbSitVizrhLX%2BUdM%2BdifNiGa1h%2FcO7aDRXEwMOLyAmW7ElPpOqS4mKAHz7U%2BhIwVLnvlFSlnqdJvcOcSn5csS7nP7g0FhvExQ%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267528000890",
+      "product_id": "267528000890",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$17.99",
+          "extracted": 17.99
+        },
+        "to": {
+          "raw": "$26.99",
+          "extracted": 26.99
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:12 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/80QAAeSwYlJpUxdP/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage GE General Electric Toaster 2 Slice Chrome & Black USA Works Tested",
+      "link": "https://www.ebay.com/itm/146939090323?_skw=vintage+toaster&itmmeta=01KE4M4BW6D0YCX6N6NJMT0Z20&hash=item2236409593:g:YfYAAeSwwdBpCXUF&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1d1UKk1xnw1nvO5V1kZuaCcivq9zqmZ2A7XfHHkhrziXVFbAxAEU5V37lVzyHwexGu5CFWFYCl5P3wOcmKhG5cdzYkumXjzZ0wfnkYD7jKOS3glVoUVGC37LCrpt5utM4W2Q2V%2FmyEBptbaUmjNuIZqA9KvfiIK5BpM%2BZBoxoboj%2BeLkM602TzEd5SDhs5%2BdOTVUsRfO7yg8ZMm1H8zT1Ankq3mfurLe0c0Wia%2BqsWSsp8AoWDJ4flrW8Thp18Q1mkiV8YRB%2F0ASBvp1Qyy9Bld0kDY978rAsXMzFRYe9%2B%2Fhg%3D%3D%7Ctkp%3ABFBMrL6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=146939090323",
+      "product_id": "146939090323",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$35.00",
+        "extracted": 35.0
+      },
+      "shipping": {
+        "raw": "+$20.60 delivery",
+        "extracted": 20.6
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "thumbnail": "https://i.ebayimg.com/images/g/YfYAAeSwwdBpCXUF/s-l140.jpg",
+      "seller": {
+        "username": "roberhendrickso_9",
+        "reviews": 1400,
+        "positive_feedback_in_percentage": 99.6
+      }
+    },
+    {
+      "title": "Vintage GE Toaster 2-Slice General Electric Model A10 T17 900W Chrome Clean!",
+      "link": "https://www.ebay.com/itm/317652379401?_skw=vintage+toaster&itmmeta=01KE4M4BW6ES4NS3YR5KBFRYE4&hash=item49f58ea709:g:b1AAAeSwdkFpO8QM&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1dkZBofuRxxR6Mv5zIcCagXyFHfibzLgChVZcL6AO3TtpULPK4xs1uQ0EiQhknaLIPRXWJ4aGz1shKjExLbCY%2FtWxCRUSgGI91zqFMUhHizQKoNWx9R1oVIYJC81e7jn4mUUy5Kz401iJeBXVuFQG5H97DGrDOaO5n3Gy8AKqR4WXbYTjFMPgDNa%2B1%2B15grzywtfDjH244Z1tkmK8s79gTHFXiMbPjm5HqQ7nzdv2CY8rTp0bgh%2Bhq90cACvHAgDiOmCmL6dGhuGyqq12DXS0dU6gBF56Ec4V3FpWNkDHsd4Q%3D%3D%7Ctkp%3ABFBMrL6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=317652379401",
+      "product_id": "317652379401",
+      "condition": "New (Other)",
+      "price": {
+        "raw": "$29.99",
+        "extracted": 29.99
+      },
+      "shipping": {
+        "raw": "+$13.22 delivery",
+        "extracted": 13.22
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/b1AAAeSwdkFpO8QM/s-l140.jpg",
+      "seller": {
+        "username": "keptitcollectibles",
+        "reviews": 70,
+        "positive_feedback_in_percentage": 98.6
+      }
+    },
+    {
+      "title": "Dominion VTG MCM Avacado Green Metal 4 Slice Toaster New RARE!",
+      "link": "https://www.ebay.com/itm/147065322073?_skw=vintage+toaster&itmmeta=01KE4M4BW6VMY1YYBBCDRFT3FW&hash=item223dc6ba59:g:v4YAAeSwBRdpVZ2X&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1drWuS%2BuN%2F7EqfPO0AD%2Fnmrg%2Ftx2fJpYdwYKxOr38ukqmAjPXd6%2Buy3dCG79ry%2B4dG96kW3iLFP865ilKpdxG%2FpNgFNHaunlqR1W7Jl30IoaVcr9xNhfzgsLEUHtoC69%2FDlAP49B%2BQdPSe57Hfod%2FlSyW4g2BwM0lzlhtLDdHOwxStNijLVuQLnug9PIxTs7EuXsMBLWQ0KdV7zEl7J67pNhMW%2FiQjiv53Rh11pWOZXYA8RigzYE%2F%2Bmz%2BBt9kJUANo%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=147065322073",
+      "product_id": "147065322073",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$299.99",
+        "extracted": 299.99
+      },
+      "shipping": {
+        "raw": "+$16.25 delivery",
+        "extracted": 16.25
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/v4YAAeSwBRdpVZ2X/s-l140.jpg",
+      "seller": {
+        "username": "jbeer87",
+        "reviews": 1400,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage Hamilton Beach Model 306 Chrome Toaster 2 Slice MCM Retro Works",
+      "link": "https://www.ebay.com/itm/267521217542?_skw=vintage+toaster&itmmeta=01KE4M4BW6S8GXHDWT09TER0AG&hash=item3e4981d406:g:zB0AAeSwl3RpSqHS&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1eqX0jLekgoaEQmVjGd8jIQeAFpChZmVnIaMJ3SOnsvNcZEAg4OouX%2BiE99tXv6wqkh%2BDk5Vd%2BSGc2UqYN0Pr7jjZnQAtQdpXYIBhMpJUBvp5%2FHvsUVoTo2hn0aTaGo2l6MVrnNfSvf33amidj072dQ2BqGqvcrGS8MJgi9LaAEnzaZapM6H5tacsx5LFgrMbF0BC8hBn4sW5DCahoeMfjo8MjNm4DgmnfhiFEjggJngleT96eb9cE77lz33iqc5Uk%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267521217542",
+      "product_id": "267521217542",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$24.99",
+        "extracted": 24.99
+      },
+      "shipping": {
+        "raw": "+$9.72 delivery",
+        "extracted": 9.72
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/zB0AAeSwl3RpSqHS/s-l140.jpg",
+      "seller": {
+        "username": "1823bryoy",
+        "reviews": 3600,
+        "positive_feedback_in_percentage": 99.8
+      }
+    },
+    {
+      "title": "Vintage Toastmaster Electric Pop Up Toaster 1B3 w/ Instructions, Cord - No Heat",
+      "link": "https://www.ebay.com/itm/267525638190?_skw=vintage+toaster&itmmeta=01KE4M4BW6812CS7KBW5DDJZ03&hash=item3e49c5482e:g:mLMAAeSwbVVpUEhF&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fD05PBrzYLZEqPHvUklxHpKEMWAnYXoo0NUywc87IJkLrEJ2NYiBQHYA3N4s4UxLvBiZKAaADe8daYPVVU2bRxl7LCD2i7524tnW3YLiglw8p%2FWgQla7HL0A1QIhwcNs%2FNyFBlkrgLIi4OEqEcg76cPg6E4bfDn03A%2ByibiA%2F8ULFziavTaYljTbHzCf6x5o%2BzUpwSzLfeSn3osbOLwyeSg%2Bz1lgCNOxyfDcWqdpT9XSLCqdp9rQqQxhAIXhZTeAAzBZw1yGSIemhZCUxvwYu%2B%2BUcWRt7%2BUMiTw32WJBxy4Q%3D%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267525638190",
+      "product_id": "267525638190",
+      "condition": "Parts Only",
+      "price": {
+        "from": {
+          "raw": "$11.99",
+          "extracted": 11.99
+        },
+        "to": {
+          "raw": "$16.99",
+          "extracted": 16.99
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:05 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/mLMAAeSwbVVpUEhF/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vintage Sunbeam T-20B Radiant Control Auto Drop Chrome Toaster - Tested Working",
+      "link": "https://www.ebay.com/itm/127561070947?_skw=vintage+toaster&itmmeta=01KE4M4BW6RP6K4QDWWQKVMQZ0&hash=item1db33b7963:g:RogAAeSw8xFpPfy2&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1ciROnnmOBYbPWrwRK3fMzcIokSusHfYk%2FzmGdYPxdKPXKRTz5aeo5xP7rvRv3Avt%2BI6VdzzeNSYNJqLVNA%2B6wzV%2B%2FcS7nOHZHX59R9ZWo4yb%2FTGHngzPcCZoDGnI1qp3D2LWengXyv9I2gvdYuM249NiqavCVFMscplVzS529W9lW68oEB%2F5xOOCHlzgOjB8Mv6qCj6HjWfVg%2F02n8AlWktxsJ8Zfu%2B9LYNMmDklPMYuhTYL9THadwl6ORtliOAG0%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=127561070947",
+      "product_id": "127561070947",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$139.99",
+        "extracted": 139.99
+      },
+      "shipping": {
+        "raw": "+$19.99 delivery",
+        "extracted": 19.99
+      },
+      "location": "Located in United States",
+      "watchers": "21 watchers",
+      "extracted_watchers": 21,
+      "bids": {
+        "count": 21
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/RogAAeSw8xFpPfy2/s-l140.jpg",
+      "seller": {
+        "username": "eric_finds",
+        "reviews": 12700,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage Toastmaster Toaster Single Slice Chrome 1A5 Retro Kitchen MCM TESTED",
+      "link": "https://www.ebay.com/itm/406548998978?_skw=vintage+toaster&itmmeta=01KE4M4BW6RW3AJSZPP0SRWVFK&hash=item5ea8356b42:g:hVIAAeSw13RpBo9C&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cI3CNMB9fnoUg7f5SxwrFlioZk0gqHj9XuQLKMthC4GiqCrA0xei5Mj3elKR898KrUQFHH2tgUu5Edxu6fD86K%2BxUW18NN%2B11gcCjXkIeMnMeRTET%2Fd8jzUy8%2FgNQmhDyNdHpJMuQNII1zGUoFZ915dXJuBJarkbJl35YjVC%2FdG6ElJOm7GnmWYIiK1Vt%2B0Y0fFIKGeoyjDahXbXT3QMMswj5SJUOyCgq1Osz8u3wPdp32WzsfeBKIWY7nml3EE0EpuS1l7zkrUvpDT13TY3CRVuRNT2y8nZ8PTJac896BSA%3D%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=406548998978",
+      "product_id": "406548998978",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$44.99",
+        "extracted": 44.99
+      },
+      "shipping": {
+        "raw": "+$14.99 delivery",
+        "extracted": 14.99
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/hVIAAeSw13RpBo9C/s-l140.jpg",
+      "seller": {
+        "username": "greatstates",
+        "reviews": 1100,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "ANTIQUE WESTINGHOUSE TURNOVER TOASTER Orig. Cord. Tested! Excellent Condition",
+      "link": "https://www.ebay.com/itm/205943130625?_skw=vintage+toaster&itmmeta=01KE4M4BW6V0MJAJVXW75D6AA6&hash=item2ff32aca01:g:YDoAAeSwgjRpSwgp&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1f8IM1P4Plteu2g6Cu3YTNGSL3oTDVV%2F6Kw2sXqsJP5Gt5teDUeZCYYRToG2HuOIGWi82vuSJkq5fzBdU0KtyAt8lZj0q%2BqWsNTBLhcRFW0Syp%2FdiVD3yAgkQkBb4ZtZ0DcNojbdhpyEE5pA%2BmN%2FPeR%2BB6UGZ4xeFx3aiWyRFWWMZy4hk86nbtxIABycDVgZC%2FWFa3ZA2FB2%2B%2Ft%2BgbgG3FDQNrLJjMv%2Bvnok0ZmMTzy2VIF%2FXmy8EFmUuiHa3QjVQG9aAskZU2zAUd6BSYOnrtCFWl%2BB3o7slNHNrvjV7qzCw%3D%3D%7Ctkp%3ABk9SR6y-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=205943130625",
+      "product_id": "205943130625",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$65.00",
+        "extracted": 65.0
+      },
+      "shipping": {
+        "raw": "+$13.60 delivery",
+        "extracted": 13.6
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/YDoAAeSwgjRpSwgp/s-l140.jpg",
+      "seller": {
+        "username": "muzik4you",
+        "reviews": 2300,
+        "positive_feedback_in_percentage": 99.7
+      }
+    },
+    {
+      "title": "Vintage Presto Toaster 2 Slice Chrome Wheat Design Model 01 T02 Tested And Works",
+      "link": "https://www.ebay.com/itm/358067393690?_skw=vintage+toaster&itmmeta=01KE4M4BW6M4JD1GDBHENYTW6M&hash=item535e7ad49a:g:UaMAAeSwrCtoPEzy&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fcCb7Q686pLYfqvU8QPYwthfk7%2FcHsRHHVhWvA3b8rP%2FpspYffmLNyzBfQ9Zg1%2BqS5%2BT2c2b8xqs0zZu83%2FltNVOdH249NpHN3pxbXqRnypTe47gXj0c4aJ1CKXXDagZ4cYpkCfpIj6sCRsojIv9%2B4mZXzb100tWpIK1Rt%2FOAaI22XAHuqrunGaPzwCJcjhNLnR6WNkAED5W2JVpUGPb5MX4C2Pisff6ndi9o1%2FJigc9c54Gkr8orNuX8MexmPAENaaMK5LuP94GYhW%2Fgf4SNrbPrxNHgyAHGLxPYEYj7BPw%3D%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=358067393690",
+      "product_id": "358067393690",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$19.97",
+        "extracted": 19.97
+      },
+      "shipping": {
+        "raw": "+$9.72 delivery",
+        "extracted": 9.72
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/UaMAAeSwrCtoPEzy/s-l140.jpg",
+      "seller": {
+        "username": "chicke9114",
+        "reviews": 1600,
+        "positive_feedback_in_percentage": 99.8
+      }
+    },
+    {
+      "title": "Universal E7222 Landers Frary & Clark Single Slice Toaster, New Britain, tested",
+      "link": "https://www.ebay.com/itm/147061205940?_skw=vintage+toaster&itmmeta=01KE4M4BW6NNW8JY46THFF02WK&hash=item223d87ebb4:g:FuUAAeSwyqZpRHi4&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1eDOh1cAKGF7%2FhvAwlHRZwaPaCQVRRMdJRIELpdcizPv0aFiUDjuB0hy3gE3g%2Ft0VMovJFBhVrbn4tcuQPW1GLhYuVXxVz0JfeVvnhhBcRSPB2ZAoZm5AzrOeOGqe9SOJrtBuzenpFO%2F5YU8zPoiugecF2%2Fyj65ZGAKsfEVKNGFTv3LkJTkiq%2Bhwu9FgiUeNY0nkrYlv2LmOhlufL3Ayt0p6s9%2B3126YQ0JS0V4MOLFeNQk%2FNDB6xxTtg5eSf%2FY1Kg%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=147061205940",
+      "product_id": "147061205940",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$60.00",
+        "extracted": 60.0
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/FuUAAeSwyqZpRHi4/s-l140.jpg",
+      "seller": {
+        "username": "imajgin",
+        "reviews": 10400,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Toastmaster VINTAGE Model Number B141 Stainless Steel Toaster with Original Cord",
+      "link": "https://www.ebay.com/itm/236551797214?_skw=vintage+toaster&itmmeta=01KE4M4BW63GDQC2JYVHF3AP79&hash=item371395f9de:g:~LcAAeSwC6Votzqs&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1f87bZ%2FNB6DWz6Ii3xNK%2BtVCsZxI8sHvpF9Vo6sqqyUKhKogF88hjUxXfOx6uM6OjSbxyB%2FRVOl7UIFjcj9MZE%2BPRSU%2Bu9sJmWW5FNxtAwN5HGIGzjuIq1PZQai96ED0io8qDYsdXavq3qKlVBsL1w5M8To7tBsADgLQG9tBgb%2B%2BKX9EHbAdlFyH9BBMjHSHNQMhJjAN08kJrXglGSEs5Ez1L6NC1ZIhFYNutnuxxxfuUsICqCRoJ93z5CMMMGgexU%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=236551797214",
+      "product_id": "236551797214",
+      "condition": "New (Other)",
+      "price": {
+        "raw": "$45.00",
+        "extracted": 45.0
+      },
+      "shipping": {
+        "raw": "+$9.58 delivery",
+        "extracted": 9.58
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/~LcAAeSwC6Votzqs/s-l140.jpg",
+      "seller": {
+        "username": "theclosetswap*",
+        "reviews": 67,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Vintage 1960s GE Toaster – Mid-Century Modern Retro Chrome & Gold Plastic MCM",
+      "link": "https://www.ebay.com/itm/205760965970?_skw=vintage+toaster&itmmeta=01KE4M4BW6YRGW3B76SYD3MZQC&hash=item2fe84f2d52:g:FNwAAeSwN1po3yo8&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1diXIhF1ILrRyhJFs6%2B5TOl%2Fr9OZinM93qH%2B9AfDoUbiUllfCYE7%2BxLHIItMmPHs%2FqQCDymHpwH2bNpaBJTYJkFlnX4LOK7OqYlSS4kS%2Bd%2FUaDSiqYXtNYR8K51RYhK5JyaDKNX%2B4%2B4Dnjm2XFEaOtpem102LrkVGJaGOqS2HcOCznlvAPCeK4pe70%2FrbtLBOvicdA8OMgiyIDdEVOcst17q9IshhDNzXM9eFWhnudGl4gda3frCEVTpqvYl%2F%2Bss60%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=205760965970",
+      "product_id": "205760965970",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$39.99",
+        "extracted": 39.99
+      },
+      "shipping": {
+        "raw": "+$10.94 delivery",
+        "extracted": 10.94
+      },
+      "location": "Located in United States",
+      "watchers": "12 watchers",
+      "extracted_watchers": 12,
+      "bids": {
+        "count": 12
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/FNwAAeSwN1po3yo8/s-l140.jpg",
+      "seller": {
+        "username": "funandinspired",
+        "reviews": 112,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "new_listing": true,
+      "title": "Vintage 50s Sunbeam Toaster Model T-20 A MCM Chrome AS IS READ DESCRIPTION",
+      "link": "https://www.ebay.com/itm/227158955478?_skw=vintage+toaster&itmmeta=01KE4M4BW6E6X0Y92EDJ4B80D6&hash=item34e3ba95d6:g:v8QAAeSws6tpWZBP&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1eKCM%2FNUtdOpbJ%2BTKXF8Svarf2zEk0%2FyZP1S6V6cOhlr2uZDskyuBl0K6i4ZKeG0uhJAvhCPGN%2FOAE6tQafAhlYrOHTfdiWbESBTQJ%2FT%2FzspPvtn5quzyWQn2CoA7G5LpSp5briNueFihB3hBHsSeOM%2BSatlETf35Y9eGdHW5opNHvV681JcFzG0zObLQUXV9%2B8a%2BzkN52TVC%2BQQemMAtGDpeCn5v2YMtzcfAtO3vl1DE6K0osO8kCAoUWOmUJdY8T6U4J9zqQzjssASmmA7M16aXRqoZCZCrSslMkQe23s6Q%3D%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=227158955478",
+      "product_id": "227158955478",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$59.99",
+        "extracted": 59.99
+      },
+      "shipping": {
+        "raw": "+$15.00 delivery",
+        "extracted": 15.0
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/v8QAAeSws6tpWZBP/s-l140.jpg",
+      "seller": {
+        "username": "funretirementstudio",
+        "reviews": 602,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "1936 Calkins Breakfaster, Mfr 1936-38, Model T-2, Rare",
+      "link": "https://www.ebay.com/itm/406550290937?_skw=vintage+toaster&itmmeta=01KE4M4BW65192SE9KJRG4VJCD&hash=item5ea84921f9:g:1N4AAeSwGCtpPDmh&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1d8x1eXkypbofj%2FyF6itgWULr7H%2FP8S%2F2pjBRGsf7%2FNSKvS4X%2FRGwUUQhYr328t2A3kNrgqfVLWZ6NZ1cdZ4Nji3Q%2BbnnWhZ3uuYnz0zqF2pHCS3wUqywVE4bPmw8fP3RR4wZRSsgMnDx8s6Ek2IT0AOShIJllotWnPiIanNeb%2B4pBZTXfAceXja8cVlC%2FeA%2BvMRe%2FMAMdhjaV8Ha2lk0pHRh8OHZnlz6D0ONQoKryY2DnFkwOWhWOSBacr5v1TTltyUYBWvXpz9lJqQcKX%2FMr9FRUsRitEA9WMY%2FrJkahNjg%3D%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=406550290937",
+      "product_id": "406550290937",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$25.36",
+          "extracted": 25.36
+        },
+        "to": {
+          "raw": "$39.36",
+          "extracted": 39.36
+        }
+      },
+      "shipping": "0 bids · Time left5d 9h left  (Fri, 04:19 PM)",
+      "returns": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/1N4AAeSwGCtpPDmh/s-l140.jpg",
+      "seller": {
+        "username": "hopie_41",
+        "reviews": 226,
+        "positive_feedback_in_percentage": 99.5
+      }
+    },
+    {
+      "title": "MARY PROCTOR VINTAGE CHROME 4 PIECE TOASTER RETRO",
+      "link": "https://www.ebay.com/itm/389340589441?_skw=vintage+toaster&itmmeta=01KE4M4BW60Q0GWXW2Z9YT319E&hash=item5aa681ed81:g:8VoAAeSwE3hpNIGY&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1f%2Fzb4nz7hKUp1C8pR6uBg4IcfYlyGxOeJv4iaVxYMQxmusD2lJAiyKWW0MxORvhYCDWNKe8uIWcXN9ZUrds9n6NjuSDyC5GZdX4%2BjeieBxP0cARoIraWWa2eFSARwZSg65BDd4Mw2alYChJ4djvkuSX4%2B2pEik9Uw9bIGIjsEaW%2FlyM6Tp6OnCweBaeKA2uvJ6o%2FuryaIPoQL2KNEiN0WFxvLFj9sS3n7EBEdToyqxmMK30PCmP4Rfw0cbfwdakDc%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=389340589441",
+      "product_id": "389340589441",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$29.99",
+        "extracted": 29.99
+      },
+      "shipping": {
+        "raw": "+$17.10 delivery",
+        "extracted": 17.1
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/8VoAAeSwE3hpNIGY/s-l140.jpg",
+      "seller": {
+        "username": "gmabettysvintageandantiques",
+        "reviews": 189,
+        "positive_feedback_in_percentage": 99.5
+      }
+    },
+    {
+      "title": "Antique Edison Electric \"Hotpoint\" Toaster 115T9 w/ Cloth Cord, Works, 1920s",
+      "link": "https://www.ebay.com/itm/267525799429?_skw=vintage+toaster&itmmeta=01KE4M4BW6ACS40XNC9E336KFY&hash=item3e49c7be05:g:nU4AAeSw7kZpUHqT&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cfmI%2BwHmBBi9qb1UWrkPjWRnk2dnXsc3puKXm%2FM4rOwwWbkpnMkvhyuNEiKxaVK%2FZEhFYoOvKMOvQT2ZJkG4WaBR6Xmu%2FIaIwggtU59KBTqJCwAvILr8wL%2FZQHxuYooJTQmH7CPR%2BbyrJRxyO75NB4Cb%2FdYBVNijUhxBsThxn4EZGVYu5wbbA0qFjT5%2BAsEXzb5YT8fhOgWrmeHUJaNCUYmsLyjSuAvJb45A3IT0NJd%2FFkm9dB9TVixSNhh69EO7%2FEP6s14E%2FQcDW53HoPSmcccw43DDlVACDTZ%2FZJ%2B48rQQ%3D%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267525799429",
+      "product_id": "267525799429",
+      "condition": "Pre-Owned",
+      "price": {
+        "from": {
+          "raw": "$12.99",
+          "extracted": 12.99
+        },
+        "to": {
+          "raw": "$22.99",
+          "extracted": 22.99
+        }
+      },
+      "shipping": "0 bids · Time left7d 9h left  (01/11, 04:10 PM)",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/nU4AAeSw7kZpUHqT/s-l140.jpg",
+      "seller": {
+        "username": "theshive",
+        "reviews": 957,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Vtg Sunbeam Toaster Vista Radiant Control VT 40-1 Auto Drop Raise PARTS/REPAIR",
+      "link": "https://www.ebay.com/itm/257289691748?_skw=vintage+toaster&itmmeta=01KE4M4BW6EJP8PWCNCM32JN6H&hash=item3be7a92264:g:A38AAeSwRXhpVCF2&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cw5HbvXm39U863HIypptA7q8ZXq%2Bn%2Bi7rDSjalqmNpzRIZsNFzA0T0Q0P61DGinOUcngkVozSYef8%2BF5Bq308mY7yAXQebnOv--ui4fCbrJ9F3TdXKJsxkKG5mYuG7KoBo3XOC4ULRvehVjm7OhMbfpsiZBiVPEYMrFrNPcVgxNPMNnEcBw%2BL1rE9QkD8tamp8Y1zrQE9j9NSiqTXk2I9GpFSP%2F%2B44tsU2%2FlPeRIzEESsbvSXBCXXcMHOGragqKwNbMqR%2BKNRMHBYrmuLyF9LBcei0WKBeV98gfWAbNIwM9A%3D%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=257289691748",
+      "product_id": "257289691748",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$50.00",
+        "extracted": 50.0
+      },
+      "shipping": {
+        "raw": "+$14.99 delivery",
+        "extracted": 14.99
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "top_rated": true,
+      "thumbnail": "https://i.ebayimg.com/images/g/A38AAeSwRXhpVCF2/s-l140.jpg",
+      "seller": {
+        "username": "rubbercityreseller",
+        "reviews": 2800,
+        "positive_feedback_in_percentage": 99.9
+      }
+    },
+    {
+      "title": "Sears Roebuck & Co. Vintage 4 Slice Toaster Model# 303,481101",
+      "link": "https://www.ebay.com/itm/205719273034?_skw=vintage+toaster&itmmeta=01KE4M4BW6WAQ82XP1YRXQB6MD&hash=item2fe5d2fe4a:g:kfwAAeSwjKZowefj&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1cUl04Txy60TiDEDCNphJ7B5Ab4oBhC22xm5HED%2FL%2FOhfqvpv4A%2BcU2SzUk%2BZspNHr574SkEHaGmtBxLEe1AUlfrNCfvRLI1tTZ3Ji4rOjvGntdMf9b%2BZKzEN9Gc%2FiW%2BuOmRIBlz3c0aYen8LHHeU%2FLGiGc59MWnsR3X19zOFESdcjge1hYPhv7JtNjuH9tvwDbHOTGPt8gsm7m9SID%2BB%2FCzLEQ4YU7QZrnbTCMuf9PHYKa%2Fd6BtH96ETNaPol5XCI%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=205719273034",
+      "product_id": "205719273034",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$30.00",
+        "extracted": 30.0
+      },
+      "shipping": {
+        "raw": "+$10.30 delivery",
+        "extracted": 10.3
+      },
+      "location": "Located in United States",
+      "returns": "Free returns",
+      "thumbnail": "https://i.ebayimg.com/images/g/kfwAAeSwjKZowefj/s-l140.jpg",
+      "seller": {
+        "username": "maryannh540",
+        "reviews": 827,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "Rare Mid-Century German Elem M5 Carousel Toaster Complete w/ Power Cord 220V",
+      "link": "https://www.ebay.com/itm/136748985765?_skw=vintage+toaster&itmmeta=01KE4M4BW6SH48CQ40E8V4BYEM&hash=item1fd6dfeda5:g:Em8AAeSwMDlpGP6i&itmprp=enc%3AAQAKAAAA0FkggFvd1GGDu0w3yXCmi1eBRZLj3uExGb2hPlJhzjnsYJDU26l37hbuSBb1j%2BjtZA0Bv%2FgPOg%2BT0Ip8YKkHhpH9hhXSmVFemO3gAzUQwOdUGEb5dw9d5oz%2Fc21Py2mWgdE8o7wgvSBL0xt14tasPKA3Bbxr3e2dhe1fSHLOJOPLDhTa3%2FXt8nAYSeRHkaECXjqMz5jy5MtCpESA%2F74UMaEZLJ38Fs7oXn6EoW9fN63uDdfdxc30jCKgIfRbRG1kiTwK0UG0SzNcYneUW1UkL08%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=136748985765",
+      "product_id": "136748985765",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$424.99",
+        "extracted": 424.99
+      },
+      "shipping": {
+        "raw": "+$24.00 delivery",
+        "extracted": 24.0
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/Em8AAeSwMDlpGP6i/s-l140.jpg",
+      "seller": {
+        "username": "liddlekid",
+        "reviews": 5700,
+        "positive_feedback_in_percentage": 99.7
+      }
+    },
+    {
+      "title": "Vintage Sunbeam 2-slice Electric Radiant Control Toaster Model T-20B Works Chrom",
+      "link": "https://www.ebay.com/itm/366085538686?_skw=vintage+toaster&itmmeta=01KE4M4BW6WH19XC96E6E0N24C&hash=item553c66037e:g:QH8AAeSw0CNpUGlo&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1eoZFVr1pvRoPQWONSvxMxLwp6uA%2Bx5durkjwpJfR8W4Me8pkUgUTeiyZoHmOs5Y3ePZTwaA%2BAt17XRx%2BeDnB3e4Vmi%2BS7sliV8uu7cThS2eBKjTK6NdWFYkvydf1TNDHED0qIJOJRe5oc9Q47u0d49U7dlIv9FBn7svTm4j6uO5A35g8%2B9DuEBeIuAcMBF6Su4oWpR7%2FEVHJcrEOUlRZXUg61sCi0MURhqEtf%2B8PjKGfo1HdvEMMuF4ATO%2FZjWFilik8H6u%2BkZIDCyIVZC2wtzcdKq0HnZpi87iQ6fccWzRg%3D%3D%7Ctkp%3ABk9SR66-kZTxZg",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=366085538686",
+      "product_id": "366085538686",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$99.95",
+        "extracted": 99.95
+      },
+      "shipping": {
+        "raw": "+$17.70 delivery",
+        "extracted": 17.7
+      },
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/QH8AAeSw0CNpUGlo/s-l140.jpg",
+      "seller": {
+        "username": "julestreasurefinds",
+        "reviews": 1300,
+        "positive_feedback_in_percentage": 100
+      }
+    },
+    {
+      "title": "General Electric Vintage Chrome Pop Up Toaster ATI82 - TESTED & WORKING",
+      "link": "https://www.ebay.com/itm/286902879940?_skw=vintage+toaster&itmmeta=01KE4M4BW75TY9Z0CFYE19MD39&hash=item42ccbe86c4:g:iLwAAeSwESpoI329&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1dxf8sSnWLr2APiR8gi1IsUM4HcrfhseseJQqodKdP5ZjNAs70BlWNQpNSTZrHCYyQEnMQuLtveJjMiuF9kdmV7UK2VgIfLVc4B%2B6lQIC6lc392xcNmwWD884uL2318ZSXFRoBfOtSUvBVCrgwJv1qmu5pe%2BNkeWAC5qlHraTruVUpxCij6%2Fbvx3NKwAl7C2Mtrcc3tpR9CrZtBHTij%2F3q5mDt1dsPa41BiF54H6UHtPWcVVNPdCoiLH9vjbWSCjoSrmT2fg154TZkh2JegqmT903YahTJgnusUd9bHWAc6kQ%3D%3D%7Ctkp%3ABFBMrr6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=286902879940",
+      "product_id": "286902879940",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$31.56",
+        "extracted": 31.56
+      },
+      "shipping": {
+        "raw": "+$17.10 delivery",
+        "extracted": 17.1
+      },
+      "location": "Located in United States",
+      "watchers": "11 watchers",
+      "extracted_watchers": 11,
+      "bids": {
+        "count": 11
+      },
+      "thumbnail": "https://i.ebayimg.com/images/g/iLwAAeSwESpoI329/s-l140.jpg",
+      "seller": {
+        "username": "traderjakes",
+        "reviews": 3100,
+        "positive_feedback_in_percentage": 98.5
+      }
+    },
+    {
+      "title": "VTG Sunbeam 2 Slice Pop Up Toaster Chrome 1970s Mid Century Working",
+      "link": "https://www.ebay.com/itm/116938583448?_skw=vintage+toaster&itmmeta=01KE4M4BW7R27QM4H0X8GYAFTC&hash=item1b3a152d98:g:1gsAAeSwgcVpRtND&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cBi7t3BmKKh4e43dshFoXUEVF64qe1vATdsseGYQANYwHfE8CKieNi%2FCF%2FJOnKIVlSR6a4aBz2vfz%2BzAnQ5599r%2Bgh3GdOgrqgOH12hmBZSn%2BS6kPFzrToSmCbqGpyhn6UZUt0a8L9btIdELyZLfXaGqSy1P67fUTSjz0NN8uRhp2DEWZXmN8nFuqIyaqxbpxnD3BWJ5Hu7A0NnqBkFO7UlzOqIdwmizXZHLHRSQqcKaEbOsYoPPVOPLzCJ9eDxiT5XVmL0wWUMEBiWWO733GvsD%2F67iqrZXFhpjQiItVbWg%3D%3D%7Ctkp%3ABFBMrr6RlPFm",
+      "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=116938583448",
+      "product_id": "116938583448",
+      "condition": "$100.00",
+      "price": {
+        "raw": "$90.00",
+        "extracted": 90.0
+      },
+      "old_price": {
+        "raw": "$100.00",
+        "extracted": 100.0,
+        "discount": "$90.00"
+      },
+      "shipping": "Free delivery",
+      "location": "Located in United States",
+      "thumbnail": "https://i.ebayimg.com/images/g/1gsAAeSwgcVpRtND/s-l140.jpg",
+      "seller": {
+        "username": "luvinjunque",
+        "reviews": 17300,
+        "positive_feedback_in_percentage": 99.5
+      }
+    }
+  ],
+  "inline_results": [
+    {
+      "title": "Picked For YouTop selling items from trusted sellers | Sponsor⁧ed",
+      "items": [
+        {
+          "title": "VTG Sunbeam 2 Slice Pop Up Toaster Chrome 1970s Mid Century Working",
+          "link": "https://www.ebay.com/itm/116938583448?_skw=vintage+toaster&itmmeta=01KE4M4BWKB33N8KM3RZG3TT59&hash=item1b3a152d98:g:1gsAAeSwgcVpRtND&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cBi7t3BmKKh4e43dshFoXUEVF64qe1vATdsseGYQANYwHfE8CKieNi%2FCF%2FJOnKIVlSR6a4aBz2vfz%2BzAnQ5599r%2Bgh3GdOgrqgOH12hmBZSn%2BS6kPFzrToSmCbqGpyhn4OPvEi8tjjsy0xCiQ3e%2FcxDJ76SfLB0TPxwZ7bGEY8NmiQA1mHE8u6NaEkSJP%2FvRWe3ooBOYMT%2BFp%2FB%2Bbra2r3d5J4iDjn64Xa3CIxFFb8d9fz70i3kbpx5qt8QomVNhJfoWg%2BYEV1gWIrhXGsvM3HArHxUukx9fvl1mhBxQ%2F05Q%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=116938583448",
+          "product_id": "116938583448",
+          "price": {
+            "raw": "$90.00",
+            "extracted": 90.0
+          },
+          "shipping": "luvinjunque (17,360) 99.5%",
+          "bids": {
+            "count": 17360
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/1gsAAeSwgcVpRtND/s-l140.jpg"
+        },
+        {
+          "title": "Vintage Toastmaster Waters-Genter Chrome Single Slice Toaster TESTED WORKS",
+          "link": "https://www.ebay.com/itm/306554513443?_skw=vintage+toaster&itmmeta=01KE4M4BWK2CMQWRVY6R7KVYC4&hash=item476012a823:g:R6YAAeSwfuto8o1P&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fVXWSiWORZK8CMnm7CvFSk2zQi04ogjDXWg5qXARLh2rjfwiFebLKJ3dYpMT5fB7bjzpE6Wj4TtwUJO8g6Y69d2BWua38ymwBCvsh4KF310kNUrnzC4MyzOyRDT3p1YFt%2FVbJ1JuvP6b2hTC7LQPsq8fD5qe708DU47SStuuSYuMyLTx%2FSaOZerxcGLSgq%2FZpIefNE9sRVs3sUJGP4ig4gcWQxFCJnQ3y1qNuRmjXRDM26XE7yr52gBCYOSJEQdlkKqHbJ01Ed8BPnExLfBfq4dDJ6xRJgt%2FHWna6lGPmS3Q%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=306554513443",
+          "product_id": "306554513443",
+          "price": {
+            "raw": "$54.38",
+            "extracted": 54.38
+          },
+          "shipping": "bargain.store (16,449) 99.6%",
+          "bids": {
+            "count": 16449
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/R6YAAeSwfuto8o1P/s-l140.jpg"
+        },
+        {
+          "title": "VINTAGE Imperial Toaster Chrome Model 1116-A Single SLICE POP UP TOASTER Works!!",
+          "link": "https://www.ebay.com/itm/197929066789?_skw=vintage+toaster&itmmeta=01KE4M4BWK6FZ0E6MCVZXMS5A9&hash=item2e157de125:g:RUgAAOSwQjlnYKx-&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fdVu3jlVLpg009uziRdudaYycdp9dgekI9soNciM5RUb3ZObqOjtobQJkfMqhKwbyHtqPVD%2BmlwnxSzSGpqBlFjurQhhTJyQr%2FlO%2FbI07oo71UUrajSwGJ0%2FOGse495isu8Ctp3lPl5x93%2F3cwZgPW%2F75GkyvQCHaPp%2BDOfYBDyxUamahnLsvI7ktGSA2zn5toQ9lmmphQKOScP159XoYCAz9mPsEmoJO4tNV%2BOCTXEhM4rvfArg4tQBrvLS19PardW8ogvEhK%2Bvc7LdCeZw8G9YscXaTpUQE%2F5PtTiFaTIQ%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=197929066789",
+          "product_id": "197929066789",
+          "price": {
+            "raw": "$48.95",
+            "extracted": 48.95
+          },
+          "shipping": "freshfindsanddesigns (8,240) 99.5%",
+          "bids": {
+            "count": 8240
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/RUgAAOSwQjlnYKx-/s-l140.jpg"
+        },
+        {
+          "title": "Vintage Proctor Silex T009N B-Slice Toaster Wood Grain & Chrome. Tested & Works!",
+          "link": "https://www.ebay.com/itm/167514414762?_skw=vintage+toaster&itmmeta=01KE4M4BWKP8NENR0M4RT7DSHW&hash=item2700a31eaa:g:5YIAAeSwiRNoJRZ0&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1eADK921l%2BoJ94zL3553oh1JkGK8aGVaex1FsbxppG3P7CBx5E9zyLFpeFwXNUvfF2GltNb%2FP890%2BCb%2FsA12ujGknMtHSkVIJXkHE9q9RJ8%2BT2A9zhdJpNmmhUUJL6lNRRFoZ5Z44RDXTvcwNjjnUuUGs35TxhoCHVxbjT21LKgJZfZqx3gAzTdgwFuetRAeupzqRMRz8oIjlHOq62YHJzflSGLf0tKRzIb3pf%2B9V98DHOIRJClxH8SOufU6t1N8GIk%2FXnqoeWENKTMXK4t6mp8sSojd2%2BlYzOfVw%2Fq4Hu7ww%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=167514414762",
+          "product_id": "167514414762",
+          "price": {
+            "raw": "$45.00",
+            "extracted": 45.0
+          },
+          "shipping": "netcong02 (13,795) 99.4%",
+          "bids": {
+            "count": 2
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/5YIAAeSwiRNoJRZ0/s-l140.jpg"
+        }
+      ]
+    },
+    {
+      "title": "From our popular brandsBased on number of views and purchases | S⁨ponsored",
+      "items": [
+        {
+          "title": "Vintage Sunbeam T-35 Chrome Toaster 1950's Auto Drop Radiant Control - Working",
+          "link": "https://www.ebay.com/itm/147071507552?_skw=vintage+toaster&itmmeta=01KE4M4BWKVV2QXXVGXWDG8W2R&hash=item223e251c60:g:rV4AAeSwW2VpWZKP&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1c%2FgHH9OHB7frOoE%2BTUk4XifJcZTzIPvfrQ6gpbemKzz6KKSvcAalDYAKntuW2TXGdnrmfjfbKBZPvx0tchI%2FkFjh5G%2BfSi2unE%2FIXKL%2F2rybrdzC6u5gSjeXurC%2BdAN7HF%2B8UEb9XXCb8Iiair6EngCuaJBH%2FZMIs9ozCKxbIFW8G52vMGJI2fxdYdNSl%2BCnR3LM5qXLv89QTyGetL7bYNtAeCxs8Od2x9%2Bl5UpZiRtH0SlHqmgAqZegLKLv5lE8xMOP%2FKW1SHkuE94irzRzxwRmadLl%2FtZQ8qA5g0g6Yujw%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=147071507552",
+          "product_id": "147071507552",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$114.95",
+            "extracted": 114.95
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$13.00 delivery",
+          "bids": {
+            "count": 13.0
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/rV4AAeSwW2VpWZKP/s-l140.jpg"
+        },
+        {
+          "title": "Vintage MCM Toastmaster 4-Slice Toaster Chrome 1970’s -WORKS Model D126A VGC",
+          "link": "https://www.ebay.com/itm/177735872588?_skw=vintage+toaster&itmmeta=01KE4M4BWKQEX40P02XCRG9R0K&hash=item2961e2304c:g:nhAAAeSwNoNpV~aR&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1d9R0G3GHsKHAeR2z8WJzHpL86EtRtZMaH9uR9ChN%2BLdm%2B5KRQXQUVqG2yFv1JQPWMdJ2vvsUnVyRn9J66TXlslEtHrVzPbIelSa%2B7CElYK8yImKLKuNHRMV%2BWDQQkllYPTvgR4M%2FVpR6Xoj3eOLRC4%2Fjfr%2BLZ7%2F5nSzDc%2FhUnGLfhBqMVza0Todu3MQNYWUC%2B9GSQn8gQSrl1Mu6eCiP4Z%2ByJWlBw07FQUxmfTVWPiJMJ%2Bs6WELhiQPIfjVXSVdpR81Zy0qSclDUXI%2BQhs6iX%2F1xV69y6OS%2BjPoSo9zCNlqw%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=177735872588",
+          "product_id": "177735872588",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$65.00",
+            "extracted": 65.0
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$20.18 delivery",
+          "bids": {
+            "count": 20.18
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/nhAAAeSwNoNpV~aR/s-l140.jpg"
+        },
+        {
+          "title": "Vintage ToastMaster TMT4 4 Slice Toaster Wide Slots 1700 Watt High Speed Lift",
+          "link": "https://www.ebay.com/itm/376753667252?_skw=vintage+toaster&itmmeta=01KE4M4BWKDAPJAXQ6NZB3132S&hash=item57b844bcb4:g:7N0AAeSwRo9pMdyg&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fJ2OAc6anlf3csKXVaEavRNjonJ%2ByTBnzwdjmI9peqQp1X%2BWYLJLJ2dT0M7i3ALm0Us2UJIser%2BnTBxVKf4wlreWQxJ%2B2ZKn6RmwVMab5QddwCysVXwyeZufGVwCkJEpZxw7PQG%2B2hp2SEaWQGxIEhM971kVL2OCaXEsxXe%2FFMTkIfsZ6vuceiPrD27r%2ByUBSDfq9z3RusE1jXp4azChB%2FWBES0bILBm8cy9mJR%2BQ2Das9XRUS3UfqXfKdL2iW4%2B9RBYf%2BhyWEkaqzGqWo8AEcx2nyB3WCjlKPIbX3QlMmew%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=376753667252",
+          "product_id": "376753667252",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$35.99",
+            "extracted": 35.99
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$12.53 delivery",
+          "bids": {
+            "count": 12.53
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/7N0AAeSwRo9pMdyg/s-l140.jpg"
+        },
+        {
+          "title": "Vintage 1930-40s Sunbeam Model T-9 Art Deco Style Chrome Toaster",
+          "link": "https://www.ebay.com/itm/406143285058?_skw=vintage+toaster&itmmeta=01KE4M4BWKJZE2GYYXDEE73K7S&hash=item5e9006b742:g:9ScAAeSw2z9oo4NK&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1deHWeJDcerqRlIVcq02QlWO49YIn5bQ8vZDYSKuN3AvrpSsxpx4aPpq2PT5GycAF9FVS1Hw2RiMvXyRzvrYrq5UrmRcWEhkJfYapw51WicxItwWa6LjG1mtRsPV4kMZVOy74MENCRq%2FD7oIRl37UJiRzFM4baSESC91Y4e689dD5eJfOF0OrWjnho75M1vMlQts5eUaFrD10ScuYqjVFrfh24iXvgqzoBflXvsGooMphGNX%2BgLW6IDE43Npq1ASDL%2B7YSJn145jx5krzfAbjqnjyYpA95d6ASHFu%2FzePaUDQ%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=406143285058",
+          "product_id": "406143285058",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$60.00",
+            "extracted": 60.0
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$10.30 delivery",
+          "bids": {
+            "count": 10.3
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/9ScAAeSw2z9oo4NK/s-l140.jpg"
+        },
+        {
+          "title": "Vintage GE General Electric Toaster 2 Slice Chrome & Black USA Works Tested",
+          "link": "https://www.ebay.com/itm/146939090323?_skw=vintage+toaster&itmmeta=01KE4M4BWKRR4K72RMFHJF1DM6&hash=item2236409593:g:YfYAAeSwwdBpCXUF&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1d1UKk1xnw1nvO5V1kZuaCcivq9zqmZ2A7XfHHkhrziXVFbAxAEU5V37lVzyHwexGu5CFWFYCl5P3wOcmKhG5cdzYkumXjzZ0wfnkYD7jKOS3glVoUVGC37LCrpt5utM4WJlMvyYa5vx5hPoOnkpI9Pqzb13qlX54%2BcVURMKjtuiQcxsZlVk%2FEiOitrjLm0Po%2FT4aR3FrILF0awwkmO5nWwnJqmK%2FSavwW2AGOuyoAjk%2Fy9--xk0II8wvSINk3txl9YnrDj3k%2FPyvqiEviqQvENkP2bBhUymkaTTFdlRLssSQ%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=146939090323",
+          "product_id": "146939090323",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$35.00",
+            "extracted": 35.0
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$20.60 delivery",
+          "bids": {
+            "count": 20.6
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/YfYAAeSwwdBpCXUF/s-l140.jpg"
+        },
+        {
+          "title": "Antique 1930s SUPER STAR Art Deco Chrome Toaster New York NY Wood Knobs NYC",
+          "link": "https://www.ebay.com/itm/187883667248?_skw=vintage+toaster&itmmeta=01KE4M4BWKWSVF1Y66XTMHSME0&hash=item2bbebd3f30:g:RoQAAeSwhuhpTxsH&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fKTl1MICVbIdV2jha5%2FEfiSGXK6ZXBTJKlvv7BJu%2BT5GhktIlDuAfeGE%2B1QyOjPXxhNv8PYOAq3lWMicE0Lw0ls3vF7seRpuclDzHysPIZDJ1ojmrOgCrDptgcePltBgIRSaajFnbGPtEmFBgaHu191DTtfemr%2FK8mW8ereLduqw5Xtv8MD%2Fvc1PeAc2VNc10vru32cVxmlYnB%2Fsdp8HezGxzToWK1cH2qBZ2KQRjxGmmRwVmgYMgsvGDxbfPkNSia2zAgwnN9zUwnof1F8yD5UFP6QMIBOYYySjwjXYu1NQ%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=187883667248",
+          "product_id": "187883667248",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$269.00",
+            "extracted": 269.0
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$14.75 delivery",
+          "bids": {
+            "count": 14.75
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/RoQAAeSwhuhpTxsH/s-l140.jpg"
+        },
+        {
+          "title": "General Electric Vintage Chrome Pop Up Toaster ATI82 - TESTED & WORKING",
+          "link": "https://www.ebay.com/itm/286902879940?_skw=vintage+toaster&itmmeta=01KE4M4BWKSNBJD08PP1DV5C22&hash=item42ccbe86c4:g:iLwAAeSwESpoI329&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1dxf8sSnWLr2APiR8gi1IsUM4HcrfhseseJQqodKdP5ZjNAs70BlWNQpNSTZrHCYyQEnMQuLtveJjMiuF9kdmV7UK2VgIfLVc4B%2B6lQIC6lc392xcNmwWD884uL2318ZSWFSChvWUBUIkFwlQ6DO%2FfRYwELfgYNUrIp0C9xIQzL8NTnwhKrnUpXU6%2F9ZHD2r9EkxvsrilnQIwyWUogfrS46xLM7mS5%2Fqnrx3Ff%2BMfY1tUQsK1iYNCWGZBdT9SROJWzoar575GA4cO1WTHai%2B3ldYqLKge7Fs7z6bVXdZP0GXQ%3D%3D%7Ctkp%3ABFBM5r-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=286902879940",
+          "product_id": "286902879940",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$31.56",
+            "extracted": 31.56
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$17.10 delivery",
+          "bids": {
+            "count": 17.1
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/iLwAAeSwESpoI329/s-l140.jpg"
+        },
+        {
+          "title": "Vintage Proctor 2 Slice Toaster Colorminder Series 6012 Model 1490 It Works",
+          "link": "https://www.ebay.com/itm/197742332997?_skw=vintage+toaster&itmmeta=01KE4M4BWK55Q2NDQVKBYZFSAS&hash=item2e0a5c8c45:g:TlkAAeSwiNNov~QS&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1choJBXba8Xfs%2BZ%2BtkblxEuuEWL9XACdTiCsJ5A05BqtJ0VY6Njvqm8OwwCBvlYM6TtezYjkPfQTt4dfl9DjxKA1XfIjG%2BmaYRg0cWfJPiQ8VvaFwcnBCO%2BrpdSBtkTDBVZ695fYkQo%2BMRI7CxjLL%2FHsRb0SHfjkOZp4z893m75K%2B14MURwgGpM2U7IOkncfGCR0GXJKFju1o%2Fk%2FM1hbusEdacK4HlckPrAmCyA1rJWUJbkUtlEVTaNJe%2B2p3cCwsbf%2F48adA8eKcdtwtB5urNwBaOLzq0rQu4k7CuFduk6Fw%3D%3D%7Ctkp%3ABFBM6L-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=197742332997",
+          "product_id": "197742332997",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$17.46",
+            "extracted": 17.46
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$17.35 delivery",
+          "bids": {
+            "count": 17.35
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/TlkAAeSwiNNov~QS/s-l140.jpg"
+        },
+        {
+          "title": "VINTAGE TOASTER~ 1914 MARION GIANT MODEL 66 FLIPFLOP RUTENBER",
+          "link": "https://www.ebay.com/itm/357715816647?_skw=vintage+toaster&itmmeta=01KE4M4BWKWRZ10G91WMT6J7Y7&hash=item53498630c7:g:0p4AAeSwROFo5YL4&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1cWGL1%2BedKFJGce%2Fwkg0S4fyOi4ATwcE9ZzGYYZ%2B4cH9NQJa0WOpa%2FkqgSPTkd2fGRxIfiwU5o6MfHidDcUAiQpNtyCfqyzraS5LAqUtg7%2F12y5B%2Bp%2BZrhBzFJNv78Aoet8et9pjdktVylEslMPwA%2F6nUkYsPAmchxbu8XjxfxVWHwBz0ov7UBZhTSckjU2gcU5ZEMZIA4IISPJdqKoS9ivDwhL%2BYJAqi1v5eBYQeViAqVEiovwqSHWjkykwhvOnoxUDkZUe%2BvJHbYk5RT--fmsrA6Ff3RNzON2p2WWcF7ZoA%3D%3D%7Ctkp%3ABFBM6L-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=357715816647",
+          "product_id": "357715816647",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$31.99",
+            "extracted": 31.99
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$8.75 delivery",
+          "bids": {
+            "count": 8.75
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/0p4AAeSwROFo5YL4/s-l140.jpg"
+        },
+        {
+          "title": "Vintage Kenmore Electric Toaster Model 307-6314 w/ Damaged 10A Cord, Works",
+          "link": "https://www.ebay.com/itm/267445451939?_skw=vintage+toaster&itmmeta=01KE4M4BWKY1TEWZV67WQB6JHG&hash=item3e44fdbca3:g:ZqwAAeSw7Hto1bvu&itmprp=enc%3AAQAKAAAA8FkggFvd1GGDu0w3yXCmi1fwf7qrcqrx6C8fa%2Fv9maekb3a0JkGp%2BllxIWXIGDCOv7TxNLhYVKs5hAFD7Ea24uHtCuF7RiShYhGyhgGw7cVVtgAxGtd8uQz2L3VlbTj7a7Lne%2FhDYdhRmEhJLZX%2FDWXyYTvvDT07jxKzs2PudPfZDTjb7J4oq6Oro7sH%2BIjfJCscAFl8%2F4qlXNOppBi36vW3jTWaHUVvSIeoIlPY4%2FTBz8GxukkvzMMPcHBD3ksrWI52sbK2IlsD%2BfkGfrDzs24PEgxI4yUAGt5bSFc86oABuIfFMJuFwhrlXr%2FC0DswaQ%3D%3D%7Ctkp%3ABFBM6L-RlPFm",
+          "serpapi_link": "https://serpapi.com/search.json?ebay_domain=ebay.com&engine=ebay_product&product_id=267445451939",
+          "product_id": "267445451939",
+          "condition": "Pre-Owned",
+          "price": {
+            "raw": "$12.99",
+            "extracted": 12.99
+          },
+          "shipping": "Pre-Owned",
+          "returns": "+$9.77 delivery",
+          "bids": {
+            "count": 9.77
+          },
+          "thumbnail": "https://i.ebayimg.com/images/g/ZqwAAeSw7Hto1bvu/s-l140.jpg"
+        }
+      ]
+    }
+  ],
+  "related_searches": [
+    {
+      "query": "antique toaster",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=antique+toaster&_sop=12"
+    },
+    {
+      "query": "vintage toaster 4 slice",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster+4+slice&_sop=12"
+    },
+    {
+      "query": "vintage sunbeam toaster",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+sunbeam+toaster&_sop=12"
+    },
+    {
+      "query": "vintage toaster oven",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster+oven&_sop=12"
+    },
+    {
+      "query": "vintage toastmaster toaster",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+toastmaster+toaster&_sop=12"
+    },
+    {
+      "query": "vintage coffee maker",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+coffee+maker&_sop=12"
+    },
+    {
+      "query": "vintage toaster works",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster+works&_sop=12"
+    },
+    {
+      "query": "vintage ge toaster",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+ge+toaster&_sop=12"
+    },
+    {
+      "query": "vintage blender",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+blender&_sop=12"
+    },
+    {
+      "query": "sunbeam toaster",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=sunbeam+toaster&_sop=12"
+    },
+    {
+      "query": "vintage toaster new in box",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster+new+in+box&_sop=12"
+    },
+    {
+      "query": "toastmaster toaster",
+      "link": "https://www.ebay.com/sch/i.html?_nkw=toastmaster+toaster&_sop=12"
+    }
+  ],
+  "pagination": {
+    "current": 1,
+    "next": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=2",
+    "other_pages": {
+      "1": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=1",
+      "2": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=2",
+      "3": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=3",
+      "4": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=4",
+      "5": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=5&rt=nc",
+      "6": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=6&rt=nc",
+      "7": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=7&rt=nc",
+      "8": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=8&rt=nc",
+      "9": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=9&rt=nc",
+      "10": "https://www.ebay.com/sch/i.html?_nkw=vintage+toaster&_pgn=10&rt=nc"
+    }
+  },
+  "serpapi_pagination": {
+    "current": 1,
+    "next_link": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=2&engine=ebay",
+    "next": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=2&engine=ebay",
+    "other_pages": {
+      "1": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=1&engine=ebay",
+      "2": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=2&engine=ebay",
+      "3": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=3&engine=ebay",
+      "4": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=4&engine=ebay",
+      "5": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=5&engine=ebay",
+      "6": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=6&engine=ebay",
+      "7": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=7&engine=ebay",
+      "8": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=8&engine=ebay",
+      "9": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=9&engine=ebay",
+      "10": "https://serpapi.com/search.json?_nkw=vintage+toaster&_pgn=10&engine=ebay"
+    }
+  }
+}
