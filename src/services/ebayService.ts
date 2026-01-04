@@ -78,11 +78,10 @@ const getStoredData = (key: string) => {
     const item = localStorage.getItem(`ebay_cache_${key}`);
     if (!item) return null;
     const parsed = JSON.parse(item);
-    const CACHE_VERSION = "v2";
+    const CACHE_VERSION = "v3"; // Bumped version
     if (parsed.version === CACHE_VERSION && (Date.now() - parsed.timestamp < 1000 * 60 * 60)) {
       return parsed.data;
     }
-    localStorage.removeItem(`ebay_cache_${key}`);
   } catch (e) { return null; }
   return null;
 };
@@ -92,7 +91,7 @@ const setStoredData = (key: string, data: any) => {
     localStorage.setItem(`ebay_cache_${key}`, JSON.stringify({
       data,
       timestamp: Date.now(),
-      version: "v2"
+      version: "v3"
     }));
   } catch (e) { }
 };
@@ -104,234 +103,179 @@ export const fetchMarketData = async (query: string, condition?: string) => {
   const cached = getStoredData(cacheKey);
   if (cached) return cached;
 
+  console.log(`[STS] Fetching market data for: ${query}`);
+
+  let activeItems: any[] = [];
+  let actualSoldItems: any[] = [];
+  let isSoldBlocked = false;
+  let activeCount = 0;
+
+  // 1. Fetch Active Items
   try {
     const activeUrl = `${FUNCTIONS_URL}/ebay-search/${encodeURIComponent(query)}${condition ? `?condition=${encodeURIComponent(condition)}` : ''}`;
     const activeRes = await fetch(activeUrl);
-    if (activeRes.status === 429) throw new Error("RATE_LIMIT");
-
-    const activeData = activeRes.ok ? await activeRes.json() : { itemSummaries: [] };
-    const activeItems = activeData.itemSummaries || [];
-    const activeCount = parseInt(activeData.total || activeItems.length);
-
-    const categoryId = extractCategoryId(activeItems);
-    const categoryName = activeItems[0]?.categories?.[0]?.categoryName || 'Unknown';
-
-    const searchSold = async (q: string, catId: string | null, forceAnyCondition: boolean = false) => {
-      const activeCondition = forceAnyCondition ? null : condition;
-      let soldUrl = `${FUNCTIONS_URL}/ebay-sold/${encodeURIComponent(q)}?${activeCondition ? `condition=${encodeURIComponent(activeCondition)}` : ''}`;
-      if (catId && catId !== 'null') {
-        soldUrl += `&categoryId=${catId}`;
-      }
-      const res = await fetch(soldUrl);
-      if (res.status === 429) return { error: 'RATE_LIMIT' };
-      if (res.status === 500) return { error: 'API_BLOCKED' };
-      return res.ok ? await res.json() : null;
-    };
-
-    let soldItemsRaw = await searchSold(query, categoryId);
-    let actualSoldItems = [];
-    let isSoldBlocked = false;
-
-    if (soldItemsRaw?.error === 'RATE_LIMIT') throw new Error("RATE_LIMIT");
-    if (soldItemsRaw?.error === 'API_BLOCKED') {
-      isSoldBlocked = true;
-    } else {
-      actualSoldItems = (soldItemsRaw || []).filter((item: any) => {
-        const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
-        // ALLOW: EndedWithSales (traditional) OR Sold (multi-quantity record)
-        return sellingState === 'EndedWithSales' || sellingState === 'Sold';
-      });
-      if (actualSoldItems.length === 0 && !soldItemsRaw?.error) isSoldBlocked = false;
+    if (activeRes.ok) {
+      const activeData = await activeRes.json();
+      activeItems = activeData.itemSummaries || [];
+      activeCount = parseInt(activeData.total || activeItems.length);
     }
-
-    // --- FRONTEND FALLBACK TO SERPAPI (If Supabase returns empty) ---
-    if (actualSoldItems.length === 0) {
-      console.log("No sold data from Supabase, trying direct SerpApi fallback via CORS proxy...");
-      try {
-        const serpParams = new URLSearchParams({
-          engine: 'ebay',
-          _nkw: query,
-          show_only: 'Sold',
-          api_key: SERPAPI_KEY_FALLBACK,
-          num: '10'
-        });
-        const targetUrl = `https://serpapi.com/search?${serpParams}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
-        const serpRes = await fetch(proxyUrl);
-        const proxyData = await serpRes.json();
-        const serpData = typeof proxyData.contents === 'string' ? JSON.parse(proxyData.contents) : proxyData;
-        const organicResults = serpData.organic_results || [];
-
-        if (organicResults.length > 0) {
-          console.log(`SerpApi fallback found ${organicResults.length} SOLD items.`);
-          actualSoldItems = organicResults.map((item: any) => ({
-            title: [item.title],
-            sellingStatus: [{
-              currentPrice: [{
-                '__value__': item.price?.extracted?.toString() || (item.price?.raw?.replace(/[^0-9.]/g, '') || "0"),
-                '@currencyId': 'USD'
-              }],
-              sellingState: ['EndedWithSales']
-            }],
-            listingInfo: [{
-              endTime: [item.sold_date || item.extensions?.find((ext: string) => ext.toLowerCase().includes('sold'))?.replace(/Sold /i, '') || '']
-            }],
-            viewItemURL: [item.link],
-            galleryURL: [item.thumbnail]
-          }));
-          isSoldBlocked = false;
-        } else {
-          console.log("SerpApi also returned no results.");
-        }
-      } catch (serpErr) {
-        console.error("Direct SerpApi fallback failed:", serpErr);
-      }
-    }
-    // -------------------------------------------------------------
-
-    // Fallback for empty sold results
-    if (actualSoldItems.length === 0 && !isSoldBlocked) {
-      const cleaned = cleanQuery(query);
-      if (cleaned && cleaned !== query.toLowerCase()) {
-        const fallbackSold = await searchSold(cleaned, categoryId);
-        if (fallbackSold?.error === 'RATE_LIMIT') throw new Error("RATE_LIMIT");
-        let fallbackItems = (fallbackSold || []).filter((item: any) => {
-          const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
-          return sellingState === 'EndedWithSales' || sellingState === 'Sold';
-        });
-
-        // Try without categoryId
-        if (fallbackItems.length === 0 && categoryId) {
-          const noCatSold = await searchSold(cleaned, null);
-          fallbackItems = (noCatSold || []).filter((item: any) => {
-            const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
-            return sellingState === 'EndedWithSales' || sellingState === 'Sold';
-          });
-        }
-
-        // Try without condition
-        if (fallbackItems.length === 0 && condition) {
-          const noCondRes = await searchSold(cleaned, null, true);
-          fallbackItems = (noCondRes || []).filter((item: any) => {
-            const sellingState = item.sellingStatus?.[0]?.sellingState?.[0];
-            return sellingState === 'EndedWithSales' || sellingState === 'Sold';
-          });
-        }
-
-        if (fallbackItems.length > 0) {
-          actualSoldItems = fallbackItems;
-        }
-      }
-    }
-
-    const soldPrices = actualSoldItems.map((item: any) => parseFloat(item.sellingStatus[0].currentPrice[0].__value__));
-    const activePrices = activeItems.map((item: any) => parseFloat(item.price.value));
-
-    const medianSoldPrice = soldPrices.length > 0 ? soldPrices.sort((a, b) => a - b)[Math.floor(soldPrices.length / 2)] : 0;
-    const medianActive = activePrices.length > 0 ? activePrices.sort((a, b) => a - b)[Math.floor(activePrices.length / 2)] : 0;
-
-    const actualSoldCount = actualSoldItems.length;
-    const sellThroughRate = activeCount > 0 ? (actualSoldCount / activeCount) * 100 : (actualSoldCount > 0 ? 100 : 0);
-
-    const calculatePricingRecommendations = (prices: number[], medianPrice: number) => {
-      if (prices.length === 0) return null;
-      const sorted = [...prices].sort((a, b) => a - b);
-      const p25 = sorted[Math.floor(sorted.length * 0.25)] || sorted[0];
-      const p50 = medianPrice;
-      const p75 = sorted[Math.floor(sorted.length * 0.75)] || sorted[sorted.length - 1];
-      const estimatedShipping = Math.max(5, Math.min(15, Math.round(p50 * 0.12 * 100) / 100));
-
-      return {
-        quickSale: { price: Math.round(p25 * 100) / 100, strategy: "Price below market", expectedSellTime: "1-3 days" },
-        competitive: { price: Math.round(p50 * 100) / 100, strategy: "Match market median", expectedSellTime: "3-7 days" },
-        premium: { price: Math.round(p75 * 100) / 100, strategy: "Maximize profit margin", expectedSellTime: "7-14 days" },
-        shippingEstimate: estimatedShipping
-      };
-    };
-
-    const result = {
-      medianSoldPrice: soldPrices.length > 0 ? medianSoldPrice : medianActive,
-      priceRange: {
-        min: soldPrices.length > 0 ? Math.min(...soldPrices) : (activeItems.length > 0 ? Math.min(...activePrices) : 0),
-        max: soldPrices.length > 0 ? Math.max(...soldPrices) : (activeItems.length > 0 ? Math.max(...activePrices) : 0)
-      },
-      activeCount,
-      soldCount: actualSoldCount,
-      sellThroughRate: (isSoldBlocked || actualSoldItems.length === 0) ? 'N/A' : `${sellThroughRate.toFixed(1)}%`,
-      isSoldBlocked: isSoldBlocked || actualSoldItems.length === 0,
-      activeItems: activeItems.slice(0, 5).map((item: any) => ({
-        title: item.title,
-        price: item.price,
-        image: item.image,
-        itemWebUrl: item.itemWebUrl || item.itemHref
-      })),
-      pricingRecommendations: soldPrices.length > 0 ? calculatePricingRecommendations(soldPrices, medianSoldPrice) : calculatePricingRecommendations(activePrices, medianActive),
-      soldItems: actualSoldItems.slice(0, 5).map((item: any) => ({
-        title: item.title[0],
-        price: { value: item.sellingStatus[0].currentPrice[0].__value__, currency: item.sellingStatus[0].currentPrice[0]['@currencyId'] },
-        image: { imageUrl: item.galleryURL?.[0] || '' },
-        itemWebUrl: item.viewItemURL[0],
-        endTime: item.listingInfo?.[0]?.endTime || item.endTime?.[0] || ''
-      }))
-    };
-
-    if ((activeCount > 0 || actualSoldCount > 0) && !isSoldBlocked) {
-      setStoredData(cacheKey, result);
-    }
-    return result;
-  } catch (error: any) {
-    if (error.message === "RATE_LIMIT") return { error: "Rate Limit Exceeded", isRateLimit: true };
-    console.error("fetchMarketData Error:", error);
-    return null;
+  } catch (e) {
+    console.warn("[STS] Supabase Search failed, falling back to empty active list.");
   }
+
+  const categoryId = extractCategoryId(activeItems);
+
+  // 2. Fetch Sold Items (Supabase)
+  try {
+    const soldUrl = `${FUNCTIONS_URL}/ebay-sold/${encodeURIComponent(query)}?${condition ? `condition=${encodeURIComponent(condition)}` : ''}${categoryId ? `&categoryId=${categoryId}` : ''}`;
+    const soldRes = await fetch(soldUrl);
+
+    if (soldRes.ok) {
+      const soldData = await soldRes.json();
+      actualSoldItems = (soldData || []).filter((item: any) => {
+        const state = item.sellingStatus?.[0]?.sellingState?.[0];
+        return state === 'EndedWithSales' || state === 'Sold';
+      });
+    } else if (soldRes.status === 429 || soldRes.status === 500) {
+      isSoldBlocked = true;
+    }
+  } catch (e) {
+    console.warn("[STS] Supabase Sold failed, will try SerpApi fallback.");
+  }
+
+  // 3. SerpApi Fallback (If Supabase yields nothing)
+  if (actualSoldItems.length === 0) {
+    console.log("[STS] Trying direct SerpApi fallback...");
+    try {
+      const serpParams = new URLSearchParams({
+        engine: 'ebay',
+        _nkw: query,
+        show_only: 'Sold',
+        api_key: SERPAPI_KEY_FALLBACK,
+        num: '15'
+      });
+      const targetUrl = `https://serpapi.com/search?${serpParams}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
+      const res = await fetch(proxyUrl);
+      const json = await res.json();
+      const serpData = typeof json.contents === 'string' ? JSON.parse(json.contents) : json;
+      const results = serpData.organic_results || [];
+
+      if (results.length > 0) {
+        console.log(`[STS] SerpApi found ${results.length} SOLD items.`);
+        actualSoldItems = results.map((item: any) => ({
+          title: [item.title],
+          sellingStatus: [{
+            currentPrice: [{
+              '__value__': item.price?.extracted?.toString() || (item.price?.raw?.replace(/[^0-9.]/g, '') || "0"),
+              '@currencyId': 'USD'
+            }],
+            sellingState: ['EndedWithSales']
+          }],
+          listingInfo: [{
+            endTime: [item.sold_date || item.extensions?.find((ext: string) => ext.toLowerCase().includes('sold'))?.replace(/Sold /i, '') || '']
+          }],
+          viewItemURL: [item.link],
+          galleryURL: [item.thumbnail]
+        }));
+        isSoldBlocked = false;
+      }
+    } catch (e) {
+      console.error("[STS] SerpApi fallback failed:", e);
+    }
+  }
+
+  // Final Results Processing
+  const soldPrices = actualSoldItems.map((item: any) => parseFloat(item.sellingStatus[0].currentPrice[0].__value__)).filter(p => !isNaN(p));
+  const activePrices = activeItems.map((item: any) => parseFloat(item.price?.value || 0)).filter(p => !isNaN(p));
+
+  const medianSoldPrice = soldPrices.length > 0 ? [...soldPrices].sort((a, b) => a - b)[Math.floor(soldPrices.length / 2)] : 0;
+  const medianActive = activePrices.length > 0 ? [...activePrices].sort((a, b) => a - b)[Math.floor(activePrices.length / 2)] : 0;
+
+  const actualSoldCount = actualSoldItems.length;
+  const sellThroughRate = activeCount > 0 ? (actualSoldCount / activeCount) * 100 : (actualSoldCount > 0 ? 100 : 0);
+
+  const calculatePricingRecommendations = (prices: number[], median: number) => {
+    if (prices.length === 0 && activePrices.length === 0) return null;
+    const refPrices = prices.length > 0 ? prices : activePrices;
+    const refMedian = prices.length > 0 ? median : medianActive;
+
+    const sorted = [...refPrices].sort((a, b) => a - b);
+    const p25 = sorted[Math.floor(sorted.length * 0.25)] || sorted[0];
+    const p50 = refMedian;
+    const p75 = sorted[Math.floor(sorted.length * 0.75)] || sorted[sorted.length - 1];
+
+    return {
+      quickSale: { price: Math.round(p25 * 100) / 100, strategy: "Price below market", expectedSellTime: "1-3 days" },
+      competitive: { price: Math.round(p50 * 100) / 100, strategy: "Match market median", expectedSellTime: "3-7 days" },
+      premium: { price: Math.round(p75 * 100) / 100, strategy: "Maximize profit margin", expectedSellTime: "7-14 days" },
+      shippingEstimate: Math.max(5, Math.min(15, Math.round(p50 * 0.12 * 100) / 100))
+    };
+  };
+
+  const result = {
+    medianSoldPrice: medianSoldPrice || medianActive,
+    priceRange: {
+      min: soldPrices.length > 0 ? Math.min(...soldPrices) : (activePrices.length > 0 ? Math.min(...activePrices) : 0),
+      max: soldPrices.length > 0 ? Math.max(...soldPrices) : (activePrices.length > 0 ? Math.max(...activePrices) : 0)
+    },
+    activeCount,
+    soldCount: actualSoldCount,
+    sellThroughRate: (isSoldBlocked && actualSoldCount === 0) ? 'N/A' : `${sellThroughRate.toFixed(1)}%`,
+    isSoldBlocked: isSoldBlocked && actualSoldCount === 0,
+    activeItems: activeItems.slice(0, 5).map((item: any) => ({
+      title: item.title,
+      price: item.price,
+      image: item.image,
+      itemWebUrl: item.itemWebUrl || item.itemHref
+    })),
+    pricingRecommendations: calculatePricingRecommendations(soldPrices, medianSoldPrice),
+    soldItems: actualSoldItems.slice(0, 5).map((item: any) => ({
+      title: (Array.isArray(item.title) ? item.title[0] : item.title) || '',
+      price: {
+        value: item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0",
+        currency: item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD"
+      },
+      image: { imageUrl: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : (item.galleryURL || '')) },
+      itemWebUrl: (Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : (item.viewItemURL || '')),
+      endTime: (Array.isArray(item.listingInfo?.[0]?.endTime) ? item.listingInfo[0].endTime[0] : (item.listingInfo?.[0]?.endTime || ''))
+    }))
+  };
+
+  if (activeCount > 0 || actualSoldCount > 0) {
+    setStoredData(cacheKey, result);
+  }
+  return result;
 };
+
 export const getEbayPolicies = async (userId: string) => {
   try {
     const response = await fetch(`${FUNCTIONS_URL}/ebay-policies?userId=${userId}`);
-    const data = await response.json();
-    return data || { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
-  } catch (e) {
-    console.error("Error fetching policies:", e);
-    return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
-  }
+    return await response.json();
+  } catch (e) { return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] }; }
 };
 
 export const getSellThroughData = async (query: string) => {
   try {
     const response = await fetch(`${FUNCTIONS_URL}/ebay-sell-through/${encodeURIComponent(query)}`);
-    const data = await response.json();
-    return data;
-  } catch (e) {
-    console.error("Error fetching sell-through data:", e);
-    return null;
-  }
+    return await response.json();
+  } catch (e) { return null; }
 };
 
 export const checkEbayConnection = async (): Promise<boolean> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return false;
-
   const url = getApiUrl(`/api/ebay/status?userId=${user.id}&t=${Date.now()}`);
   if (!url) return false;
-
   try {
     const response = await fetch(url);
     if (!response.ok) return false;
-
     const data = await response.json();
-
-    if (data.connected) {
-      localStorage.setItem(EBAY_TOKEN_KEY, 'true');
-    } else {
-      localStorage.removeItem(EBAY_TOKEN_KEY);
-    }
-
+    if (data.connected) localStorage.setItem(EBAY_TOKEN_KEY, 'true');
+    else localStorage.removeItem(EBAY_TOKEN_KEY);
     return data.connected;
-  } catch (error) {
-    console.error("Status check failed", error);
-    return false;
-  }
+  } catch (error) { return false; }
 };
 
 export const connectEbayAccount = async () => {
@@ -340,16 +284,14 @@ export const connectEbayAccount = async () => {
     if (!user) return;
     const authUrl = getApiUrl(`/api/ebay/auth?userId=${user.id}&platform=native`);
     if (authUrl) await Browser.open({ url: authUrl });
-  } catch (error: any) {
-    console.error("Failed to open eBay auth", error);
-  }
+  } catch (error: any) { console.error("Failed to open eBay auth", error); }
 };
 
 export const disconnectEbayAccount = async (): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
   const url = getApiUrl(`/api/ebay/disconnect?userId=${user?.id}`);
   if (user && url) {
-    try { await fetch(url); } catch (e) { console.error("Failed to disconnect on server", e); }
+    try { await fetch(url); } catch (e) { }
   }
   localStorage.removeItem(EBAY_TOKEN_KEY);
   window.location.reload();
@@ -358,21 +300,9 @@ export const disconnectEbayAccount = async (): Promise<void> => {
 export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[] }> => {
   const url = getApiUrl(`/api/ebay/search-comps?query=${encodeURIComponent(query)}&tab=${tab}&condition=${condition}`);
   if (!url) throw new Error("Backend URL not configured");
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Failed to fetch comps");
-    }
-    return await res.json();
-  } catch (error: any) {
-    if (error.name === 'AbortError') throw new Error("Search timed out. Please try again.");
-    throw error;
-  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch comps");
+  return await res.json();
 };
 
 export const searchEbayByImage = async (imageBase64: string): Promise<any[]> => {
@@ -384,24 +314,15 @@ export const searchEbayByImage = async (imageBase64: string): Promise<any[]> => 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64 })
     });
-    if (!res.ok) throw new Error("Visual search failed");
     const data = await res.json();
     return data.results || [];
-  } catch (e) {
-    console.error("Visual Search Error:", e);
-    return [];
-  }
+  } catch (e) { return []; }
 };
 
 export const fetchEbayItemDetails = async (itemId: string): Promise<any> => {
   const url = getApiUrl(`/api/ebay/fetch-item?itemId=${encodeURIComponent(itemId)}&IncludeSelector=ItemSpecifics,Details,TextDescription`);
   if (!url) throw new Error("Backend URL not configured");
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to fetch item details");
-    return await res.json();
-  } catch (error) {
-    console.error("Fetch details error:", error);
-    throw error;
-  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch item details");
+  return await res.json();
 };
