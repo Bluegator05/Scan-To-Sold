@@ -1,6 +1,5 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenAI } from "npm:@google/genai"
+import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -10,7 +9,8 @@ const corsHeaders = {
 // @ts-ignore
 const API_KEY = Deno.env.get('GEMINI_API_KEY') || "";
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const ai = new GoogleGenerativeAI(API_KEY);
+console.log(`[Edge Function] AI Initialized. API Key Present: ${!!API_KEY}`);
 
 // Helper to robustly extract JSON from AI text responses
 const extractJSON = (text: string): any => {
@@ -50,6 +50,10 @@ serve(async (req) => {
         }
 
         const { action, payload } = await req.json();
+        if (!action || !payload) {
+            throw new Error("Missing action or payload in request body.");
+        }
+        console.log(`[Edge Function] Action: ${action}`, JSON.stringify(payload).substring(0, 100));
 
         let result;
 
@@ -90,9 +94,15 @@ serve(async (req) => {
         })
 
     } catch (error: any) {
-        console.error("Edge Function Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 400,
+        console.error("Edge Function Critical Error:", error);
+        // Better error response: Return 200 but with 'error' field so the client can handle it gracefully 
+        // without the generic "non-2xx" Supabase client error.
+        return new Response(JSON.stringify({
+            error: error.message || "Unknown error",
+            details: error.toString(),
+            stack: error.stack
+        }), {
+            status: 200, // Changed from 400 to 200 to allow custom error handling on client
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
     }
@@ -189,30 +199,30 @@ async function handleAnalyzeItemImage({ imageBase64, barcode, isBulkMode, isLite
         `;
     }
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-            parts: [
-                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: prompt }
-            ]
-        },
-        config: {
-            tools: isLiteMode ? undefined : [{ googleSearch: {} }]
-        }
+    const model = ai.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp'
     });
 
-    const text = response.text || "{}";
+    const result_ai = await model.generateContent([
+        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        { text: prompt }
+    ]);
+
+    const response = result_ai.response;
+    const text = response.text() || "{}";
+
     let result;
     try {
         result = extractJSON(text);
     } catch (e) {
+        console.error("[Edge] JSON Parse Error. Text preview:", text.substring(0, 100));
         return createErrorResult("AI Response not JSON");
     }
 
     const listingSources: any[] = [];
-    if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-        response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+    if (groundingMetadata?.groundingChunks) {
+        groundingMetadata.groundingChunks.forEach((chunk: any) => {
             if (chunk.web?.uri) {
                 listingSources.push({ title: chunk.web.title || "Source", uri: chunk.web.uri });
             }
@@ -261,23 +271,23 @@ async function handleIdentifyItem({ imageBase64, barcode }: any) {
     Output JSON ONLY: { "itemTitle": "string", "searchQuery": "string" }
   `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-            parts: [
-                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: prompt }
-            ]
-        },
-        config: { tools: [{ googleSearch: {} }] }
+    const model = ai.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp'
     });
 
-    const text = response.text || "{}";
+    const result_ai = await model.generateContent([
+        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        { text: prompt }
+    ]);
+
+    const response = result_ai.response;
+    const text = response.text() || "{}";
     const result = extractJSON(text);
 
     const listingSources: any[] = [];
-    if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-        response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+    if (groundingMetadata?.groundingChunks) {
+        groundingMetadata.groundingChunks.forEach((chunk: any) => {
             if (chunk.web?.uri) listingSources.push({ title: chunk.web.title || "Source", uri: chunk.web.uri });
         });
     }
@@ -348,18 +358,17 @@ async function handleAnalyzeItemDetails({ imageBase64, identifiedTitle }: any) {
     }
   `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-            parts: [
-                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: prompt }
-            ]
-        },
-        config: { tools: [{ googleSearch: {} }] }
+    const model = ai.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp'
     });
 
-    const text = response.text || "{}";
+    const result_ai = await model.generateContent([
+        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        { text: prompt }
+    ]);
+
+    const response = result_ai.response;
+    const text = response.text() || "{}";
     return extractJSON(text);
 }
 
@@ -417,25 +426,26 @@ async function handleAnalyzeItemText({ query }: any) {
         `;
     }
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: { parts: [{ text: prompt }] },
-        config: {
-            tools: [{ googleSearch: {} }]
-        }
+    const model = ai.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp'
     });
 
-    const text = response.text || "{}";
+    const result_ai = await model.generateContent(prompt);
+    const response = result_ai.response;
+    const text = response.text() || "{}";
+
     let result;
     try {
         result = extractJSON(text);
     } catch (e) {
+        console.error("[Edge] JSON Parse Error Query. Text preview:", text.substring(0, 100));
         return createErrorResult("AI Response Not JSON");
     }
 
     const listingSources: any[] = [];
-    if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-        response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+    if (groundingMetadata?.groundingChunks) {
+        groundingMetadata.groundingChunks.forEach((chunk: any) => {
             if (chunk.web?.uri) {
                 listingSources.push({ title: chunk.web.title || "Source", uri: chunk.web.uri });
             }
@@ -475,16 +485,15 @@ async function handleOptimizeTitle({ currentTitle }: any) {
       
       Return ONLY the optimized title string.
     `;
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: { parts: [{ text: prompt }] }
-    });
-
-    let title = response.text?.trim() || currentTitle;
-    if (title.length > 80) {
-        title = title.substring(0, 80);
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const result_ai = await model.generateContent(prompt);
+    const response = result_ai.response;
+    const text = response.text() || currentTitle;
+    let finalTitle = text.trim();
+    if (finalTitle.length > 80) {
+        finalTitle = finalTitle.substring(0, 80);
     }
-    return { title: title.replace(/"/g, '') };
+    return { title: finalTitle.replace(/"/g, '') };
 }
 
 async function handleSuggestItemSpecifics({ title, notes }: any) {
@@ -502,13 +511,13 @@ async function handleSuggestItemSpecifics({ title, notes }: any) {
           }
         `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: { parts: [{ text: prompt }] },
-        config: { tools: [{ googleSearch: {} }] }
+    const model = ai.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp'
     });
 
-    const text = response.text || "{}";
+    const result_ai = await model.generateContent(prompt);
+    const response = result_ai.response;
+    const text = response.text() || "{}";
     return extractJSON(text);
 }
 
@@ -523,13 +532,13 @@ async function handleRefinePriceAnalysis({ title, condition }: any) {
       Output JSON: { "estimatedSoldPrice": number }
     `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: { parts: [{ text: prompt }] },
-        config: { tools: [{ googleSearch: {} }] }
+    const model = ai.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp'
     });
 
-    const text = response.text || "{}";
+    const result_ai = await model.generateContent(prompt);
+    const response = result_ai.response;
+    const text = response.text() || "{}";
     const result = extractJSON(text);
     return { estimatedSoldPrice: result.estimatedSoldPrice || 0 };
 }
@@ -560,12 +569,12 @@ async function handleGenerateListingDescription({ title, notes, platform }: any)
            Ships via USPS Ground Advantage.`
         : `Write a short, factual Facebook Marketplace listing for "${title}". Condition: "${notes}". Price: Firm. No fluff. Plain text only.`;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }] }
-    });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const result_ai = await model.generateContent(prompt);
+    const response = result_ai.response;
+    const text_raw = response.text() || "";
 
-    let text = response.text || "";
+    let text = text_raw;
 
     if (text.trim().startsWith('{') && text.trim().endsWith('}')) {
         try {
@@ -585,8 +594,6 @@ async function handleGenerateListingDescription({ title, notes, platform }: any)
 async function handleOptimizeProductImage({ imageUrlOrBase64, itemTitle, backgroundColor = 'pure white (#FFFFFF)' }: any) {
     let base64Data = imageUrlOrBase64;
 
-    // Check if it's a URL, if so, we must fetch it. 
-    // Note: Fetching URLs on server side.
     if (imageUrlOrBase64.startsWith('http')) {
         const resp = await fetch(imageUrlOrBase64);
         const arrayBuffer = await resp.arrayBuffer();
@@ -617,18 +624,13 @@ async function handleOptimizeProductImage({ imageUrlOrBase64, itemTitle, backgro
             Return ONLY the generated image.
         `;
 
-    const apiCall = ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
-        contents: {
-            parts: [
-                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: prompt }
-            ]
-        }
-    });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const result_ai = await model.generateContent([
+        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        { text: prompt }
+    ]);
 
-    // Timeout handled by Supabase Function default (usually generous), but we can race if needed.
-    const response = await apiCall;
+    const response = result_ai.response;
 
     const usage = response.usageMetadata;
     const tokenUsage = usage ? {

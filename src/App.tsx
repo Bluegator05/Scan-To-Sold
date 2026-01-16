@@ -141,7 +141,7 @@ function App() {
     const [isOptimizingImage, setIsOptimizingImage] = useState<boolean>(false);
 
     useEffect(() => {
-        console.log("🚀 Scan To Sold: EBAY_OPTIMIZER_INTEGRATED_V1");
+        console.log("🚀 VERSION: V3_FINAL_SAFETY_SWEEP_ACTIVE");
     }, []);
 
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -992,8 +992,8 @@ function App() {
                     ]);
                     console.log("[SCAN] Comps Results:", compsResults, "Market Stats:", marketStats);
 
-                    if (compsResults && compsResults.comps) {
-                        setVisualSearchResults(compsResults.comps);
+                    if (marketStats && (marketStats.activeComps || marketStats.soldComps)) {
+                        setVisualSearchResults(marketStats.activeComps || marketStats.soldComps);
                     }
 
                     const finalResult: ScoutResult = {
@@ -1498,10 +1498,10 @@ function App() {
                     image: data.image,
                     isUrlSearch: true,
                     // Market data merge
-                    soldItems: marketData?.soldItems || [],
-                    activeItems: marketData?.activeItems || [],
+                    soldItems: marketData?.soldComps || [],
+                    activeItems: marketData?.activeComps || [],
                     soldCount: marketData?.soldCount || 0,
-                    sellThroughRate: marketData?.sellThroughRate || 'N/A',
+                    sellThroughRate: marketData?.sellThroughRate || 0,
                     medianSoldPrice: marketData?.medianSoldPrice || 0,
                     pricingRecommendations: marketData?.pricingRecommendations || null
                 };
@@ -1826,7 +1826,7 @@ function App() {
                                                 <div className="glass-panel p-6">
                                                     <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Similar Active Listings</h4>
                                                     <div className="space-y-3">
-                                                        {intelligenceResult.activeItems.map((comp: any, idx: number) => (
+                                                        {(intelligenceResult?.activeItems || []).map((comp: any, idx: number) => (
                                                             <div key={idx} className="bg-slate-900/50 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors">
                                                                 <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
                                                                     {comp.image?.imageUrl ? <img src={comp.image.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
@@ -1853,7 +1853,7 @@ function App() {
                                                 </div>
                                                 {intelligenceResult.soldItems && intelligenceResult.soldItems.length > 0 ? (
                                                     <div className="space-y-3">
-                                                        {intelligenceResult.soldItems.map((comp: any, idx: number) => (
+                                                        {(intelligenceResult?.soldItems || []).map((comp: any, idx: number) => (
                                                             <div key={idx} className="bg-slate-900/50 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors">
                                                                 <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
                                                                     {comp.image?.imageUrl ? <img src={comp.image.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
@@ -2240,7 +2240,7 @@ function App() {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-safe">
                     {inventoryViewMode === 'FOLDERS' && inventoryTab === 'DRAFT' ? (
-                        storageUnits.map(unit => {
+                        (storageUnits || []).map(unit => {
                             const unitItems = filteredInventory.filter(i => i.storageUnitId === unit.storeNumber);
                             if (unitItems.length === 0) return null;
                             const isExpanded = expandedUnits.has(unit.storeNumber);
@@ -2566,7 +2566,7 @@ function App() {
                                         <Globe size={10} /> Sources Found
                                     </h4>
                                     <div className="space-y-1">
-                                        {scoutResult.listingSources.slice(0, 3).map((source, idx) => (
+                                        {(scoutResult?.listingSources || []).slice(0, 3).map((source, idx) => (
                                             <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
                                                 {source.title}
                                             </a>
@@ -3003,7 +3003,7 @@ function App() {
                                         <div className="space-y-2">
                                             <div className="text-xs font-bold text-slate-400 flex items-center gap-1"><SearchIcon size={12} /> Google Matches (AI Found)</div>
                                             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                                {scoutResult.listingSources.map((source, i) => (
+                                                {(scoutResult?.listingSources || []).map((source, i) => (
                                                     <a key={i} href={source.uri} target="_blank" rel="noreferrer" className="min-w-[160px] max-w-[160px] bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col gap-2 hover:border-blue-400 transition-colors group">
                                                         <div className="flex-1 min-w-0">
                                                             <div className="text-[10px] font-bold line-clamp-3 leading-tight text-slate-700 dark:text-slate-300 group-hover:text-blue-500 mb-1">{source.title}</div>
@@ -3057,7 +3057,7 @@ function App() {
                                             className="flex-1 w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
                                         >
                                             <option value="" disabled>Select Source</option>
-                                            {storageUnits.map(unit => (
+                                            {(storageUnits || []).map(unit => (
                                                 <option key={unit.id} value={unit.storeNumber}>
                                                     {unit.storeNumber} {unit.address ? `(${unit.address})` : ''}
                                                 </option>
@@ -3207,7 +3207,7 @@ function App() {
                                             </>
                                         )}
 
-                                        {customTemplates.map((tmpl, idx) => (
+                                        {(customTemplates || []).map((tmpl, idx) => (
                                             <div key={idx} className="relative group">
                                                 <button onClick={() => {
                                                     const currentContent = editingItem.generatedListing?.content || "";
@@ -3260,7 +3260,11 @@ function App() {
 
                                 <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
                                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-slate-700">
-                                        <div className="flex items-center gap-2"><CreditCard size={16} className="text-blue-500" /><h4 className="text-xs font-bold font-mono uppercase text-slate-600 dark:text-slate-300">Business Policies</h4></div>
+                                        <div className="flex items-center gap-2">
+                                            <CreditCard size={16} className="text-blue-500" />
+                                            <h4 className="text-xs font-bold font-mono uppercase text-slate-600 dark:text-slate-300">Business Policies</h4>
+                                            <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 rounded border border-blue-500/20">V3-SAFE</span>
+                                        </div>
                                         {!ebayConnected && <span className="text-[10px] text-red-500 font-bold">Connect eBay first</span>}
                                     </div>
                                     {ebayConnected ? (
@@ -3269,21 +3273,21 @@ function App() {
                                                 <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><Truck size={10} /> Shipping Policy</label>
                                                 <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayShippingPolicyId: val }); if (val) localStorage.setItem('sts_default_shipping_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
                                                     <option value="">Select Shipping Policy...</option>
-                                                    {ebayPolicies.shippingPolicies.map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name} - {p.description || 'No desc'}</option>))}
+                                                    {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name} - {p.description || 'No desc'}</option>))}
                                                 </select>
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><ShieldCheck size={10} /> Return Policy</label>
                                                 <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayReturnPolicyId: val }); if (val) localStorage.setItem('sts_default_return_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
                                                     <option value="">Select Return Policy...</option>
-                                                    {ebayPolicies.returnPolicies.map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                                    {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
                                                 </select>
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><CreditCard size={10} /> Payment Policy</label>
                                                 <select value={editingItem.ebayPaymentPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayPaymentPolicyId: val }); if (val) localStorage.setItem('sts_default_payment_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
                                                     <option value="">Select Payment Policy...</option>
-                                                    {ebayPolicies.paymentPolicies.map((p: any) => (<option key={p.paymentPolicyId} value={p.paymentPolicyId}>{p.name}</option>))}
+                                                    {(Array.isArray(ebayPolicies?.paymentPolicies) ? ebayPolicies.paymentPolicies : []).map((p: any) => (<option key={p.paymentPolicyId} value={p.paymentPolicyId}>{p.name}</option>))}
                                                 </select>
                                             </div>
                                         </div>

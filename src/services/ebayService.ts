@@ -222,24 +222,23 @@ export const fetchMarketData = async (query: string, condition?: string) => {
     },
     activeCount,
     soldCount: actualSoldCount,
-    sellThroughRate: (isSoldBlocked && actualSoldCount === 0) ? 'N/A' : `${sellThroughRate.toFixed(1)}%`,
+    sellThroughRate: isSoldBlocked ? 0 : sellThroughRate, // Return as number
     isSoldBlocked: isSoldBlocked && actualSoldCount === 0,
-    activeItems: activeItems.slice(0, 5).map((item: any) => ({
+    activeComps: activeItems.slice(0, 10).map((item: any) => ({
+      id: item.itemId || Math.random().toString(36).substr(2, 9),
       title: item.title,
-      price: item.price,
-      image: item.image,
-      itemWebUrl: item.itemWebUrl || item.itemHref
+      price: parseFloat(item.price?.value || 0),
+      image: item.image?.imageUrl || item.galleryURL?.[0] || '',
+      url: item.itemWebUrl || item.itemHref || item.viewItemURL?.[0]
     })),
     pricingRecommendations: calculatePricingRecommendations(soldPrices, medianSoldPrice),
-    soldItems: actualSoldItems.slice(0, 5).map((item: any) => ({
+    soldComps: actualSoldItems.slice(0, 10).map((item: any) => ({
+      id: (Array.isArray(item.itemId) ? item.itemId[0] : item.itemId) || Math.random().toString(36).substr(2, 9),
       title: (Array.isArray(item.title) ? item.title[0] : item.title) || '',
-      price: {
-        value: item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0",
-        currency: item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD"
-      },
-      image: { imageUrl: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : (item.galleryURL || '')) },
-      itemWebUrl: (Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : (item.viewItemURL || '')),
-      endTime: (Array.isArray(item.listingInfo?.[0]?.endTime) ? item.listingInfo[0].endTime[0] : (item.listingInfo?.[0]?.endTime || ''))
+      price: parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0"),
+      image: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : (item.galleryURL || '')),
+      url: (Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : (item.viewItemURL || '')),
+      dateSold: (Array.isArray(item.listingInfo?.[0]?.endTime) ? item.listingInfo[0].endTime[0] : (item.listingInfo?.[0]?.endTime || ''))
     }))
   };
 
@@ -251,16 +250,28 @@ export const fetchMarketData = async (query: string, condition?: string) => {
 
 export const getEbayPolicies = async (userId: string) => {
   try {
-    const response = await fetch(`${FUNCTIONS_URL}/ebay-policies?userId=${userId}`);
-    return await response.json();
-  } catch (e) { return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] }; }
+    const url = getApiUrl(`/api/ebay/get-policies?userId=${userId}`);
+    if (!url) return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("API error");
+    const data = await response.json();
+    return {
+      shippingPolicies: Array.isArray(data?.shippingPolicies) ? data.shippingPolicies : [],
+      returnPolicies: Array.isArray(data?.returnPolicies) ? data.returnPolicies : [],
+      paymentPolicies: Array.isArray(data?.paymentPolicies) ? data.paymentPolicies : []
+    };
+  } catch (e) {
+    console.warn("[eBay] Failed to load policies:", e);
+    return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
+  }
 };
 
 export const getSellThroughData = async (query: string) => {
   try {
-    const response = await fetch(`${FUNCTIONS_URL}/ebay-sell-through/${encodeURIComponent(query)}`);
-    return await response.json();
-  } catch (e) { return null; }
+    // Redirecting to fetchMarketData as it handles the logic correctly with fallbacks
+    return await fetchMarketData(query);
+  } catch (e) { return { activeCount: 0, soldCount: 0, sellThroughRate: 0 }; }
 };
 
 export const checkEbayConnection = async (): Promise<boolean> => {

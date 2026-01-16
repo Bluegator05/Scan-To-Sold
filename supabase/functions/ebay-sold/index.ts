@@ -123,8 +123,7 @@ serve(async (req) => {
             const serpParams = new URLSearchParams({
                 engine: 'ebay',
                 _nkw: query,
-                LH_Sold: '1',
-                LH_Complete: '1',
+                show_only: 'Sold',
                 api_key: ACTUAL_SERPAPI_KEY,
                 num: '100'
             });
