@@ -36,8 +36,9 @@ import {
 } from './services/databaseService';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
-import { Camera, Search, LayoutDashboard, BarChart3, Package, Settings, Plus, X, Trash2, Edit2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, Layers, CheckSquare, Sparkles, Image as ImageIcon, Link, ArrowLeft, Wand2, Calculator, Save, MoreHorizontal, Copy, Info, Check, AlertCircle, ScanLine, Share2, DollarSign, Zap, Eye, RotateCcw, Loader2, HelpCircle, Box, Upload, List as ListIcon, Lock, Download, ChevronRight, Warehouse, Sun, Moon, Aperture, Camera as CameraIcon, ShoppingCart, Tag, Globe, Facebook, Mic, MicOff, ShieldAlert, CreditCard, Truck, ShieldCheck, Maximize2, Folder, AlertTriangle, Globe2, Barcode, MapPin, Calendar, Filter, ChevronLeft, ArrowRight, Search as SearchIcon, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Camera, Search, LayoutDashboard, BarChart3, Package, Settings, Plus, X, Trash2, Edit2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, Layers, CheckSquare, Sparkles, Image as ImageIcon, Link, ArrowLeft, Wand2, Calculator, Save, MoreHorizontal, Copy, Info, Check, AlertCircle, ScanLine, Share2, DollarSign, Zap, Eye, RotateCcw, Loader2, HelpCircle, Box, Upload, List as ListIcon, Lock, Download, ChevronRight, Warehouse, Sun, Moon, Aperture, ShoppingCart, Tag, Globe, Facebook, Mic, MicOff, ShieldAlert, CreditCard, Truck, ShieldCheck, Maximize2, Folder, AlertTriangle, Globe2, Barcode, MapPin, Calendar, Filter, ChevronLeft, ArrowRight, Search as SearchIcon, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { useFeatureGate, Feature } from './hooks/useFeatureGate';
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -139,6 +140,7 @@ function App() {
     const [isSaving, setIsSaving] = useState(false);
     const [currentListingPrice, setCurrentListingPrice] = useState<number>(0);
     const [isOptimizingImage, setIsOptimizingImage] = useState<boolean>(false);
+    const [initialCompsTab, setInitialCompsTab] = useState<'ACTIVE' | 'SOLD'>('ACTIVE');
 
     useEffect(() => {
         console.log("🚀 VERSION: V3_FINAL_SAFETY_SWEEP_ACTIVE");
@@ -176,6 +178,35 @@ function App() {
         setShowOnboarding(false);
     };
     const [isCompsOpen, setIsCompsOpen] = useState(false);
+
+    const handleOpenResearch = async (type: 'EBAY_SOLD' | 'EBAY_ACTIVE' | 'GOOGLE' | 'FB', query: string) => {
+        if (!query) return;
+
+        switch (type) {
+            case 'EBAY_SOLD':
+                setInitialCompsTab('SOLD');
+                setIsCompsOpen(true);
+                break;
+            case 'EBAY_ACTIVE':
+                setInitialCompsTab('ACTIVE');
+                setIsCompsOpen(true);
+                break;
+            case 'GOOGLE':
+                if (Capacitor.isNativePlatform()) {
+                    await Browser.open({ url: `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=shop` });
+                } else {
+                    window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=shop`, '_blank');
+                }
+                break;
+            case 'FB':
+                if (Capacitor.isNativePlatform()) {
+                    await Browser.open({ url: `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}` });
+                } else {
+                    window.open(`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`, '_blank');
+                }
+                break;
+        }
+    };
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
     const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false); // Added
@@ -2547,10 +2578,10 @@ function App() {
                                     const searchTitle = (editedTitle || scoutResult?.itemTitle || "").toLowerCase().includes("scanning") ? "" : (editedTitle || scoutResult?.itemTitle || "item");
                                     return (
                                         <>
-                                            <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                            <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                            <a href={`https://www.google.com/search?q=${encodeURIComponent(searchTitle)}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                            <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                            <button onClick={() => handleOpenResearch('EBAY_SOLD', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</button>
+                                            <button onClick={() => handleOpenResearch('EBAY_ACTIVE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</button>
+                                            <button onClick={() => handleOpenResearch('GOOGLE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</button>
+                                            <button onClick={() => handleOpenResearch('FB', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</button>
                                         </>
                                     );
                                 })()}
@@ -2619,7 +2650,7 @@ function App() {
                         </div>
                     )}
                 </div>
-                {isCompsOpen && scoutResult && (<CompsModal isOpen={isCompsOpen} onClose={() => setIsCompsOpen(false)} initialQuery={scoutResult.searchQuery || editedTitle || scoutResult.itemTitle} condition={itemCondition} onApplyPrice={(price) => setScoutResult(prev => prev ? ({ ...prev, estimatedSoldPrice: price }) : null)} onSellSimilar={handleSellSimilar} />)}
+                {isCompsOpen && scoutResult && (<CompsModal isOpen={isCompsOpen} onClose={() => setIsCompsOpen(false)} initialQuery={scoutResult.searchQuery || editedTitle || scoutResult.itemTitle} condition={itemCondition} initialTab={initialCompsTab} onApplyPrice={(price) => setScoutResult(prev => prev ? ({ ...prev, estimatedSoldPrice: price }) : null)} onSellSimilar={handleSellSimilar} />)}
             </div >
         );
     };
@@ -2962,10 +2993,10 @@ function App() {
                                             const searchTitle = (editedTitle || editingItem?.title || scoutResult?.itemTitle || "").toLowerCase().includes("scanning") ? "" : (editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item");
                                             return (
                                                 <>
-                                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}&LH_Sold=1&LH_Complete=1`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</a>
-                                                    <a href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</a>
-                                                    <a href={`https://www.google.com/search?q=${encodeURIComponent(searchTitle)}&tbm=shop`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</a>
-                                                    <a href={`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(searchTitle)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</a>
+                                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</button>
+                                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</button>
+                                                    <button onClick={() => handleOpenResearch('GOOGLE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</button>
+                                                    <button onClick={() => handleOpenResearch('FB', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</button>
                                                 </>
                                             );
                                         })()}
