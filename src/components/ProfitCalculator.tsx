@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { ProfitCalculation } from '../types';
-import { Save, ChevronRight, Scale, Tag, Truck, Loader2, RefreshCw } from 'lucide-react';
+import { Save, ChevronRight, Scale, Tag, Truck, Loader2, RefreshCw, Globe } from 'lucide-react';
 
 interface ProfitCalculatorProps {
    estimatedPrice: number;
@@ -9,13 +9,14 @@ interface ProfitCalculatorProps {
    estimatedWeight?: string;
    estimatedDimensions?: string;
    onSave: (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string, dimensions: string) => void;
+   onList?: (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string, dimensions: string) => void;
    onPriceChange?: (price: number) => void;
    onEstimate?: () => void;
    isScanning: boolean;
    isLoading?: boolean;
 }
 
-const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ estimatedPrice, estimatedShipping, estimatedWeight, estimatedDimensions, onSave, onPriceChange, onEstimate, isScanning, isLoading = false }) => {
+const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ estimatedPrice, estimatedShipping, estimatedWeight, estimatedDimensions, onSave, onList, onPriceChange, onEstimate, isScanning, isLoading = false }) => {
    const [soldPrice, setSoldPrice] = useState<number>(estimatedPrice);
    const [itemCost, setItemCost] = useState<number>(0);
    const [shippingCost, setShippingCost] = useState<number>(10);
@@ -281,6 +282,20 @@ const ProfitCalculator: React.FC<ProfitCalculatorProps> = ({ estimatedPrice, est
                <><Save size={18} /> {calculation.isProfitable ? 'Save to Inventory' : 'Save as Draft'}</>
             )}
          </button>
+
+         {onList && !isPriceUnknown && (
+            <button
+               onClick={() => {
+                  const finalWeight = `${weightLbs || '0'} lb ${weightOz || '0'} oz`;
+                  const finalDims = `${dimL || '0'}x${dimW || '0'}x${dimH || '0'}`;
+                  onList(calculation, getCostCode(itemCost), itemCost, finalWeight, finalDims);
+               }}
+               disabled={isLoading}
+               className="w-full py-4 bg-blue-600 shadow-xl shadow-blue-600/20 text-white font-black rounded-xl uppercase tracking-widest text-sm flex items-center justify-center gap-2 hover:bg-blue-500 active:scale-95 transition-all mt-1"
+            >
+               {isLoading ? <Loader2 className="animate-spin" size={18} /> : <><Globe size={18} /> List on eBay Now</>}
+            </button>
+         )}
       </div>
    );
 };

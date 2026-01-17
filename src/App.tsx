@@ -143,7 +143,7 @@ function App() {
     const [initialCompsTab, setInitialCompsTab] = useState<'ACTIVE' | 'SOLD'>('ACTIVE');
 
     useEffect(() => {
-        console.log("🚀 VERSION: V3_FINAL_SAFETY_SWEEP_ACTIVE");
+        console.log("🚀 VERSION: V5_ZINDEX_REFINED");
     }, []);
 
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -297,6 +297,43 @@ function App() {
         setInventory(inv);
         setStorageUnits(units);
     };
+
+    const handleUpdateScoutSpecific = (key: string, val: string) => {
+        setScoutResult(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                itemSpecifics: { ...prev.itemSpecifics, [key]: val }
+            };
+        });
+    };
+
+    const handleAddScoutSpecific = () => {
+        const key = prompt("Specific Name (e.g. Brand, Model):");
+        if (key) handleUpdateScoutSpecific(key, "");
+    };
+
+    const handleDeleteScoutSpecific = (key: string) => {
+        if (!window.confirm(`Delete specific "${key}"?`)) return;
+        setScoutResult(prev => {
+            if (!prev) return null;
+            const newSpecs = { ...prev.itemSpecifics };
+            delete newSpecs[key];
+            return { ...prev, itemSpecifics: newSpecs };
+        });
+    };
+
+    const handleRenameScoutSpecific = (oldKey: string, newKey: string) => {
+        setScoutResult(prev => {
+            if (!prev) return null;
+            const newSpecs = { ...prev.itemSpecifics };
+            newSpecs[newKey] = newSpecs[oldKey];
+            delete newSpecs[oldKey];
+            return { ...prev, itemSpecifics: newSpecs };
+        });
+    };
+
+
 
     const getUnitStats = (storeNumber: string, unitCost: number) => {
         const unitItems = inventory.filter(i => i.storageUnitId === storeNumber);
@@ -1092,7 +1129,59 @@ function App() {
         }
     };
 
-    const handleSaveToInventory = async (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string) => {
+
+    const handlePushToEbay = async (item: InventoryItem) => {
+        if (!user) return;
+        if (!ebayConnected) { setIsSettingsOpen(true); return; }
+        if (!confirm(`List "${item.title}" on eBay?`)) return;
+        setIsCreatingDraft(item.id); setLoadingMessage("Listing on eBay...");
+        const zipToSend = localStorage.getItem('sts_default_zip') || "95125";
+
+        try {
+            const processedImages: string[] = [];
+            const rawImages = [item.imageUrl, ...(item.additionalImages || [])].filter((img): img is string => !!img);
+            for (const img of rawImages) {
+                if (img.startsWith('http')) processedImages.push(img);
+                else { const url = await uploadScanImage(user.id, img); if (url) processedImages.push(url); }
+            }
+
+            const payload = {
+                userId: user.id,
+                item: {
+                    ...item, imageUrl: processedImages[0], additionalImages: processedImages.slice(1),
+                    price: currentListingPrice || item.calculation.soldPrice,
+                    description: item.generatedListing?.content || item.conditionNotes || item.title,
+                    condition: itemCondition,
+                    itemSpecifics: Object.fromEntries(Object.entries(item.itemSpecifics || {}).map(([k, v]) => {
+                        if (typeof v === 'string' && v.toLowerCase() === 'unknown' && (k.toUpperCase() === 'MPN' || k.toUpperCase() === 'UPC')) {
+                            return [k, "Does Not Apply"];
+                        }
+                        return [k, v];
+                    })),
+                    ebayShippingPolicyId: item.ebayShippingPolicyId, ebayReturnPolicyId: item.ebayReturnPolicyId, ebayPaymentPolicyId: item.ebayPaymentPolicyId,
+                    weight: item.itemSpecifics?.Weight,
+                    dimensions: item.dimensions,
+                    postalCode: zipToSend
+                }
+            };
+            const response = await fetch(`${API_BASE_URL}/api/ebay/draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                if (data.actionRequiredUrl) { if (confirm(data.message)) window.open(data.actionRequiredUrl, '_blank'); return; }
+                // Enhanced Error Reporting
+                const errorMsg = data.error || data.message || "Listing Failed";
+                throw new Error(errorMsg);
+            }
+            alert(data.message);
+            const updatedItem: InventoryItem = { ...item, status: 'LISTED', ebayListingId: data.itemId, ebayListedDate: new Date().toISOString(), ebayUrl: data.inventoryUrl, ebayStatus: 'ACTIVE', ebayPrice: payload.item.price };
+            await updateInventoryItem(updatedItem);
+            setInventory(prev => prev.map(i => i.id === item.id ? updatedItem : i));
+            if (editingItem?.id === item.id) setEditingItem(null);
+            setInventoryTab('LISTED');
+        } catch (e: any) { alert(`Failed: ${e.message}`); } finally { setIsCreatingDraft(null); setLoadingMessage(""); }
+    };
+
+    const handleSaveToInventory = async (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string, dimensions = "", shouldListAfterwards = false) => {
         if (!scoutResult || !user) return;
         setIsSaving(true);
         try {
@@ -1133,7 +1222,8 @@ function App() {
             const net = calc.soldPrice - fees - calc.shippingCost - newDynamicCost;
 
             const newItem: InventoryItem = {
-                id: '', sku, title: editedTitle || scoutResult.itemTitle || "Untitled Item",
+                id: Date.now().toString(), // Temp ID
+                sku, title: editedTitle || scoutResult.itemTitle || "Untitled Item",
                 dateScanned: new Date().toISOString(), storageUnitId: currentUnit, costCode: `C${Math.floor(newDynamicCost)}`,
                 calculation: { ...calc, itemCost: newDynamicCost, netProfit: net, isProfitable: net >= 15 },
                 imageUrl: finalImageUrl, additionalImages: uploadedAdditional, status: 'DRAFT', binLocation, conditionNotes,
@@ -1142,16 +1232,25 @@ function App() {
                     platform: listingPlatform!,
                     content: typeof generatedListing === 'string' ? generatedListing : generatedListing.content
                 } : undefined,
+                dimensions: dimensions || "",
                 ebayShippingPolicyId: localStorage.getItem('sts_default_shipping_policy') || undefined,
                 ebayReturnPolicyId: localStorage.getItem('sts_default_return_policy') || undefined,
                 ebayPaymentPolicyId: localStorage.getItem('sts_default_payment_policy') || undefined,
             };
 
-            await addInventoryItem(newItem, user.id);
+            const savedId = await addInventoryItem(newItem, user.id);
+            if (savedId) newItem.id = savedId.id;
+
             await batchUpdateUnitItemCosts(currentUnit, newDynamicCost);
             await refreshData();
 
-            setStatus(ScoutStatus.IDLE); setScoutResult(null); setScannedBarcode(null); setScoutAdditionalImages([]); setView('inventory'); setInventoryTab('DRAFT');
+            if (shouldListAfterwards) {
+                // List immediately
+                await handlePushToEbay(newItem);
+            } else {
+                // Just go to inventory
+                setStatus(ScoutStatus.IDLE); setScoutResult(null); setScannedBarcode(null); setScoutAdditionalImages([]); setView('inventory'); setInventoryTab('DRAFT');
+            }
         } catch (e: any) { alert("Failed to save: " + e.message); } finally { setIsSaving(false); }
     };
 
@@ -1270,56 +1369,6 @@ function App() {
         }
     };
 
-    const handlePushToEbay = async (item: InventoryItem) => {
-        if (!user) return;
-        if (!ebayConnected) { setIsSettingsOpen(true); return; }
-        if (!confirm(`List "${item.title}" on eBay?`)) return;
-        setIsCreatingDraft(item.id); setLoadingMessage("Listing on eBay...");
-        const zipToSend = localStorage.getItem('sts_default_zip') || "95125";
-
-        try {
-            const processedImages: string[] = [];
-            const rawImages = [item.imageUrl, ...(item.additionalImages || [])].filter((img): img is string => !!img);
-            for (const img of rawImages) {
-                if (img.startsWith('http')) processedImages.push(img);
-                else { const url = await uploadScanImage(user.id, img); if (url) processedImages.push(url); }
-            }
-
-            const payload = {
-                userId: user.id,
-                item: {
-                    ...item, imageUrl: processedImages[0], additionalImages: processedImages.slice(1),
-                    price: currentListingPrice || item.calculation.soldPrice,
-                    description: item.generatedListing?.content || item.conditionNotes || item.title,
-                    condition: itemCondition,
-                    itemSpecifics: Object.fromEntries(Object.entries(item.itemSpecifics || {}).map(([k, v]) => {
-                        if (typeof v === 'string' && v.toLowerCase() === 'unknown' && (k.toUpperCase() === 'MPN' || k.toUpperCase() === 'UPC')) {
-                            return [k, "Does Not Apply"];
-                        }
-                        return [k, v];
-                    })),
-                    ebayShippingPolicyId: item.ebayShippingPolicyId, ebayReturnPolicyId: item.ebayReturnPolicyId, ebayPaymentPolicyId: item.ebayPaymentPolicyId,
-                    weight: item.itemSpecifics?.Weight,
-                    dimensions: item.dimensions,
-                    postalCode: zipToSend
-                }
-            };
-            const response = await fetch(`${API_BASE_URL}/api/ebay/draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                if (data.actionRequiredUrl) { if (confirm(data.message)) window.open(data.actionRequiredUrl, '_blank'); return; }
-                // Enhanced Error Reporting
-                const errorMsg = data.error || data.message || "Listing Failed";
-                throw new Error(errorMsg);
-            }
-            alert(data.message);
-            const updatedItem: InventoryItem = { ...item, status: 'LISTED', ebayListingId: data.itemId, ebayListedDate: new Date().toISOString(), ebayUrl: data.inventoryUrl, ebayStatus: 'ACTIVE', ebayPrice: payload.item.price };
-            await updateInventoryItem(updatedItem);
-            setInventory(prev => prev.map(i => i.id === item.id ? updatedItem : i));
-            if (editingItem?.id === item.id) setEditingItem(null);
-            setInventoryTab('LISTED');
-        } catch (e: any) { alert(`Failed: ${e.message}`); } finally { setIsCreatingDraft(null); setLoadingMessage(""); }
-    };
 
     const handleDeleteItem = async (e: React.MouseEvent, id: string) => { e.stopPropagation(); setItemToDelete(id); };
     const confirmDelete = async () => {
@@ -2139,7 +2188,19 @@ function App() {
                     <div className="flex items-center gap-2">
                         <div className="text-[10px] text-slate-400 font-mono">{new Date(item.dateScanned).toLocaleDateString()}</div>
                         {(item.status === 'LISTED' || item.status === 'SOLD') && item.ebayUrl && (
-                            <a href={item.ebayUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-500 hover:text-blue-400 p-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><ExternalLink size={12} /></a>
+                            <button
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (Capacitor.isNativePlatform()) {
+                                        await Browser.open({ url: item.ebayUrl! });
+                                    } else {
+                                        window.open(item.ebayUrl, '_blank');
+                                    }
+                                }}
+                                className="text-blue-500 hover:text-blue-400 p-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                            >
+                                <ExternalLink size={12} />
+                            </button>
                         )}
                     </div>
                     <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2306,37 +2367,23 @@ function App() {
         return (
             <ResearchScreen
                 result={scoutResult}
+                onResearch={handleOpenResearch}
                 onDiscard={() => {
                     setStatus(ScoutStatus.IDLE);
                     setScoutResult(null);
                 }}
                 onCreateDraft={() => {
-                    setEditingItem({
-                        id: Date.now().toString(),
-                        title: scoutResult.optimizedTitle || scoutResult.itemTitle,
-                        sku: "",
-                        storageUnitId: "",
-                        costCode: "",
-                        imageUrl: currentImage || "",
-                        additionalImages: [],
-                        quantity: 1,
-                        generatedListing: {
-                            platform: 'EBAY',
-                            content: scoutResult.description
-                        },
-                        itemSpecifics: scoutResult.itemSpecifics,
-                        dimensions: scoutResult.estimatedDimensions,
-                        calculation: {
-                            soldPrice: scoutResult.estimatedSoldPrice,
-                            shippingCost: scoutResult.estimatedShippingCost || 0,
-                            itemCost: 0,
-                            platformFees: 0,
-                            netProfit: 0,
-                            isProfitable: true
-                        },
-                        status: 'DRAFT',
-                        dateScanned: new Date().toISOString()
+                    // Pre-fill local state for the integrated editor
+                    setEditedTitle(scoutResult.optimizedTitle || scoutResult.itemTitle);
+                    setGeneratedListing({
+                        platform: 'EBAY',
+                        content: scoutResult.description
                     });
+                    setConditionNotes(scoutResult.description ? "" : "Identified Item"); // Default if no desc
+                    setItemCondition(scoutResult.condition || 'USED');
+                    setBinLocation(""); // Optional pre-fill
+
+                    // Transition to the integrated internal editor (renderAnalysis)
                     setStatus(ScoutStatus.COMPLETE);
                 }}
             />
@@ -2610,6 +2657,113 @@ function App() {
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label><div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1"><button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button><button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button></div></div>
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label><input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" /></div>
                             </div>
+
+                            {/* --- ITEM SPECIFICS EDITOR (Integrated) --- */}
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
+                                <div className="flex justify-between items-center mb-1 border-b border-gray-100 dark:border-slate-700 pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Tag size={14} className="text-emerald-500" />
+                                        <label className="text-[10px] font-black font-mono uppercase text-slate-500">Item Specifics</label>
+                                    </div>
+                                    <button onClick={handleAddScoutSpecific} className="text-[10px] text-blue-500 hover:text-blue-400 font-bold flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800">+ Add</button>
+                                </div>
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                    {Object.entries(scoutResult.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
+                                        <div key={idx} className="flex gap-2 items-center group">
+                                            <input
+                                                className="w-1/3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-400 focus:outline-none focus:border-emerald-500 font-mono"
+                                                value={key}
+                                                onChange={(e) => handleRenameScoutSpecific(key, e.target.value)}
+                                                placeholder="Field Name"
+                                                disabled={['Brand', 'Model', 'Type', 'Color', 'Material'].includes(key)}
+                                            />
+                                            <input
+                                                className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-900 dark:text-white font-bold focus:outline-none focus:border-emerald-500"
+                                                value={typeof val === 'object' ? JSON.stringify(val) : String(val || '')}
+                                                onChange={(e) => handleUpdateScoutSpecific(key, e.target.value)}
+                                                placeholder="Value"
+                                            />
+                                            <button onClick={() => handleDeleteScoutSpecific(key)} className="text-slate-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                                        </div>
+                                    ))}
+                                    {(!scoutResult.itemSpecifics || Object.keys(scoutResult.itemSpecifics).length === 0) && (
+                                        <div className="text-center text-slate-500 text-[10px] py-4 italic bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-800">No specifics detected. Click "Add" to manually enter details.</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* --- SOURCE / STORAGE UNIT --- */}
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
+                                <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Storage Unit</label>
+                                <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg px-3 py-2">
+                                    <Warehouse size={16} className="text-slate-400" />
+                                    <select
+                                        value={activeUnit || ""}
+                                        onChange={(e) => setActiveUnit(e.target.value)}
+                                        className="flex-1 bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
+                                    >
+                                        <option value="" disabled>Select Unit</option>
+                                        {(storageUnits || []).map(unit => (
+                                            <option key={unit.id} value={unit.storeNumber}>
+                                                {unit.storeNumber} {unit.address ? `(${unit.address})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* --- BUSINESS POLICIES --- */}
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
+                                <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-700 pb-2 mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <CreditCard size={14} className="text-blue-500" />
+                                        <h4 className="text-[10px] font-black font-mono uppercase text-slate-500">eBay Policies</h4>
+                                    </div>
+                                    {!ebayConnected && <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">Connect eBay Required</span>}
+                                </div>
+
+                                {ebayConnected ? (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="text-[9px] text-slate-400 uppercase font-bold mb-1 ml-1">Shipping</div>
+                                            <select
+                                                value={localStorage.getItem('sts_default_shipping_policy') || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) localStorage.setItem('sts_default_shipping_policy', val);
+                                                }}
+                                                className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all shadow-inner"
+                                            >
+                                                <option value="">Select Shipping Policy...</option>
+                                                {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (
+                                                    <option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <div className="text-[9px] text-slate-400 uppercase font-bold mb-1 ml-1">Returns</div>
+                                            <select
+                                                value={localStorage.getItem('sts_default_return_policy') || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val) localStorage.setItem('sts_default_return_policy', val);
+                                                }}
+                                                className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all shadow-inner"
+                                            >
+                                                <option value="">Select Return Policy...</option>
+                                                {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (
+                                                    <option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-2 text-center">
+                                        <p className="text-[10px] text-slate-400 italic">Policies will load once eBay is connected in settings.</p>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="relative">
                                 <div className="flex justify-between items-center mb-1">
                                     <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
@@ -2623,7 +2777,17 @@ function App() {
                                 <button onClick={() => toggleRecording('condition')} className={`absolute bottom-2 right-2 p-1.5 rounded-full transition-all ${isRecording === 'condition' ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{isRecording === 'condition' ? <MicOff size={12} /> : <Mic size={12} />}</button>
                             </div>
 
-                            <ProfitCalculator estimatedPrice={scoutResult.estimatedSoldPrice} estimatedShipping={scoutResult.estimatedShippingCost} estimatedWeight={scoutResult.estimatedWeight} onSave={handleSaveToInventory} isScanning={false} isLoading={isSaving} />
+                            <ProfitCalculator
+                                estimatedPrice={scoutResult.estimatedSoldPrice}
+                                estimatedShipping={scoutResult.estimatedShippingCost}
+                                estimatedWeight={scoutResult.estimatedWeight}
+                                onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
+                                onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
+                                isScanning={false}
+                                isLoading={isSaving}
+                            />
+
+
 
                             <div className="mt-4 p-3 bg-red-900/10 border border-red-900/30 rounded-lg flex gap-3 items-start">
                                 <ShieldAlert className="text-red-500 shrink-0 mt-0.5" size={16} />
@@ -2665,7 +2829,7 @@ function App() {
     }
 
     if (isLiteMode) {
-        return <LiteView onExit={() => setIsLiteMode(false)} />;
+        return <LiteView onExit={() => setIsLiteMode(false)} onResearch={handleOpenResearch} />;
     }
 
     if (!user) {

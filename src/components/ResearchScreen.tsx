@@ -8,9 +8,10 @@ interface ResearchScreenProps {
     result: ScoutResult;
     onDiscard: () => void;
     onCreateDraft: () => void;
+    onResearch?: (type: 'EBAY_SOLD' | 'EBAY_ACTIVE' | 'GOOGLE' | 'FB', query: string) => void;
 }
 
-const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCreateDraft }) => {
+const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCreateDraft, onResearch }) => {
     const [activeTab, setActiveTab] = useState<'SOLD' | 'ACTIVE'>('SOLD');
 
     const { marketData, itemTitle, estimatedSoldPrice, optimizedTitle, description, condition, itemSpecifics } = result;
@@ -68,7 +69,7 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
         <div className="flex flex-col h-full bg-slate-950 pt-safe animate-in fade-in duration-300">
 
             {/* --- HEADER --- */}
-            <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md flex items-center justify-between z-20 sticky top-0">
+            <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md flex items-center justify-between z-[100] sticky top-0">
                 <button onClick={onDiscard} className="p-2 -ml-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors">
                     <XCircle size={24} />
                 </button>
@@ -107,22 +108,31 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
 
                     {/* Quick Links */}
                     <div className="grid grid-cols-2 gap-3 mt-6">
-                        <button onClick={() => handleOpenLink(soldUrl)} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-neon-green border border-slate-700 py-2.5 px-4 rounded-xl font-bold transition-all text-xs">
+                        <button
+                            onClick={() => onResearch ? onResearch('EBAY_SOLD', itemTitle) : handleOpenLink(soldUrl)}
+                            className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-neon-green border border-slate-700 py-2.5 px-4 rounded-xl font-bold transition-all text-xs"
+                        >
                             <Tag size={14} /> View Solds
                         </button>
-                        <button onClick={() => handleOpenLink(activeUrl)} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 py-2.5 px-4 rounded-xl font-bold transition-all text-xs">
+                        <button
+                            onClick={() => onResearch ? onResearch('EBAY_ACTIVE', itemTitle) : handleOpenLink(activeUrl)}
+                            className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 py-2.5 px-4 rounded-xl font-bold transition-all text-xs"
+                        >
                             <ShoppingBag size={14} /> View Actives
                         </button>
                     </div>
-                    <button onClick={() => handleOpenLink(googleUrl)} className="mt-3 flex items-center justify-center gap-2 w-full bg-transparent border border-slate-700 text-slate-400 py-2 rounded-xl font-bold hover:bg-slate-800 transition-colors text-xs">
+                    <button
+                        onClick={() => onResearch ? onResearch('GOOGLE', itemTitle) : handleOpenLink(googleUrl)}
+                        className="mt-3 flex items-center justify-center gap-2 w-full bg-transparent border border-slate-700 text-slate-400 py-2 rounded-xl font-bold hover:bg-slate-800 transition-colors text-xs"
+                    >
                         <Search size={14} /> Search on Google
                     </button>
                 </div>
 
 
-                {/* --- MARKET HEALTH (CHART) --- */}
+                {/* --- MARKET HEALTH --- */}
                 <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-white">Market Health</h3>
                         <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-950 border border-slate-800 ${strColor}`}>
                             <StrIcon size={14} />
@@ -130,49 +140,48 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                         </div>
                     </div>
 
-                    {/* STR Bar */}
-                    <div className="mb-6">
-                        <div className="flex justify-between text-xs mb-2 items-baseline">
-                            <span className="text-slate-500 font-medium">Sell Through Rate (90d)</span>
-                            <span className={`font-black ${strColor} text-lg`}>{Math.round(sellThroughRate)}%</span>
-                        </div>
-
-                        <div className="w-full bg-slate-800 rounded-full h-2 mb-3 overflow-hidden">
-                            <div
-                                className={`h-full ${strBg.replace('bg-', 'bg-')} transition-all duration-1000`}
-                                style={{ width: `${Math.min(sellThroughRate, 100)}%`, backgroundColor: isGreat ? '#39ff14' : isGood ? '#facc15' : '#ef4444' }}
-                            ></div>
-                        </div>
-
-                        <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono">
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-full bg-neon-green"></div>
-                                <span className="font-bold text-slate-400">{marketData?.totalSold || 0} SOLD</span>
+                    <div className="grid grid-cols-1 gap-6">
+                        {/* Sold vs Active Numbers */}
+                        <div className="flex justify-between items-center p-4 bg-slate-950 rounded-xl border border-slate-800">
+                            <div className="text-center flex-1">
+                                <p className="text-[10px] text-slate-500 uppercase font-mono mb-1">Total Sold</p>
+                                <p className="text-2xl font-black text-neon-green">{marketData?.totalSold || 0}</p>
                             </div>
-                            <span>vs</span>
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                <span className="font-bold text-slate-400">{marketData?.totalActive || 0} ACTIVE</span>
+                            <div className="h-8 w-[1px] bg-slate-800"></div>
+                            <div className="text-center flex-1">
+                                <p className="text-[10px] text-slate-500 uppercase font-mono mb-1">Total Active</p>
+                                <p className="text-2xl font-black text-blue-500">{marketData?.totalActive || 0}</p>
+                            </div>
+                        </div>
+
+                        {/* STR Number */}
+                        <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <p className="text-[10px] text-slate-500 uppercase font-mono mb-1">Sell Through Rate (90d)</p>
+                                    <p className={`text-3xl font-black ${strColor}`}>{Math.round(sellThroughRate)}%</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="w-24 bg-slate-800 rounded-full h-2 mb-1 overflow-hidden">
+                                        <div
+                                            className="h-full transition-all duration-1000"
+                                            style={{ width: `${Math.min(sellThroughRate, 100)}%`, backgroundColor: isGreat ? '#39ff14' : isGood ? '#facc15' : '#ef4444' }}
+                                        ></div>
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 font-mono">Saturation Level</p>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* CHART */}
-                    {allCompsForChart.length > 0 && (
-                        <div className="border-t border-slate-800 pt-4">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Price Distribution</h4>
-                            <MarketChart data={allCompsForChart} />
-                        </div>
-                    )}
-
                     {/* Estimation Warning */}
                     {marketData?.isEstimated && (
-                        <div className="mt-4 flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-pulse">
+                        <div className="mt-4 flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
                             <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-xs font-bold text-red-500">Estimated Data Used</p>
                                 <p className="text-[10px] text-red-500/80 leading-tight mt-0.5">
-                                    eBay Finding API returned 0 results. Sold data is estimated based on active listings minus 15%.
+                                    No exact sold results found. Metrics are estimated based on active listings minus 15%.
                                 </p>
                             </div>
                         </div>
@@ -180,16 +189,10 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                 </div>
 
 
-                {/* --- LISTING DETAILS --- */}
+                {/* --- LISTING DRAFT --- */}
                 <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 shadow-xl space-y-5">
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                         <h3 className="text-lg font-bold text-white">Listing Draft</h3>
-                        <button
-                            onClick={() => copyToClipboard(description)}
-                            className="text-blue-400 hover:text-blue-300 text-xs font-bold flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded-lg"
-                        >
-                            <Copy size={12} /> Copy
-                        </button>
                     </div>
 
                     {/* Title */}
@@ -212,14 +215,6 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                                     <span className="opacity-50 mr-1">{String(key)}:</span>{typeof val === 'object' ? JSON.stringify(val) : String(val || '')}
                                 </span>
                             ))}
-                        </div>
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1 block">Description Preview</label>
-                        <div className="text-xs text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800 max-h-32 overflow-y-auto leading-relaxed">
-                            {typeof description === 'object' ? JSON.stringify(description) : String(description || '')}
                         </div>
                     </div>
                 </div>

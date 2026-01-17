@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Search, ArrowRight, Loader2, Tag, ShoppingCart, List, ExternalLink, Image as ImageIcon, Copy, DollarSign } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { Comp } from '../types';
 import { searchEbayComps, fetchEbayItemDetails } from '../services/ebayService';
 
@@ -169,21 +171,35 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
           ) : comps.length === 0 ? (
             <div className="text-center p-8 flex flex-col items-center gap-4">
               <p className="text-slate-600">No results found in API.</p>
-              <a
-                href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=${activeTab === 'SOLD' ? '1' : '0'}&LH_ItemCondition=${condition === 'NEW' ? '1000' : '3000'}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={async () => {
+                  const url = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=${activeTab === 'SOLD' ? '1' : '0'}&LH_ItemCondition=${condition === 'NEW' ? '1000' : '3000'}`;
+                  if (Capacitor.isNativePlatform()) {
+                    await Browser.open({ url });
+                  } else {
+                    window.open(url, '_blank');
+                  }
+                }}
                 className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-700 border border-slate-600"
               >
                 <ExternalLink size={14} /> Open eBay Website
-              </a>
+              </button>
             </div>
           ) : (
             comps.map(comp => (
               <div key={comp.id || Math.random()} className="bg-slate-900 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors relative">
 
                 {/* Thumbnail */}
-                <div className="w-20 h-20 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
+                <button
+                  onClick={async () => {
+                    if (Capacitor.isNativePlatform()) {
+                      await Browser.open({ url: comp.url });
+                    } else {
+                      window.open(comp.url, '_blank');
+                    }
+                  }}
+                  className="w-20 h-20 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0 group-hover:opacity-80 transition-opacity"
+                >
                   {comp.image ? (
                     <img src={comp.image} alt={comp.title} className="w-full h-full object-cover" />
                   ) : (
@@ -191,12 +207,21 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
                       <ImageIcon size={20} />
                     </div>
                   )}
-                </div>
+                </button>
 
                 <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <a href={comp.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-200 hover:text-blue-400 hover:underline line-clamp-2 mb-1">
+                  <button
+                    onClick={async () => {
+                      if (Capacitor.isNativePlatform()) {
+                        await Browser.open({ url: comp.url });
+                      } else {
+                        window.open(comp.url, '_blank');
+                      }
+                    }}
+                    className="text-sm font-bold text-slate-200 hover:text-blue-400 hover:underline line-clamp-2 mb-1 text-left"
+                  >
                     {comp.title}
-                  </a>
+                  </button>
 
                   <div className="flex justify-between items-end">
                     <div className="flex gap-3 text-xs text-slate-500 font-mono">

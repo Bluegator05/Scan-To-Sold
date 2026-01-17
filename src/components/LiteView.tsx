@@ -6,9 +6,10 @@ import { ArrowLeft, Search, ExternalLink, Loader2, Camera, ScanBarcode, Shopping
 
 interface LiteViewProps {
     onExit: () => void;
+    onResearch: (type: 'EBAY_SOLD' | 'EBAY_ACTIVE' | 'GOOGLE' | 'FB', query: string) => void;
 }
 
-const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
+const LiteView: React.FC<LiteViewProps> = ({ onExit, onResearch }) => {
     const [isScanning, setIsScanning] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState<{ title: string, searchQuery?: string, price?: number, image: string } | null>(null);
@@ -113,7 +114,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
 
                             <div className="grid grid-cols-1 gap-3">
                                 <button
-                                    onClick={() => openLink(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.searchQuery || result.title)}&_sacat=0&LH_ItemCondition=3000`)}
+                                    onClick={() => onResearch('EBAY_ACTIVE', result.searchQuery || result.title)}
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-blue-500 hover:bg-slate-800 transition-all group"
                                 >
                                     <div className="flex items-center gap-4">
@@ -129,7 +130,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
                                 </button>
 
                                 <button
-                                    onClick={() => openLink(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.searchQuery || result.title)}&_sacat=0&LH_Sold=1&LH_Complete=1&LH_ItemCondition=3000`)}
+                                    onClick={() => onResearch('EBAY_SOLD', result.searchQuery || result.title)}
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-neon-green hover:bg-slate-800 transition-all group"
                                 >
                                     <div className="flex items-center gap-4">
@@ -145,7 +146,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
                                 </button>
 
                                 <button
-                                    onClick={() => openLink(`https://www.google.com/search?q=${encodeURIComponent(result.searchQuery || result.title)}`)}
+                                    onClick={() => onResearch('GOOGLE', result.searchQuery || result.title)}
                                     // Better fallback for web: Google Image Search query
                                     // Actually, let's use Google Search for the title
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-yellow-500 hover:bg-slate-800 transition-all group"
@@ -163,7 +164,7 @@ const LiteView: React.FC<LiteViewProps> = ({ onExit }) => {
                                 </button>
 
                                 <button
-                                    onClick={() => openLink(`https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(result.title)}`)}
+                                    onClick={() => onResearch('FB', result.title)}
                                     className="flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-blue-400 hover:bg-slate-800 transition-all group"
                                 >
                                     <div className="flex items-center gap-4">
