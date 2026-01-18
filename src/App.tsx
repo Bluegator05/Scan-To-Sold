@@ -38,7 +38,7 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
-import { Camera, Search, LayoutDashboard, BarChart3, Package, Settings, Plus, X, Trash2, Edit2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, Layers, CheckSquare, Sparkles, Image as ImageIcon, Link, ArrowLeft, Wand2, Calculator, Save, MoreHorizontal, Copy, Info, Check, AlertCircle, ScanLine, Share2, DollarSign, Zap, Eye, RotateCcw, Loader2, HelpCircle, Box, Upload, List as ListIcon, Lock, Download, ChevronRight, Warehouse, Sun, Moon, Aperture, ShoppingCart, Tag, Globe, Facebook, Mic, MicOff, ShieldAlert, CreditCard, Truck, ShieldCheck, Maximize2, Folder, AlertTriangle, Globe2, Barcode, MapPin, Calendar, Filter, ChevronLeft, ArrowRight, Search as SearchIcon, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Camera, Search, LayoutDashboard, BarChart3, Package, Settings, Plus, X, Trash2, Edit2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, Layers, CheckSquare, Sparkles, Image as ImageIcon, Link, ArrowLeft, Wand2, Calculator, Save, MoreHorizontal, Copy, Info, Check, AlertCircle, ScanLine, Share2, DollarSign, Zap, Eye, RotateCcw, Loader2, HelpCircle, Box, Upload, List as ListIcon, Lock, Download, ChevronRight, Warehouse, Sun, Moon, Aperture, ShoppingCart, Tag, Globe, Facebook, Mic, MicOff, ShieldAlert, CreditCard, Truck, ShieldCheck, Maximize2, Folder, AlertTriangle, Globe2, Barcode, MapPin, Calendar, Filter, ChevronLeft, ArrowRight, Search as SearchIcon, TrendingUp, TrendingDown, Minus, CheckCircle2 } from 'lucide-react';
 import { useFeatureGate, Feature } from './hooks/useFeatureGate';
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -155,6 +155,13 @@ function App() {
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [bulkSessionCount, setBulkSessionCount] = useState(0);
+
+    const sellThroughRate = scoutResult?.marketData?.sellThroughRate || 0;
+    const isGreat = sellThroughRate >= 50;
+    const isGood = sellThroughRate >= 20 && sellThroughRate < 50;
+    const strColor = isGreat ? 'text-neon-green' : isGood ? 'text-yellow-400' : 'text-red-500';
+    const marketLabel = isGreat ? 'Hot' : isGood ? 'Steady' : 'Slow';
+    const StrIcon = isGreat ? TrendingUp : isGood ? Minus : TrendingDown;
 
     useEffect(() => {
         const hasSeen = localStorage.getItem('sts_has_seen_onboarding');
@@ -1090,7 +1097,7 @@ function App() {
 
                     // NEW WORKFLOW: Stop at Research Review
                     console.log("[SCAN] Setting status to RESEARCH_REVIEW. Final Result:", finalResult);
-                    setStatus(ScoutStatus.RESEARCH_REVIEW);
+                    setStatus(ScoutStatus.COMPLETE);
 
                     // Analytics: Track scan success
                     logEvent(analytics, 'item_scan_success', {
@@ -1106,7 +1113,7 @@ function App() {
                     // This prevents a permanent hang if one component (like sold comps) fails.
                     if (baseResult.itemTitle && baseResult.itemTitle !== "Scanning..." && baseResult.itemTitle !== "Item") {
                         console.log("[SCAN] Showing partial results with title:", baseResult.itemTitle);
-                        setStatus(ScoutStatus.RESEARCH_REVIEW);
+                        setStatus(ScoutStatus.COMPLETE);
                     } else {
                         console.error("[SCAN] No valid title. Setting status to ERROR.");
                         setStatus(ScoutStatus.ERROR);
@@ -1301,84 +1308,42 @@ function App() {
         }
     };
 
-    const handleUpdateInventoryItem = async (calc: ProfitCalculation, costCode: string, itemCost: number, weight: string, dimensions?: string) => {
-        if (!editingItem || !user) return; // Add user check
+    const handleSaveEditedItem = async (calc?: ProfitCalculation, costCode?: string, itemCost?: number, weight?: string, dimensions?: string) => {
+        if (!editingItem) return;
+        setIsSaving(true);
         try {
-            const updatedItem: InventoryItem = {
+            const finalItem: InventoryItem = {
                 ...editingItem,
-                calculation: calc,
-                costCode,
-                itemSpecifics: { ...editingItem.itemSpecifics, Weight: weight },
-                dimensions: dimensions || editingItem.dimensions,
-                generatedListing: generatedListing ? {
-                    platform: listingPlatform || 'EBAY',
-                    content: typeof generatedListing === 'string' ? generatedListing : generatedListing.content
-                } : editingItem.generatedListing
+                calculation: calc || editingItem.calculation,
+                costCode: costCode || editingItem.costCode,
+                itemSpecifics: { ...editingItem.itemSpecifics, Weight: weight || (typeof weight === 'string' ? weight : editingItem.itemSpecifics?.Weight) },
+                dimensions: dimensions || editingItem.dimensions
             };
 
-            // Check if this is a NEW local item (e.g. from camera/scan) that hasn't been saved to DB yet
-            // If it has a temporary ID or isn't found in the DB (implied by context), we should ADD it.
-            // For now, let's assume we need to try adding it if it's not an "ebay-" item and we want to persist it.
+            // Maintain behavior: Update item cost in the calculation if provided
+            if (itemCost !== undefined) finalItem.calculation.itemCost = itemCost;
 
-            // However, our logic relies on `updateInventoryItem` for existing.
-            // If the user scanned an item, `editingItem.id` is likely a timestamp or `scan-...`.
-            // We need to know if it exists. 
-            // Simplified Logic: If we are "Saving Draft", we should UPSERT in a way.
-
-            // NOTE: The `updateInventoryItem` function in `databaseService` uses `.update().eq('id', item.id)`. 
-            // If the ID doesn't exist in DB, `update` returns no error but updates 0 rows.
-
-            // BETTER APPROACH:
-            // 1. Try to Add (Insert).
-            // 2. If it fails (duplicate), Try to Update.
-            // OR checks if it is a "new" ID.
-
-            // Let's modify behavior: 
-            // If user explicitly clicks "Save Draft", we assume they want to persist it.
-            // We'll try to add it first if it looks like a new scan.
-
-            // Actually, best practice with Supabase is `upsert` but our service splits them.
-            // Let's just try to ADD if it's a new draft capture.
-
-            // FIXME: Start by trying to update. If we are unsure, maybe check if it is in `inventory` state?
-            const isKnownItem = inventory.some(i => i.id === updatedItem.id);
-
-            if (isKnownItem) {
-                await updateInventoryItem(updatedItem);
-            } else {
-                // It's a new item (e.g. fresh scan), so ADD it.
-                await addInventoryItem(updatedItem, user.id);
-            }
-
-            // Optimistic update
-            setInventory(prev => {
-                const exists = prev.some(item => item.id === updatedItem.id);
-                if (exists) {
-                    return prev.map(item => item.id === updatedItem.id ? updatedItem : item);
-                } else {
-                    return [updatedItem, ...prev];
-                }
-            });
-            setEditingItem(updatedItem);
-
-            // Force Refresh from DB to confirm persistence
-            fetchInventory().then(setInventory);
-
-            alert("Draft Saved to Inventory!");
+            await updateInventoryItem(finalItem);
+            setInventory(prev => prev.map(item => item.id === finalItem.id ? finalItem : item));
             setEditingItem(null);
-
-            // If we came from a scan flow (internal editor or modal), transition to inventory
-            if (status === ScoutStatus.COMPLETE || status === ScoutStatus.RESEARCH_REVIEW) {
-                setStatus(ScoutStatus.IDLE);
-                setScoutResult(null);
-                setScannedBarcode(null);
-                setScoutAdditionalImages([]);
-                setView('inventory');
-                setInventoryTab('DRAFT');
-            }
+            alert("Draft updated successfully!");
         } catch (e: any) {
-            console.error("Save failed", e);
-            alert("Failed to save: " + e.message);
+            console.error("Update failed", e);
+            alert("Failed to update: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleListNow = async (item: InventoryItem) => {
+        if (!item) return;
+        try {
+            await updateInventoryItem(item);
+            await handlePushToEbay(item);
+            setEditingItem(null);
+        } catch (e: any) {
+            console.error("List Now failed", e);
+            alert("Failed to list item: " + e.message);
         }
     };
 
@@ -2518,7 +2483,6 @@ function App() {
     };
 
     const renderAnalysis = () => {
-        if (status === ScoutStatus.RESEARCH_REVIEW) return renderResearchReview();
 
         return (
             <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
@@ -2586,259 +2550,217 @@ function App() {
                     {status === ScoutStatus.ANALYZING ? (
                         <div className="space-y-6 mt-4 opacity-50"><div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-3/4 animate-pulse"></div><div className="h-32 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div><div className="h-40 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div></div>
                     ) : scoutResult ? (
-                        <div className="animate-in slide-in-from-bottom-4 duration-500 space-y-6">
-                            {/* ... Results Content ... */}
+                        <div className="animate-in slide-in-from-bottom-4 duration-500 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            {/* --- LEFT: EDITOR --- */}
+                            <div className="lg:col-span-8 space-y-6">
+                                {/* Title */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>
+                                            <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button>
+                                        </div>
+                                    </div>
+                                    <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
+                                </div>
 
-
-                            {/* --- EDITOR & DETAILS (Shared) --- */}
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center"><label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title</label><div className="flex gap-2">
-                                    <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>
-                                    <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button></div></div>
-                                <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
-                            </div>
-
-                            {/* Description Field with Templates */}
-                            {/* Description Field with Templates */}
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
+                                {/* Description */}
+                                <div className="space-y-2">
                                     <label className="text-xs text-slate-500 font-mono uppercase tracking-wider">Description</label>
-                                </div>
-
-                                {/* Templates - Moved to own line for visibility */}
-                                <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2">
-                                    {/* Default Templates */}
-                                    <button onClick={() => {
-                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
-                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
-
-                                    <button onClick={() => {
-                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
-                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
-
-                                    <button onClick={() => {
-                                        const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                        const newContent = currentContent + (currentContent ? "\n\n" : "") + "• For parts or repair only.\n• Does not power on.\n• No returns.";
-                                        setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                    }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
-
-                                    {/* Custom Templates */}
-                                    {customTemplates.map((tmpl, idx) => (
-                                        <button key={idx} onClick={() => {
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2">
+                                        <button onClick={() => {
                                             const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
+                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
                                             setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                        }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
-                                    ))}
-
-                                    {/* Add Custom Template */}
-                                    <button onClick={() => {
-                                        const text = prompt("Enter new template text:");
-                                        if (text) {
-                                            const newTemplates = [...customTemplates, text];
-                                            setCustomTemplates(newTemplates);
-                                            localStorage.setItem('sts_custom_templates', JSON.stringify(newTemplates));
-                                        }
-                                    }} className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Plus size={12} /> Add</button>
+                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
+                                        <button onClick={() => {
+                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
+                                            setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
+                                        <button onClick={() => {
+                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Sold as-is for parts or repair.\n• No returns.";
+                                            setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
+                                        {customTemplates.map((tmpl, idx) => (
+                                            <button key={idx} onClick={() => {
+                                                const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                                const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
+                                                setGeneratedListing({ platform: 'EBAY', content: newContent });
+                                            }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
+                                        ))}
+                                        <button onClick={() => {
+                                            const text = prompt("Enter new template text:");
+                                            if (text) {
+                                                const newTemplates = [...customTemplates, text];
+                                                setCustomTemplates(newTemplates);
+                                                localStorage.setItem('sts_custom_templates', JSON.stringify(newTemplates));
+                                            }
+                                        }} className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Plus size={12} /> Add</button>
+                                    </div>
+                                    <textarea
+                                        value={typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "")}
+                                        onChange={(e) => setGeneratedListing({ platform: 'EBAY', content: e.target.value })}
+                                        className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-32 shadow-sm"
+                                        placeholder="Detailed item description..."
+                                    />
                                 </div>
-                                <textarea
-                                    value={typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "")}
-                                    onChange={(e) => setGeneratedListing({ platform: 'EBAY', content: e.target.value })}
-                                    className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-32 shadow-sm"
-                                    placeholder="Detailed item description..."
+
+                                {/* Condition & Bin */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label>
+                                        <div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1">
+                                            <button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button>
+                                            <button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label>
+                                        <input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" />
+                                    </div>
+                                </div>
+
+                                {/* Item Specifics */}
+                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
+                                    <div className="flex justify-between items-center mb-1 border-b border-gray-100 dark:border-slate-700 pb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Tag size={14} className="text-emerald-500" />
+                                            <label className="text-[10px] font-black font-mono uppercase text-slate-500">Item Specifics</label>
+                                        </div>
+                                        <button onClick={handleAddScoutSpecific} className="text-[10px] text-blue-500 hover:text-blue-400 font-bold flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800">+ Add</button>
+                                    </div>
+                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                        {Object.entries(scoutResult.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
+                                            <div key={idx} className="flex gap-2 items-center group">
+                                                <input
+                                                    className="w-24 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-500 focus:outline-none focus:border-emerald-500 font-mono shrink-0"
+                                                    value={key}
+                                                    onChange={(e) => handleRenameScoutSpecific(key, e.target.value)}
+                                                    placeholder="Field"
+                                                    disabled={['Brand', 'Model', 'Type', 'Color', 'Material'].includes(key)}
+                                                />
+                                                <input
+                                                    className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-900 dark:text-white font-bold focus:outline-none focus:border-emerald-500"
+                                                    value={typeof val === 'object' ? JSON.stringify(val) : String(val || '')}
+                                                    onChange={(e) => handleUpdateScoutSpecific(key, e.target.value)}
+                                                    placeholder="Value"
+                                                />
+                                                <button onClick={() => handleDeleteScoutSpecific(key)} className="text-slate-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Source & Policies */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Unit</label>
+                                        <select value={activeUnit || ""} onChange={(e) => setActiveUnit(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none">
+                                            <option value="" disabled>Select Unit</option>
+                                            {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
+                                        </select>
+                                    </div>
+                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">eBay Policies</label>
+                                        <div className="flex gap-2">
+                                            <select value={localStorage.getItem('sts_default_shipping_policy') || ""} onChange={(e) => { e.target.value && localStorage.setItem('sts_default_shipping_policy', e.target.value); setScoutResult(prev => prev ? ({ ...prev, ebayShippingPolicyId: e.target.value }) : null); }} className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                                <option value="">Shipping...</option>
+                                                {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
+                                            </select>
+                                            <select value={localStorage.getItem('sts_default_return_policy') || ""} onChange={(e) => { e.target.value && localStorage.setItem('sts_default_return_policy', e.target.value); setScoutResult(prev => prev ? ({ ...prev, ebayReturnPolicyId: e.target.value }) : null); }} className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                                <option value="">Returns...</option>
+                                                {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Condition Notes */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Tested</button>
+                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good condition.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Good</button>
+                                        </div>
+                                    </div>
+                                    <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" />
+                                </div>
+
+                                <button onClick={() => { if (window.confirm("Discard this scan?")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
+                            </div>
+
+                            {/* --- RIGHT: MARKET INSIGHTS --- */}
+                            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4 h-fit">
+                                <ProfitCalculator
+                                    estimatedPrice={scoutResult.estimatedSoldPrice}
+                                    estimatedShipping={scoutResult.estimatedShippingCost}
+                                    estimatedWeight={scoutResult.estimatedWeight}
+                                    onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
+                                    onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
+                                    isScanning={false}
+                                    isLoading={isSaving}
                                 />
-                            </div>
 
-                            {/* Research Links for Premium - MOVED TO TOP */}
-                            <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                {(() => {
-                                    const searchTitle = (editedTitle || scoutResult?.itemTitle || "").toLowerCase().includes("scanning") ? "" : (editedTitle || scoutResult?.itemTitle || "item");
-                                    return (
-                                        <>
-                                            <button onClick={() => handleOpenResearch('EBAY_SOLD', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</button>
-                                            <button onClick={() => handleOpenResearch('EBAY_ACTIVE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</button>
-                                            <button onClick={() => handleOpenResearch('GOOGLE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</button>
-                                            <button onClick={() => handleOpenResearch('FB', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</button>
-                                        </>
-                                    );
-                                })()}
-                            </div>
-
-                            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                <button onClick={() => setIsCompsOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold shrink-0 hover:bg-blue-500 shadow-lg shadow-blue-500/20"><SearchIcon size={14} /> Deep Analysis</button>
-                            </div>
-                            {/* Sources Section Restored */}
-                            {scoutResult?.listingSources && scoutResult.listingSources.length > 0 && (
-                                <div className="bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-100 dark:border-slate-800">
-                                    <h4 className="text-[10px] uppercase font-bold text-slate-500 mb-2 flex items-center gap-1">
-                                        <Globe size={10} /> Sources Found
-                                    </h4>
-                                    <div className="space-y-1">
-                                        {(scoutResult?.listingSources || []).slice(0, 3).map((source, idx) => (
-                                            <a key={idx} href={source.uri} target="_blank" rel="noreferrer" className="block text-xs text-blue-500 hover:underline truncate">
-                                                {source.title}
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label><div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1"><button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button><button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button></div></div>
-                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700"><label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label><input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" /></div>
-                            </div>
-
-                            {/* --- ITEM SPECIFICS EDITOR (Integrated) --- */}
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
-                                <div className="flex justify-between items-center mb-1 border-b border-gray-100 dark:border-slate-700 pb-2">
-                                    <div className="flex items-center gap-2">
-                                        <Tag size={14} className="text-emerald-500" />
-                                        <label className="text-[10px] font-black font-mono uppercase text-slate-500">Item Specifics</label>
-                                    </div>
-                                    <button onClick={handleAddScoutSpecific} className="text-[10px] text-blue-500 hover:text-blue-400 font-bold flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800">+ Add</button>
-                                </div>
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                                    {Object.entries(scoutResult.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
-                                        <div key={idx} className="flex gap-2 items-center group">
-                                            <input
-                                                className="w-1/3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-400 focus:outline-none focus:border-emerald-500 font-mono"
-                                                value={key}
-                                                onChange={(e) => handleRenameScoutSpecific(key, e.target.value)}
-                                                placeholder="Field Name"
-                                                disabled={['Brand', 'Model', 'Type', 'Color', 'Material'].includes(key)}
-                                            />
-                                            <input
-                                                className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-900 dark:text-white font-bold focus:outline-none focus:border-emerald-500"
-                                                value={typeof val === 'object' ? JSON.stringify(val) : String(val || '')}
-                                                onChange={(e) => handleUpdateScoutSpecific(key, e.target.value)}
-                                                placeholder="Value"
-                                            />
-                                            <button onClick={() => handleDeleteScoutSpecific(key)} className="text-slate-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider flex items-center gap-2"><Globe size={14} /> Market Insight</h4>
+                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-950 border dark:border-slate-800 ${strColor}`}>
+                                            <StrIcon size={12} />
+                                            {marketLabel}
                                         </div>
-                                    ))}
-                                    {(!scoutResult.itemSpecifics || Object.keys(scoutResult.itemSpecifics).length === 0) && (
-                                        <div className="text-center text-slate-500 text-[10px] py-4 italic bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-800">No specifics detected. Click "Add" to manually enter details.</div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 text-center">
+                                            <p className="text-[9px] text-slate-400 uppercase font-mono mb-0.5">Sold (90d)</p>
+                                            <p className="text-xl font-black text-neon-green">{scoutResult.marketData?.totalSold || 0}</p>
+                                        </div>
+                                        <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 text-center">
+                                            <p className="text-[9px] text-slate-400 uppercase font-mono mb-0.5">Active</p>
+                                            <p className="text-xl font-black text-blue-500">{scoutResult.marketData?.totalActive || 0}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <p className="text-[9px] text-slate-400 uppercase font-mono">Sell Through Rate</p>
+                                            <p className={`text-sm font-black ${strColor}`}>{Math.round(sellThroughRate)}%</p>
+                                        </div>
+                                        <div className="w-full bg-gray-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                            <div
+                                                className="h-full transition-all duration-1000"
+                                                style={{ width: `${Math.min(sellThroughRate, 100)}%`, backgroundColor: isGreat ? '#39ff14' : isGood ? '#facc15' : '#ef4444' }}
+                                            ></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20 text-center">
+                                        <p className="text-[9px] text-slate-500 uppercase font-mono mb-1">Estimated Value</p>
+                                        <p className="text-4xl font-black text-neon-green">
+                                            ${Number(scoutResult.estimatedSoldPrice || 0).toFixed(0)}
+                                        </p>
+                                    </div>
+
+                                    {scoutResult.marketData?.isEstimated && (
+                                        <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                            <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] text-red-500/90 leading-tight">No exact sold results found. Metrics estimated based on active listings.</p>
+                                        </div>
                                     )}
-                                </div>
-                            </div>
 
-                            {/* --- SOURCE / STORAGE UNIT --- */}
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
-                                <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Storage Unit</label>
-                                <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg px-3 py-2">
-                                    <Warehouse size={16} className="text-slate-400" />
-                                    <select
-                                        value={activeUnit || ""}
-                                        onChange={(e) => setActiveUnit(e.target.value)}
-                                        className="flex-1 bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
-                                    >
-                                        <option value="" disabled>Select Unit</option>
-                                        {(storageUnits || []).map(unit => (
-                                            <option key={unit.id} value={unit.storeNumber}>
-                                                {unit.storeNumber} {unit.address ? `(${unit.address})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* --- BUSINESS POLICIES --- */}
-                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
-                                <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-700 pb-2 mb-1">
-                                    <div className="flex items-center gap-2">
-                                        <CreditCard size={14} className="text-blue-500" />
-                                        <h4 className="text-[10px] font-black font-mono uppercase text-slate-500">eBay Policies</h4>
-                                    </div>
-                                    {!ebayConnected && <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">Connect eBay Required</span>}
-                                </div>
-
-                                {ebayConnected ? (
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="text-[9px] text-slate-400 uppercase font-bold mb-1 ml-1">Shipping</div>
-                                            <select
-                                                value={localStorage.getItem('sts_default_shipping_policy') || ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val) localStorage.setItem('sts_default_shipping_policy', val);
-                                                }}
-                                                className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all shadow-inner"
-                                            >
-                                                <option value="">Select Shipping Policy...</option>
-                                                {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (
-                                                    <option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <div className="text-[9px] text-slate-400 uppercase font-bold mb-1 ml-1">Returns</div>
-                                            <select
-                                                value={localStorage.getItem('sts_default_return_policy') || ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val) localStorage.setItem('sts_default_return_policy', val);
-                                                }}
-                                                className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:border-blue-500 outline-none transition-all shadow-inner"
-                                            >
-                                                <option value="">Select Return Policy...</option>
-                                                {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (
-                                                    <option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="py-2 text-center">
-                                        <p className="text-[10px] text-slate-400 italic">Policies will load once eBay is connected in settings.</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="relative">
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
                                     <div className="flex gap-2">
-                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working perfectly.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Tested</button>
-                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good cosmetic condition with minor wear.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Good Cond.</button>
-                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Sold as-is for parts or repair.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Parts Only</button>
+                                        <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Sold</button>
+                                        <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Active</button>
                                     </div>
-                                </div>
-                                <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" placeholder="Condition notes (e.g. scratches, missing box)..." />
-                                <button onClick={() => toggleRecording('condition')} className={`absolute bottom-2 right-2 p-1.5 rounded-full transition-all ${isRecording === 'condition' ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{isRecording === 'condition' ? <MicOff size={12} /> : <Mic size={12} />}</button>
-                            </div>
-
-                            <ProfitCalculator
-                                estimatedPrice={scoutResult.estimatedSoldPrice}
-                                estimatedShipping={scoutResult.estimatedShippingCost}
-                                estimatedWeight={scoutResult.estimatedWeight}
-                                onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
-                                onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
-                                isScanning={false}
-                                isLoading={isSaving}
-                            />
-
-
-
-                            <div className="mt-4 p-3 bg-red-900/10 border border-red-900/30 rounded-lg flex gap-3 items-start">
-                                <ShieldAlert className="text-red-500 shrink-0 mt-0.5" size={16} />
-                                <div className="text-[10px] text-slate-400 leading-relaxed">
-                                    <strong className="text-red-400">LIABILITY DISCLAIMER:</strong> Calculations are estimates. Verify all prices, weights, and fees before listing. We are not liable for losses.
+                                    <button onClick={() => setIsCompsOpen(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-500 shadow-lg active:scale-95 transition-all">Deep Market Analysis</button>
                                 </div>
                             </div>
-
-                            <button onClick={() => { if (window.confirm("Discard this scan? Data will be lost.")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
                         </div>
                     ) : (
-                        // If status is COMPLETE but no result, it usually means we just saved a draft or are in a transitional state.
-                        // Instead of showing "Analysis Failed", we should probably show the Idle state or a "Scan Complete" message.
-                        // However, if we truly failed, we should show error.
-                        // Let's check if we have an editingItem (which means we are in the modal).
-                        // If we are here, editingItem is null (modal closed).
-                        // So we should probably just go back to IDLE.
                         <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
                             <div className="text-center">
                                 <h3 className="font-bold">Ready to Scan</h3>
@@ -2849,7 +2771,7 @@ function App() {
                     )}
                 </div>
                 {isCompsOpen && scoutResult && (<CompsModal isOpen={isCompsOpen} onClose={() => setIsCompsOpen(false)} initialQuery={scoutResult.searchQuery || editedTitle || scoutResult.itemTitle} condition={itemCondition} initialTab={initialCompsTab} onApplyPrice={(price) => setScoutResult(prev => prev ? ({ ...prev, estimatedSoldPrice: price }) : null)} onSellSimilar={handleSellSimilar} />)}
-            </div >
+            </div>
         );
     };
 
@@ -3122,488 +3044,294 @@ function App() {
             {/* Edit Draft Modal - Only show if NOT viewing full image and NOT in preview */}
             {editingItem && viewingImageIndex === null && !isPreviewOpen && (
                 <div className="fixed inset-0 z-[9999] animate-in fade-in">
-                    {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setEditingItem(null)} />
-
-                    {/* Modal Content - Full Screen Mobile, Centered Desktop */}
-                    <div className="absolute inset-0 w-full h-full bg-white dark:bg-slate-900 flex flex-col overflow-hidden md:relative md:inset-auto md:m-auto md:w-[95vw] md:h-[90vh] md:max-w-4xl md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 md:dark:border-slate-800 md:top-1/2 md:-translate-y-1/2">
-                        <div className="p-4 pt-[calc(env(safe-area-inset-top)+1rem)] md:p-4 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
+                    <div className="absolute inset-0 w-full h-full bg-white dark:bg-slate-900 flex flex-col overflow-hidden md:relative md:inset-auto md:m-auto md:w-[98vw] md:h-[95vh] md:max-w-6xl md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 md:dark:border-slate-800 md:top-1/2 md:-translate-y-1/2">
+                        {/* Header */}
+                        <div className="p-4 pt-[calc(env(safe-area-inset-top)+1rem)] border-b dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900 shrink-0">
                             <h3 className="font-bold flex items-center gap-2 text-slate-900 dark:text-white">
-                                <Edit2 className="text-emerald-500 dark:text-neon-green" size={18} />
+                                <Edit2 className="text-emerald-500" size={18} />
                                 Edit Draft <span className="text-[9px] bg-slate-200 dark:bg-slate-700 px-1 rounded text-slate-500">v1.2</span>
                             </h3>
-                            <div className="flex gap-2">
-                                <button onClick={(e) => {
-                                    if (window.confirm("Delete this draft?")) {
-                                        handleDeleteItem(e, editingItem.id);
-                                        setEditingItem(null);
-                                    }
-                                }} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={20} /></button>
-                                <button onClick={() => setEditingItem(null)}><X size={24} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" /></button>
-                            </div>
+                            <button onClick={() => setEditingItem(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={24} /></button>
                         </div>
-                        {/* Header/Footer Separator Removed - Consolidated layout */}
 
-                        {/* SCROLLABLE CONTENT BODY (Research + Form) */}
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-slate-900 pb-64">
-                            {/* RESEARCH PANEL */}
-                            <div className="px-6 pt-4 pb-0">
-                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
-                                    <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
-                                        <Globe size={16} /> Research & Comps
-                                        {isResearching && <span className="text-xs font-normal opacity-70 animate-pulse">(Searching...)</span>}
-                                    </h4>
-
-                                    {/* Search Input */}
-                                    <div className="flex gap-2 mb-3">
-                                        <input
-                                            type="text"
-                                            value={editedTitle}
-                                            onChange={(e) => setEditedTitle(e.target.value)}
-                                            className="flex-1 bg-white dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-                                            placeholder="Search term..."
-                                        />
-                                        <button
-                                            onClick={async () => {
-                                                setIsResearching(true);
-                                                try {
-                                                    const term = editedTitle || editingItem?.title || "";
-                                                    if (!term) return;
-                                                    const conditionParam = itemCondition === 'NEW' ? 'NEW' : 'USED';
-                                                    const data = await searchEbayComps(term, 'ACTIVE', conditionParam);
-                                                    setVisualSearchResults(data.comps || []);
-                                                } catch (e) {
-                                                    console.error(e);
-                                                } finally {
-                                                    setIsResearching(false);
-                                                }
-                                            }}
-                                            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500 transition-colors"
-                                        >
-                                            Search
-                                        </button>
-                                    </div>
-
-                                    {/* Research Links - Use editedTitle OR first visual match OR "item" */}
-                                    {/* Research Links - Use editedTitle OR editingItem.title OR AI Result OR "item" */}
-                                    <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar mb-2">
-                                        {(() => {
-                                            const searchTitle = (editedTitle || editingItem?.title || scoutResult?.itemTitle || "").toLowerCase().includes("scanning") ? "" : (editedTitle || editingItem?.title || scoutResult?.itemTitle || visualSearchResults[0]?.title || "item");
-                                            return (
-                                                <>
-                                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-neon-green shrink-0 hover:border-emerald-500 shadow-sm"><ShoppingCart size={14} /> eBay Sold</button>
-                                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-500 shrink-0 hover:border-blue-500 shadow-sm"><Tag size={14} /> eBay Active</button>
-                                                    <button onClick={() => handleOpenResearch('GOOGLE', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 hover:border-blue-500 shadow-sm"><SearchIcon size={14} /> Google</button>
-                                                    <button onClick={() => handleOpenResearch('FB', searchTitle)} className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700 text-xs font-bold text-blue-600 dark:text-blue-400 shrink-0 hover:border-blue-500 shadow-sm"><Facebook size={14} /> FB Market</button>
-                                                </>
-                                            );
-                                        })()}
-                                    </div>
-
-                                    {isResearching ? (
-                                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                            {[1, 2, 3].map(i => (
-                                                <div key={i} className="min-w-[200px] h-[80px] bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm animate-pulse" />
-                                            ))}
+                        {/* Side-by-Side Content */}
+                        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-32">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 md:p-6 items-start">
+                                {/* LEFT: MEDIA & FORM */}
+                                <div className="lg:col-span-8 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 group shadow-inner">
+                                            <img src={editingItem.imageUrl} className="w-full h-full object-contain" />
+                                            <button onClick={() => editImageInputRef.current?.click()} className="absolute bottom-2 right-2 bg-black/60 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"><Camera size={16} /></button>
                                         </div>
-                                    ) : visualSearchResults.length > 0 ? (
-                                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                            {visualSearchResults.map(match => (
-                                                <div key={match.id} className="min-w-[200px] bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col gap-2">
-                                                    <div className="flex gap-2">
-                                                        <div className="w-12 h-12 bg-gray-100 rounded shrink-0 overflow-hidden">
-                                                            {match.image && <img src={match.image} className="w-full h-full object-cover" />}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="text-[10px] font-bold line-clamp-2 leading-tight mb-1">{match.title}</div>
-                                                            <div className="font-black text-blue-600">${match.price?.toFixed(2)}</div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleSellSimilar(match)}
-                                                        className="w-full py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold rounded hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
-                                                    >
-                                                        Import Data
-                                                    </button>
+                                        <div className="grid grid-cols-2 gap-2 content-start">
+                                            {(editingItem.additionalImages || []).map((img, idx) => (
+                                                <div key={idx} className="relative aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 group">
+                                                    <img src={img} className="w-full h-full object-cover" />
+                                                    <button onClick={() => { const newImgs = [...(editingItem.additionalImages || [])]; newImgs.splice(idx, 1); setEditingItem({ ...editingItem, additionalImages: newImgs }); }} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
                                                 </div>
                                             ))}
+                                            <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-slate-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><Plus size={24} /><span className="text-[8px] font-bold uppercase mt-1">Add Photo</span></button>
                                         </div>
-                                    ) : scoutResult?.listingSources && scoutResult.listingSources.length > 0 ? (
-                                        <div className="space-y-2">
-                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1"><SearchIcon size={12} /> Google Matches (AI Found)</div>
-                                            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                                                {(scoutResult?.listingSources || []).map((source, i) => (
-                                                    <a key={i} href={source.uri} target="_blank" rel="noreferrer" className="min-w-[160px] max-w-[160px] bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm flex flex-col gap-2 hover:border-blue-400 transition-colors group">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="text-[10px] font-bold line-clamp-3 leading-tight text-slate-700 dark:text-slate-300 group-hover:text-blue-500 mb-1">{source.title}</div>
-                                                        </div>
-                                                        <div className="w-full py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-500 text-[10px] font-bold rounded flex items-center justify-center gap-1">
-                                                            Visit <ExternalLink size={10} />
-                                                        </div>
-                                                    </a>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500">Title</label>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleOptimizeTitle()} className="text-[10px] flex items-center gap-1 text-blue-500 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize</button>
+                                                </div>
+                                            </div>
+                                            <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-20 resize-none focus:border-emerald-500 outline-none transition-all" />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500">Source / Location</label>
+                                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2">
+                                                    <Warehouse size={14} className="text-slate-400" />
+                                                    <select value={editingItem.storageUnitId || ''} onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none">
+                                                        <option value="" disabled>Select Source</option>
+                                                        {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500">Bin / SKU</label>
+                                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2">
+                                                    <Box size={14} className="text-slate-400" />
+                                                    <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none" placeholder="Enter Bin..." />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs font-mono uppercase text-slate-500 mb-1 block">Condition</label>
+                                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                                                <button onClick={() => { setItemCondition('NEW'); setEditingItem({ ...editingItem, conditionNotes: 'NEW' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600' : 'text-slate-500'}`}>NEW</button>
+                                                <button onClick={() => { setItemCondition('USED'); setEditingItem({ ...editingItem, conditionNotes: 'USED' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-slate-500'}`}>USED</button>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500">Item Specifics</label>
+                                                <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 font-bold hover:underline">+ Add Specific</button>
+                                            </div>
+                                            <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1 max-h-48 overflow-y-auto no-scrollbar">
+                                                {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
+                                                    <div key={idx} className="flex gap-2 items-center">
+                                                        <input className="w-1/3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none" value={key} onChange={(e) => handleRenameSpecific(key, e.target.value)} disabled={DEFAULT_SPECIFIC_KEYS.includes(key)} />
+                                                        <input className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-[10px] text-slate-900 dark:text-white font-medium focus:outline-none" value={val} onChange={(e) => handleUpdateSpecific(key, e.target.value)} />
+                                                        <button onClick={() => handleDeleteSpecific(key)} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
-                                    ) : (
-                                        <div className="text-xs text-slate-500 italic">No matches found. Try entering a title manually to search again.</div>
-                                    )}
-                                </div>
-                            </div>
 
-                            {/* FORM CONTENT */}
-                            <div className="p-6 space-y-6">
-                                <div className="grid grid-cols-4 gap-2">
-                                    <div className="aspect-square bg-black rounded-lg overflow-hidden relative group border-2 border-emerald-500 dark:border-neon-green shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(0)}>
-                                        <img src={editingItem.imageUrl} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                            <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(0); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="View"><Eye size={14} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(0); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
-                                        </div>
-                                    </div>
-
-                                    {editingItem.additionalImages?.map((img, i) => (
-                                        <div key={i} className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg overflow-hidden relative group border border-gray-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setViewingImageIndex(i + 1)}>
-                                            <img src={img} className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(i + 1); }} className="p-1.5 bg-white/20 backdrop-blur rounded-full hover:bg-white/40 text-white" title="Optimize"><Wand2 size={14} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteImage(i + 1); }} className="p-1.5 bg-red-500/80 backdrop-blur rounded-full hover:bg-red-600 text-white" title="Delete"><Trash2 size={14} /></button>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500">Description</label>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => setIsManagingTemplates(!isManagingTemplates)} className="text-[10px] text-slate-400 hover:text-blue-500 font-bold flex items-center gap-1"><Settings size={10} /> {isManagingTemplates ? 'Done' : 'Manage'}</button>
+                                                    <button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 font-bold flex items-center gap-1"><Wand2 size={10} /> Auto-Write</button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-
-                                    <button onClick={() => { setCameraMode('EDIT'); setStatus(ScoutStatus.SCANNING); }} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Camera size={18} /><span className="text-[8px] font-bold uppercase mt-1">Camera</span></button>
-                                    <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-gray-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500 border-2 border-dashed border-gray-300 dark:border-slate-700 transition-colors"><Upload size={18} /><span className="text-[8px] font-bold uppercase mt-1">File</span></button>
-                                </div>
-
-                                {/* --- EDIT ITEM SOURCE --- */}
-                                <div className="space-y-1">
-                                    <label className="text-xs font-mono uppercase text-slate-500">Source / Location</label>
-                                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2">
-                                        <Warehouse size={16} className="text-slate-400" />
-                                        <select
-                                            value={editingItem.storageUnitId || ''}
-                                            onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })}
-                                            className="flex-1 w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 dark:text-white focus:outline-none"
-                                        >
-                                            <option value="" disabled>Select Source</option>
-                                            {(storageUnits || []).map(unit => (
-                                                <option key={unit.id} value={unit.storeNumber}>
-                                                    {unit.storeNumber} {unit.address ? `(${unit.address})` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                            </div>
-                            <input ref={editImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditImageUpload} />
-                            <input ref={additionalImageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAdditionalImageUpload} />
-
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className="text-xs font-mono uppercase text-slate-500">Title</label>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => {
-                                                if (canAccess('AI_GENERATOR')) handleAnalyzeDraft();
-                                                else setIsPricingOpen(true);
-                                            }} className="text-xs flex items-center gap-1 text-slate-950 font-bold hover:bg-neon-green/90 bg-neon-green px-2 py-0.5 rounded transition-all shadow-sm">
-                                                {!canAccess('AI_GENERATOR') && <Lock size={10} />} <Wand2 size={12} /> Analyze Image
-                                            </button>
-                                            <button onClick={handleOptimizeTitle} className="text-xs flex items-center gap-1 text-blue-500 font-bold hover:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize Text</button>
-                                            <button onClick={() => toggleRecording('title')} className={`text-xs ${isRecording === 'title' ? 'text-red-500 animate-pulse' : ''}`}><Mic size={14} /></button>
-                                        </div>
-                                    </div>
-                                    <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-24 resize-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all" />
-                                </div>
-
-                                {/* --- CONDITION TOGGLE --- */}
-                                <div>
-                                    <label className="text-xs font-mono uppercase text-slate-500 mb-1 block">Condition</label>
-                                    <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
-                                        <button
-                                            onClick={() => {
-                                                const newCond = 'NEW';
-                                                setItemCondition(newCond);
-                                                setEditingItem({ ...editingItem, conditionNotes: 'NEW' });
-                                            }}
-                                            className={`flex-1 py-2 rounded-md text-xs font-bold transition-all ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600 dark:text-neon-green' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-                                        >
-                                            NEW
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                const newCond = 'USED';
-                                                setItemCondition(newCond);
-                                                setEditingItem({ ...editingItem, conditionNotes: 'USED' });
-                                            }}
-                                            className={`flex-1 py-2 rounded-md text-xs font-bold transition-all ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-                                        >
-                                            USED
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* --- ITEM SPECIFICS EDITOR --- */}
-                                <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="text-xs font-mono uppercase text-slate-500">Item Specifics</label>
-                                        <div className="flex gap-3">
-                                            <button onClick={() => {
-                                                if (canAccess('AI_GENERATOR')) handleAnalyzeDraft();
-                                                else setIsPricingOpen(true);
-                                            }} className="text-[10px] text-neon-green hover:underline font-bold flex items-center gap-1">
-                                                {!canAccess('AI_GENERATOR') && <Lock size={8} />} <Wand2 size={10} /> Auto-Fill (AI)
-                                            </button>
-                                            <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 hover:underline font-bold flex items-center gap-1">+ Add</button>
-                                        </div>
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-slate-900/50 p-3 rounded-lg border border-gray-200 dark:border-slate-800 space-y-2 max-h-48 overflow-y-auto">
-                                        {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
-                                            <div key={idx} className="flex gap-2 items-center">
-                                                <input
-                                                    className="w-1/3 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
-                                                    value={key}
-                                                    onChange={(e) => handleRenameSpecific(key, e.target.value)}
-                                                    placeholder="Name"
-                                                    disabled={DEFAULT_SPECIFIC_KEYS.includes(key)}
-                                                />
-                                                <input
-                                                    className="flex-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500"
-                                                    value={val}
-                                                    onChange={(e) => handleUpdateSpecific(key, e.target.value)}
-                                                    placeholder="Value"
-                                                />
-                                                <button onClick={() => handleDeleteSpecific(key)} className="text-slate-400 hover:text-red-500 p-1"><X size={12} /></button>
-                                            </div>
-                                        ))}
-                                        {(!editingItem.itemSpecifics || Object.keys(editingItem.itemSpecifics).length === 0) && (
-                                            <div className="text-center text-slate-500 text-[10px] py-2">No item specifics added.</div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-mono uppercase text-slate-500">Description</label>
-
-                                    {/* Templates in Modal */}
-                                    {/* Templates in Modal */}
-                                    <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2 mt-1 items-center">
-                                        {/* Manage Toggle */}
-                                        <button
-                                            onClick={() => setIsManagingTemplates(!isManagingTemplates)}
-                                            className={`text-[10px] px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap font-bold flex items-center gap-1 ${isManagingTemplates ? 'bg-slate-800 text-white border-slate-900' : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-slate-500'}`}
-                                        >
-                                            {isManagingTemplates ? <Check size={12} /> : <Settings size={12} />}
-                                        </button>
-
-                                        {/* Add Button (Only in Manage Mode) */}
-                                        {isManagingTemplates && (
-                                            <button
-                                                onClick={() => {
-                                                    const txt = prompt("Enter new template text:");
-                                                    if (txt) {
-                                                        const newT = [...customTemplates, txt];
-                                                        setCustomTemplates(newT);
-                                                        localStorage.setItem('sts_custom_templates', JSON.stringify(newT));
-                                                    }
-                                                }}
-                                                className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"
-                                            >
-                                                <Plus size={12} /> Add New
-                                            </button>
-                                        )}
-
-                                        {!isManagingTemplates && (
-                                            <>
-                                                <button onClick={() => {
-                                                    const currentContent = editingItem.generatedListing?.content || "";
-                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
-                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
-
-                                                <button onClick={() => {
-                                                    const currentContent = editingItem.generatedListing?.content || "";
-                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
-                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
-
-                                                <button onClick={() => {
-                                                    const currentContent = editingItem.generatedListing?.content || "";
-                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + "• For parts or repair only.\n• Does not power on.\n• No returns.";
-                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
-                                            </>
-                                        )}
-
-                                        {(customTemplates || []).map((tmpl, idx) => (
-                                            <div key={idx} className="relative group">
-                                                <button onClick={() => {
-                                                    const currentContent = editingItem.generatedListing?.content || "";
-                                                    const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
-                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: newContent } });
-                                                }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
-
-                                                {isManagingTemplates && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (window.confirm("Delete template?")) {
-                                                                const newT = customTemplates.filter((_, i) => i !== idx);
-                                                                setCustomTemplates(newT);
-                                                                localStorage.setItem('sts_custom_templates', JSON.stringify(newT));
-                                                            }
-                                                        }}
-                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:scale-110 transition-transform"
-                                                    >
-                                                        <X size={8} />
-                                                    </button>
+                                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 mb-1 items-center">
+                                                {['Tested', 'Used', 'Parts'].map(name => (
+                                                    <button key={name} onClick={() => {
+                                                        const current = editingItem.generatedListing?.content || "";
+                                                        const snippet = name === 'Tested' ? "• Tested and working perfectly." : name === 'Used' ? "• Good used condition." : "• For parts or repair only.";
+                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: current + (current ? "\n\n" : "") + snippet } });
+                                                    }} className="text-[9px] bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 font-medium whitespace-nowrap hover:bg-slate-50 transition-colors shadow-sm">{name}</button>
+                                                ))}
+                                                <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 shrink-0" />
+                                                {(customTemplates || []).map((tmpl, idx) => (
+                                                    <div key={idx} className="relative group shrink-0">
+                                                        <button onClick={() => {
+                                                            const current = editingItem.generatedListing?.content || "";
+                                                            setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: current + (current ? "\n\n" : "") + tmpl } });
+                                                        }} className="text-[9px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md border border-blue-100 dark:border-blue-900/30 font-medium whitespace-nowrap hover:bg-blue-100 transition-colors shadow-sm">{tmpl.substring(0, 8)}...</button>
+                                                        {isManagingTemplates && (
+                                                            <button onClick={() => { const newT = customTemplates.filter((_, i) => i !== idx); setCustomTemplates(newT); localStorage.setItem('sts_custom_templates', JSON.stringify(newT)); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm"><X size={8} /></button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {!isManagingTemplates && (
+                                                    <button onClick={() => { if (window.confirm("Clear description?")) setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: "" } }); }} className="text-[9px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/30 font-bold whitespace-nowrap"><Trash2 size={10} /></button>
                                                 )}
                                             </div>
-                                        ))}
+                                            <textarea value={editingItem.generatedListing?.content || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-28 resize-none focus:border-emerald-500 outline-none transition-all" />
+                                        </div>
+                                    </div>
+                                </div>
 
-                                        {!isManagingTemplates && (
-                                            <button onClick={() => {
-                                                if (window.confirm("Clear description?")) {
-                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: "" } });
-                                                }
-                                            }} className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Trash2 size={12} /> Clear</button>
+                                {/* RIGHT: RESEARCH & TOOLS */}
+                                <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-0 h-fit">
+                                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider flex items-center gap-2"><Globe size={14} /> Market Insight</h4>
+                                            {scoutResult && (
+                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 dark:bg-slate-800 border dark:border-slate-700 ${strColor}`}>
+                                                    <StrIcon size={10} /> {marketLabel}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <input type="text" value={editedTitle || editingItem.title} onChange={(e) => setEditedTitle(e.target.value)} className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-500" placeholder="Search..." />
+                                            <button onClick={async () => {
+                                                setIsResearching(true);
+                                                try {
+                                                    const market = await fetchMarketData(editedTitle || editingItem.title, itemCondition);
+                                                    setScoutResult(prev => prev ? { ...prev, marketData: market } : { itemTitle: editingItem.title, estimatedSoldPrice: market.isEstimated ? 0 : market.totalSold, marketData: market, description: "", confidence: 80 });
+                                                    const data = await searchEbayComps(editedTitle || editingItem.title, 'ACTIVE', itemCondition);
+                                                    setVisualSearchResults(data.comps || []);
+                                                } catch (e) { } finally { setIsResearching(false); }
+                                            }} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all">{isResearching ? '...' : 'Research'}</button>
+                                        </div>
+
+                                        {scoutResult?.marketData && (
+                                            <div className="space-y-3 pt-2">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div className="bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
+                                                        <p className="text-[8px] text-slate-400 uppercase font-mono mb-0.5">Sold (90d)</p>
+                                                        <p className="text-sm font-black text-emerald-500">{scoutResult.marketData.totalSold}</p>
+                                                    </div>
+                                                    <div className="bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
+                                                        <p className="text-[8px] text-slate-400 uppercase font-mono mb-0.5">Active</p>
+                                                        <p className="text-sm font-black text-blue-500">{scoutResult.marketData.totalActive}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <p className="text-[8px] text-slate-400 uppercase font-mono">Sell Through Rate</p>
+                                                        <p className={`text-[10px] font-black ${strColor}`}>{Math.round(sellThroughRate)}%</p>
+                                                    </div>
+                                                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
+                                                        <div className="h-full transition-all duration-1000" style={{ width: `${Math.min(sellThroughRate, 100)}%`, backgroundColor: isGreat ? '#39ff14' : isGood ? '#facc15' : '#ef4444' }}></div>
+                                                    </div>
+                                                </div>
+
+                                                {scoutResult.marketData.isEstimated && (
+                                                    <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                                        <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                                                        <p className="text-[10px] text-red-500/90 leading-tight">No exact sold results found. Metrics estimated based on active listings.</p>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Sold</button>
+                                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Active</button>
+                                                </div>
+                                                <button onClick={() => setIsCompsOpen(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-500 shadow-lg active:scale-95 transition-all">Deep Market Analysis</button>
+                                            </div>
+                                        )}
+
+                                        {visualSearchResults.length > 0 && !scoutResult?.marketData && (
+                                            <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pt-2 border-t dark:border-slate-800">
+                                                {visualSearchResults.slice(0, 3).map((match, idx) => (
+                                                    <div key={idx} className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-blue-100 dark:border-slate-700 flex gap-2">
+                                                        <img src={match.image} className="w-10 h-10 object-cover rounded" />
+                                                        <div className="flex-1 min-w-0"><p className="text-[9px] font-bold truncate">{match.title}</p><p className="text-[10px] font-black text-blue-600">${match.price?.toFixed(2)}</p></div>
+                                                        <button onClick={() => handleSellSimilar(match)} className="text-[9px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold self-center">Import</button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
                                     </div>
 
-                                    <textarea value={editingItem.generatedListing?.content || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-3 text-sm h-32 resize-none focus:border-emerald-500 outline-none transition-all mt-1" placeholder="Item description..." />
-                                    <div className="flex justify-end mt-1"><button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"><Wand2 size={10} /> Auto-Write Description</button></div>
-                                </div>
+                                    <ProfitCalculator
+                                        estimatedPrice={editingItem.calculation.soldPrice}
+                                        estimatedShipping={editingItem.calculation.shippingCost}
+                                        estimatedWeight={editingItem.itemSpecifics?.Weight}
+                                        estimatedDimensions={editingItem.dimensions}
+                                        onSave={handleSaveEditedItem}
+                                        onPriceChange={setCurrentListingPrice}
+                                        onEstimate={handleEstimateWeight}
+                                        isScanning={false}
+                                        isLoading={isGeneratingListing || isSaving}
+                                    />
 
-                                <ProfitCalculator
-                                    estimatedPrice={editingItem.calculation.soldPrice}
-                                    estimatedShipping={editingItem.calculation.shippingCost}
-                                    estimatedWeight={editingItem.itemSpecifics?.Weight}
-                                    estimatedDimensions={editingItem.dimensions}
-                                    onSave={handleUpdateInventoryItem}
-                                    onPriceChange={setCurrentListingPrice}
-                                    onEstimate={handleEstimateWeight}
-                                    isScanning={false}
-                                    isLoading={isGeneratingListing}
-                                />
-
-                                <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
-                                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-slate-700">
-                                        <div className="flex items-center gap-2">
-                                            <CreditCard size={16} className="text-blue-500" />
-                                            <h4 className="text-xs font-bold font-mono uppercase text-slate-600 dark:text-slate-300">Business Policies</h4>
-                                            <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 rounded border border-blue-500/20">V3-SAFE</span>
-                                        </div>
-                                        {!ebayConnected && <span className="text-[10px] text-red-500 font-bold">Connect eBay first</span>}
-                                    </div>
-                                    {ebayConnected ? (
-                                        <div className="space-y-3">
-                                            <div>
-                                                <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><Truck size={10} /> Shipping Policy</label>
-                                                <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayShippingPolicyId: val }); if (val) localStorage.setItem('sts_default_shipping_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
-                                                    <option value="">Select Shipping Policy...</option>
-                                                    {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name} - {p.description || 'No desc'}</option>))}
-                                                </select>
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                                        <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-3 flex items-center gap-1"><ShieldCheck size={12} /> eBay Policies</h4>
+                                        {ebayConnected ? (
+                                            <div className="space-y-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] uppercase text-slate-400 font-mono">Shipping Policy</label>
+                                                    <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayShippingPolicyId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1.5 text-[10px] outline-none focus:border-blue-500">
+                                                        <option value="">Select Shipping...</option>
+                                                        {(ebayPolicies?.shippingPolicies || []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] uppercase text-slate-400 font-mono">Return Policy</label>
+                                                    <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayReturnPolicyId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1.5 text-[10px] outline-none focus:border-blue-500">
+                                                        <option value="">Select Returns...</option>
+                                                        {(ebayPolicies?.returnPolicies || []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                                    </select>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><ShieldCheck size={10} /> Return Policy</label>
-                                                <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayReturnPolicyId: val }); if (val) localStorage.setItem('sts_default_return_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
-                                                    <option value="">Select Return Policy...</option>
-                                                    {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-slate-500 uppercase mb-1 block flex items-center gap-1"><CreditCard size={10} /> Payment Policy</label>
-                                                <select value={editingItem.ebayPaymentPolicyId || ""} onChange={(e) => { const val = e.target.value; setEditingItem({ ...editingItem, ebayPaymentPolicyId: val }); if (val) localStorage.setItem('sts_default_payment_policy', val); }} className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded p-2 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none">
-                                                    <option value="">Select Payment Policy...</option>
-                                                    {(Array.isArray(ebayPolicies?.paymentPolicies) ? ebayPolicies.paymentPolicies : []).map((p: any) => (<option key={p.paymentPolicyId} value={p.paymentPolicyId}>{p.name}</option>))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center text-xs text-slate-500 py-4">Connect eBay in Settings to load your Shipping & Return policies.</div>
-                                    )}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="col-span-2">
-                                        <label className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Bin / Loc (Custom SKU)</label>
-                                        <div className="flex items-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded px-2 focus-within:border-emerald-500">
-                                            <Box size={14} className="text-slate-400" />
-                                            <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="w-full bg-transparent p-2 text-slate-900 dark:text-white text-sm focus:outline-none" />
-                                        </div>
+                                        ) : <p className="text-[10px] text-slate-500 italic text-center py-2">Link eBay to see policies</p>}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-
-                    <div className="absolute bottom-0 left-0 right-0 w-full p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex flex-col gap-3 z-50 shadow-xl">
-                        <div className="flex gap-3">
-                            <button onClick={() => setEditingItem(null)} className="px-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold rounded-xl uppercase text-xs hover:bg-gray-50 dark:hover:bg-slate-700">Close</button>
-                            <button onClick={() => setIsPreviewOpen(true)} className="px-4 py-3 bg-gray-200 dark:bg-slate-800 text-slate-700 dark:text-white border border-gray-300 dark:border-slate-600 font-bold rounded-xl uppercase text-xs hover:bg-gray-300 dark:hover:bg-slate-700 flex items-center gap-2"><Eye size={16} /> Preview</button>
-                            <button onClick={() => handleUpdateInventoryItem(
-                                editingItem.calculation,
-                                editingItem.costCode,
-                                editingItem.calculation.itemCost,
-                                editingItem.itemSpecifics?.Weight || "",
-                                editingItem.dimensions
-                            )} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl uppercase text-xs shadow-lg hover:bg-emerald-500 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                        {/* Footer */}
+                        <div className="p-4 border-t dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex justify-between items-center shrink-0">
+                            <button onClick={() => setEditingItem(null)} className="px-6 py-2.5 text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">CANCEL</button>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleSaveEditedItem()} className="px-6 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all">UPDATE ITEM</button>
+                                <button onClick={() => handleListNow(editingItem)} className="px-6 py-2.5 bg-neon-green text-slate-950 font-bold rounded-xl hover:bg-neon-green/90 transition-all shadow-lg shadow-neon-green/20">LIST NOW</button>
+                            </div>
                         </div>
-                        <button
-                            onClick={() => handlePushToEbay(editingItem)}
-                            className="w-full py-4 bg-blue-600 text-white font-black rounded-xl uppercase text-sm shadow-lg shadow-blue-600/20 hover:bg-blue-500 flex items-center justify-center gap-2 transition-all active:scale-95"
-                        >
-                            <Globe size={18} /> List Item Now
-                        </button>
                     </div>
                 </div>
+            )}
 
-            )
-            }
-            {itemToDelete && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl shadow-black/50 scale-100 animate-in zoom-in-95 duration-200"><div className="flex flex-col items-center text-center gap-4"><div className="w-16 h-16 rounded-full bg-neon-red/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-neon-red" /></div><div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm leading-relaxed">Are you sure you want to delete this item? This action cannot be undone.</p></div><div className="grid grid-cols-2 gap-3 w-full mt-4"><button onClick={() => setItemToDelete(null)} className="py-3 px-4 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">CANCEL</button><button onClick={confirmDelete} className="py-3 px-4 rounded-xl font-bold text-white bg-neon-red hover:bg-red-600 shadow-lg shadow-neon-red/20 transition-all active:scale-95">DELETE</button></div></div></div></div>)}
+            {itemToDelete && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl scale-100 animate-in zoom-in-95">
+                        <div className="flex flex-col items-center text-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-2"><Trash2 size={32} className="text-red-500" /></div>
+                            <div><h3 className="text-xl font-bold text-white mb-1">Delete Item?</h3><p className="text-slate-400 text-sm">Are you sure? This action cannot be undone.</p></div>
+                            <div className="grid grid-cols-2 gap-3 w-full mt-4">
+                                <button onClick={() => setItemToDelete(null)} className="py-3 bg-slate-800 text-slate-300 font-bold rounded-xl hover:bg-slate-700">CANCEL</button>
+                                <button onClick={confirmDelete} className="py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-500 shadow-lg shadow-red-600/20">DELETE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <main className="flex-1 relative overflow-hidden flex flex-col">
-                {status === ScoutStatus.SCANNING ? (<Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />) : view === 'command' ? (renderCommandView()) : view === 'scout' ? (status === ScoutStatus.IDLE ? renderScoutView() : renderAnalysis()) : view === 'inventory' ? (renderInventoryView()) : view === 'stats' ? (<StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} />) : null}
+                {status === ScoutStatus.SCANNING ? (
+                    <Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />
+                ) : view === 'command' ? renderCommandView() : view === 'scout' ? (status === ScoutStatus.IDLE ? renderScoutView() : renderAnalysis()) : view === 'inventory' ? renderInventoryView() : view === 'stats' ? <StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} /> : null}
             </main>
 
             {status !== ScoutStatus.SCANNING && renderBottomNav()}
             {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
 
-            {/* Loading Overlay */}
-            {
-                loadingMessage && status !== ScoutStatus.ANALYZING && status !== ScoutStatus.RESEARCH_REVIEW && (
-                    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full text-center">
-                            <div className="relative">
-                                <div className="w-16 h-16 border-4 border-slate-700 border-t-neon-green rounded-full animate-spin"></div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <Zap size={24} className="text-neon-green animate-pulse" />
-                                </div>
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-1">AI Working...</h3>
-                                <p className="text-slate-400 text-sm">{loadingMessage}</p>
-                            </div>
+            {loadingMessage && status !== ScoutStatus.ANALYZING && status !== ScoutStatus.RESEARCH_REVIEW && (
+                <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full text-center">
+                        <div className="relative">
+                            <div className="w-16 h-16 border-4 border-slate-700 border-t-neon-green rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center"><Zap size={24} className="text-neon-green animate-pulse" /></div>
                         </div>
+                        <div><h3 className="text-lg font-bold text-white mb-1">AI Working...</h3><p className="text-slate-400 text-sm">{loadingMessage}</p></div>
                     </div>
-                )
-            }
-            {/* Hidden File Inputs */}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-            />
-        </div >
+                </div>
+            )}
+
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+        </div>
     );
 };
-
-
-
-
 
 export default App;
