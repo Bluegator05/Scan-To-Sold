@@ -2051,7 +2051,7 @@ function App() {
                                         <AnimatedButton
                                             disabled={isBulkFetching || !bulkSellerId}
                                             onClick={handleBulkFetch}
-                                            text="Fetch"
+                                            text={bulkItems.length > 0 && bulkSellerId === lastBulkSellerId ? "Fetch More" : "Fetch"}
                                             icon={Search}
                                             className="px-8 font-black text-xs tracking-widest"
                                         />
@@ -2067,8 +2067,13 @@ function App() {
                                         animate={{ opacity: 1 }}
                                         className="space-y-4"
                                     >
-                                        <div className="flex justify-between items-center px-1">
-                                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Listing Queue</h4>
+                                        <div className="flex justify-between items-end px-1 mb-1">
+                                            <div>
+                                                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Listing Queue</h4>
+                                                <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">
+                                                    Showing {bulkItems.length} items • Page {bulkFetchPage}
+                                                </p>
+                                            </div>
                                             <AnimatedButton
                                                 disabled={isBulkOptimizing}
                                                 onClick={processBulkOptimization}
