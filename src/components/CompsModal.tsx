@@ -41,7 +41,11 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
     setError("");
     try {
       const data = await searchEbayComps(searchQuery, tab, condition);
-      setComps(data.comps);
+      const cleanedComps = (data.comps || []).map((c: any) => ({
+        ...c,
+        title: (c.title || "").replace(/\s*\(Estimated Sold\)\s*/gi, '').trim()
+      }));
+      setComps(cleanedComps);
       setAvgPrice(data.averagePrice);
     } catch (e: any) {
       setError(e.message || "Failed to load comps");

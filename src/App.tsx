@@ -115,6 +115,11 @@ function App() {
         }
     };
 
+    const cleanTitle = (title: string) => {
+        if (!title) return "";
+        return title.replace(/\s*\(Estimated Sold\)\s*/gi, '').trim();
+    };
+
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [activeUnit, setActiveUnit] = useState<string>("55");
     const [isEditingUnit, setIsEditingUnit] = useState(false);
@@ -644,8 +649,9 @@ function App() {
         setScoutResult(null);
         setScannedBarcode(null);
         const result = await analyzeItemText(manualQuery);
-        setScoutResult(result);
-        setEditedTitle(result.itemTitle);
+        const cleanedTitle = cleanTitle(result.itemTitle);
+        setScoutResult({ ...result, itemTitle: cleanedTitle });
+        setEditedTitle(cleanedTitle);
         setItemCondition(result.condition || 'USED');
         setStatus(ScoutStatus.COMPLETE);
         if (user) incrementDailyUsage();
@@ -668,8 +674,10 @@ function App() {
         setScoutResult(null);
         const result = await analyzeItemImage(currentImage, scoutResult?.barcode, isBulkMode);
         result.itemSpecifics = ensureDefaultSpecifics(result.itemSpecifics);
-        setScoutResult(result);
-        setEditedTitle(result.itemTitle);
+        const cleanedTitle = cleanTitle(result.itemTitle);
+        const finalizedResult = { ...result, itemTitle: cleanedTitle };
+        setScoutResult(finalizedResult);
+        setEditedTitle(cleanedTitle);
         setItemCondition(result.condition || 'USED');
         setStatus(ScoutStatus.COMPLETE);
     };
@@ -1017,10 +1025,9 @@ function App() {
             setEditedTitle(displayTitle);
             console.log("[SCAN] Title State - titleToUse:", titleToUse, "displayTitle:", displayTitle, "isGeneric:", isGeneric);
 
-            // --- NON-BLOCKING UI UNLOCK ---
-            setLoadingMessage("");
-            setStatus(ScoutStatus.COMPLETE);
-            console.log("[SCAN] UI Unlocked. Status set to COMPLETE.");
+            // --- NON-BLOCKING UI UNLOCK (Deferred to Phase 2) ---
+            // setStatus(ScoutStatus.COMPLETE); 
+            // We now wait for Phase 2 to start before unlocking, or unlock later for a smoother feel
 
             // Set Initial "Lite" Result
             const baseResult: ScoutResult = {
@@ -1037,7 +1044,7 @@ function App() {
             };
 
             setScoutResult(baseResult);
-            setEditingItem(prev => prev ? ({ ...prev, title: initialResult.searchQuery || initialResult.itemTitle }) : null);
+            // setEditingItem(prev => prev ? ({ ...prev, title: initialResult.searchQuery || initialResult.itemTitle }) : null);
             console.log("[SCAN] Base Result Set:", baseResult);
 
             // --- ASYNC STEP 3: DEEP ANALYSIS & COMPS ---
@@ -1090,14 +1097,33 @@ function App() {
                     };
 
                     // Update Scout Result
-                    setScoutResult(prev => prev ? ({ ...prev, ...finalResult }) : finalResult);
-                    setEditedTitle(finalResult.itemTitle);
+                    const cleanFinalTitle = cleanTitle(finalResult.itemTitle);
+
+                    // Clean Market Data Comps
+                    if (finalResult.marketData) {
+                        if (finalResult.marketData.activeComps) {
+                            finalResult.marketData.activeComps = finalResult.marketData.activeComps.map((c: any) => ({ ...c, title: cleanTitle(c.title) }));
+                        }
+                        if (finalResult.marketData.soldComps) {
+                            finalResult.marketData.soldComps = finalResult.marketData.soldComps.map((c: any) => ({ ...c, title: cleanTitle(c.title) }));
+                        }
+                    }
+
+                    const cleanedResult = { ...finalResult, itemTitle: cleanFinalTitle };
+                    setScoutResult(prev => prev ? ({ ...prev, ...cleanedResult }) : cleanedResult);
+                    setEditedTitle(cleanFinalTitle);
                     setItemCondition(finalResult.condition || 'USED');
                     setGeneratedListing({ platform: 'EBAY', content: finalResult.description || "" });
 
-                    // NEW WORKFLOW: Stop at Research Review
-                    console.log("[SCAN] Setting status to RESEARCH_REVIEW. Final Result:", finalResult);
+                    // Signal Completion
+                    setLoadingMessage("");
                     setStatus(ScoutStatus.COMPLETE);
+
+                    // Update Comps with Clean Titles
+                    if (marketStats && (marketStats.activeComps || marketStats.soldComps)) {
+                        const rawComps = marketStats.activeComps || marketStats.soldComps;
+                        setVisualSearchResults(rawComps.map((c: any) => ({ ...c, title: cleanTitle(c.title) })));
+                    }
 
                     // Analytics: Track scan success
                     logEvent(analytics, 'item_scan_success', {
@@ -2556,7 +2582,7 @@ function App() {
                 </div>
 
                 <div className="flex-1 p-4 space-y-6">
-                    {status === ScoutStatus.ANALYZING ? (
+                    {(status === ScoutStatus.ANALYZING || (loadingMessage && status !== ScoutStatus.RESEARCH_REVIEW)) ? (
                         <div className="space-y-6 mt-4 opacity-50">
                             <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-3/4 animate-pulse"></div>
                             <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div>
