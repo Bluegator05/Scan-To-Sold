@@ -1879,7 +1879,7 @@ function App() {
                                         {intelligenceResult.pricingRecommendations && (
                                             <div className="glass-panel p-6">
                                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Pricing Strategy</h4>
-                                                <div className="flex gap-5 overflow-x-auto pb-10 no-scrollbar" style={{ minHeight: '400px' }}>
+                                                <div className="pricing-card-row no-scrollbar">
                                                     {(['quickSale', 'competitive', 'premium'] as const).map((tier) => {
                                                         const rec = (intelligenceResult.pricingRecommendations as any)[tier];
                                                         if (!rec) return null;

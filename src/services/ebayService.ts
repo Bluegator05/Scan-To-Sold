@@ -207,9 +207,24 @@ export const fetchMarketData = async (query: string, condition?: string) => {
     const p75 = sorted[Math.floor(sorted.length * 0.75)] || sorted[sorted.length - 1];
 
     return {
-      quickSale: { price: Math.round(p25 * 100) / 100, strategy: "Price below market", expectedSellTime: "1-3 days" },
-      competitive: { price: Math.round(p50 * 100) / 100, strategy: "Match market median", expectedSellTime: "3-7 days" },
-      premium: { price: Math.round(p75 * 100) / 100, strategy: "Maximize profit margin", expectedSellTime: "7-14 days" },
+      quickSale: {
+        price: Math.round(p25 * 100) / 100,
+        strategy: "Aggressive Pricing",
+        description: "Set below the market 25th percentile to attract quick buyers and clear inventory within 48 hours.",
+        expectedSellTime: "1-3 days"
+      },
+      competitive: {
+        price: Math.round(p50 * 100) / 100,
+        strategy: "Market Balanced",
+        description: "Aligned with current sold median. Best balance of profit margin and reasonable turnaround time.",
+        expectedSellTime: "3-7 days"
+      },
+      premium: {
+        price: Math.round(p75 * 100) / 100,
+        strategy: "Maximum Value",
+        description: "Positioned at the higher end of the market. Best for high-demand items where buyers value quality.",
+        expectedSellTime: "7-14 days"
+      },
       shippingEstimate: Math.max(5, Math.min(15, Math.round(p50 * 0.12 * 100) / 100))
     };
   };

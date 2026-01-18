@@ -107,7 +107,20 @@ body {
     width: 210px;
     height: 130px;
     margin-bottom: 20px;
-    transition: z-index 0.3s;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pricing-card-row {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding-bottom: 20px;
+    min-height: 150px;
+    transition: min-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pricing-card-row:hover {
+    min-height: 400px;
 }
 
 .pricing-card-container:hover {
