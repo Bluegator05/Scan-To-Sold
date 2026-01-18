@@ -107,6 +107,11 @@ body {
     width: 210px;
     height: 130px;
     margin-bottom: 20px;
+    transition: z-index 0.3s;
+}
+
+.pricing-card-container:hover {
+    z-index: 50;
 }
 
 .price-card {
@@ -114,9 +119,9 @@ body {
     width: 210px;
     height: 130px;
     border-radius: 20px;
-    background: var(--ebay-bg-tertiary);
+    background: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    color: #fff;
+    color: var(--text-primary);
     z-index: 10;
     transition: .4s ease-in-out;
     padding: 16px;
@@ -125,8 +130,8 @@ body {
 }
 
 .price-card:hover {
-    background-color: var(--ebay-bg-secondary);
-    border-color: var(--ebay-accent);
+    background-color: var(--bg-secondary);
+    border-color: var(--accent-primary);
     cursor: pointer;
 }
 
@@ -138,29 +143,43 @@ body {
     height: 130px;
     left: 5px;
     border-radius: 25px;
-    background: var(--ebay-bg-secondary);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
     z-index: 5;
     transition: .4s ease-in-out;
     padding: 16px;
     opacity: 0;
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 .pricing-card-container:hover .price-card-expansion {
     height: 310px;
     opacity: 1;
     transform: translateY(10px);
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
-.price-card-details {
-    margin-top: 120px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+.price-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
-.pricing-card-container:hover .price-card-expansion .price-card-details {
-    opacity: 1;
+.price-card-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.price-card-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
 }
 
 .price-card-footer {
@@ -174,7 +193,7 @@ body {
     align-items: center;
     border-bottom-left-radius: 20px;
     border-bottom-right-radius: 20px;
-    background: var(--ebay-accent);
+    background: var(--accent-primary);
     color: white;
     font-size: 0.75rem;
     font-weight: 600;
@@ -185,6 +204,19 @@ body {
 .pricing-card-container:hover .price-card-expansion .price-card-footer {
     opacity: 1;
     bottom: 0;
+}
+
+.price-card-details {
+    margin-top: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.pricing-card-container:hover .price-card-expansion .price-card-details {
+    opacity: 1;
 }
 
 /* Command Dashboard Styles */
@@ -342,122 +374,7 @@ h3 {
 
 
 /* New Hover-Expand Pricing Cards */
-.pricing-card-container {
-    position: relative;
-    width: 210px;
-    height: 130px;
-    margin-bottom: 20px;
-    transition: z-index 0.3s;
-}
-
-.pricing-card-container:hover {
-    z-index: 50;
-}
-
-.price-card {
-    position: absolute;
-    width: 210px;
-    height: 130px;
-    border-radius: 20px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    z-index: 10;
-    transition: .4s ease-in-out;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-}
-
-.price-card:hover {
-    background-color: var(--bg-secondary);
-    border-color: var(--accent-primary);
-    cursor: pointer;
-}
-
-.price-card-expansion {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    width: 200px;
-    height: 130px;
-    left: 5px;
-    border-radius: 25px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-subtle);
-    z-index: 5;
-    transition: .4s ease-in-out;
-    padding: 16px;
-    opacity: 0;
-    pointer-events: auto;
-}
-
-.pricing-card-container:hover .price-card-expansion {
-    height: 310px;
-    opacity: 1;
-    transform: translateY(10px);
-    border-bottom-left-radius: 20px;
-    border-bottom-right-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-}
-
-.price-card-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.price-card-amount {
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.price-card-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-}
-
-.price-card-footer {
-    position: absolute;
-    bottom: -20px;
-    left: 0;
-    right: 0;
-    height: 30px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-bottom-left-radius: 20px;
-    border-bottom-right-radius: 20px;
-    background: var(--accent-primary);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 600;
-    transition: .4s ease-in-out;
-    opacity: 0;
-}
-
-.pricing-card-container:hover .price-card-expansion .price-card-footer {
-    opacity: 1;
-    bottom: 0;
-}
-
-.price-card-details {
-    margin-top: 120px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.pricing-card-container:hover .price-card-expansion .price-card-details {
-    opacity: 1;
-}
+/* Pricing cards moved to top */
 
 .active-listing-card {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);

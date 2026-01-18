@@ -1873,7 +1873,7 @@ function App() {
                                         {intelligenceResult.pricingRecommendations && (
                                             <div className="glass-panel p-6">
                                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Pricing Strategy</h4>
-                                                <div className="flex gap-5 overflow-x-auto overflow-y-visible pb-10 no-scrollbar" style={{ minHeight: '160px' }}>
+                                                <div className="flex gap-5 overflow-x-auto overflow-y-visible pb-10 no-scrollbar" style={{ minHeight: '350px' }}>
                                                     {(['quickSale', 'competitive', 'premium'] as const).map((tier) => {
                                                         const rec = (intelligenceResult.pricingRecommendations as any)[tier];
                                                         if (!rec) return null;

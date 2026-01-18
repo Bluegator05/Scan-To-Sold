@@ -180,16 +180,20 @@ export interface AnalysisResult {
 
 export const analyzeListingWithGemini = async (listingData: ListingData): Promise<AnalysisResult | null> => {
   try {
+    console.log("[analyzeListingWithGemini] Input:", listingData);
     const data = await callEdgeFunction('analyze-listing', listingData);
+    console.log("[analyzeListingWithGemini] Raw Edge Output:", data);
 
     // Ensure critical arrays and defaults exist
-    return {
+    const result = {
       ...data,
-      metrics: Array.isArray(data.metrics) ? data.metrics : [],
-      issues: Array.isArray(data.issues) ? data.issues : [],
-      score: typeof data.score === 'number' ? data.score : 0,
-      improvedTitle: data.improvedTitle || listingData.title
+      metrics: Array.isArray(data?.metrics) ? data.metrics : [],
+      issues: Array.isArray(data?.issues) ? data.issues : [],
+      score: typeof data?.score === 'number' ? data.score : 0,
+      improvedTitle: data?.improvedTitle || listingData.title
     };
+    console.log("[analyzeListingWithGemini] Formatted Output:", result);
+    return result;
   } catch (error) {
     console.error("Listing Analysis Edge Error:", error);
     return null;
