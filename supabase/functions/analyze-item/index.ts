@@ -663,10 +663,7 @@ async function handleAnalyzeListing(listingData: any) {
 
     const prompt = `
     Analyze this eBay listing and return a structured JSON object for optimization.
-    Use the provided listing data, including "Item Specifics", and market context to give high-quality, actionable advice.
-    CRITICAL: Acknowledge the "Condition" of the item (New vs Used). Pricing recommendations and market comparisons MUST be based on the same condition.
-    Pay close attention to whether critical item specifics (like Brand, MPN, UPC, Material, etc.) are present and accurate, as these heavily influence eBay search ranking.
-
+    
     Listing Data:
     - Title: ${listingData.title}
     - Current Price: ${listingData.price}
@@ -675,26 +672,58 @@ async function handleAnalyzeListing(listingData: any) {
     - Item Specifics: ${JSON.stringify(listingData.specifics)}
     - URL: ${listingData.url}
 
-    The response MUST be a JSON object with these EXACT keys:
-    1. "title": The original product title.
-    2. "price": The current price.
-    3. "score": A numeric health score (0-100) based on title quality, pricing competitiveness, and metadata.
-    4. "metrics": Array of 4 objects { "label": string, "value": number (0-100), "color": string }
-       - Labels: "Title Quality", "Price Value", "Search Rank", "Market Demand"
-       - Colors: Use "var(--success)" for >70, "var(--warning)" for 40-70, "var(--error)" for <40.
-    5. "market": Object { "median": string, "range": string, "sellThrough": string, "velocity": "High" | "Medium" | "Low" }.
-    6. "issues": Array of objects { "type": "warning" | "info" | "success" | "error", "text": string } explaining specific improvements.
-    7. "improvedTitle": A high-converting, SEO-optimized title. 
-       CRITICAL RULES:
-       - MUST be EXACTLY 80 characters or less (including spaces)
-       - MUST be a COMPLETE title with NO cut-off words
-       - ALWAYS aim for 75-80 characters to maximize SEO impact
-       - Include: Brand, Model, Key Features, Condition, Size/Color if applicable
+    TASK:
+    1. Score the Title (0-100) based on keyword usage and character count (Target 80).
+    2. Score the Price (0-100) vs expected market value for ${listingData.condition} items.
+    3. Generate 4 key health metrics (Title Quality, Search Rank, Market Demand, Pricing).
+    4. Provide 3-5 Actionable Fixes.
+    5. Suggest an Improved Title (EXACTLY 80 chars, Brand + Model + Specs + Condition).
 
-    Return ONLY the raw JSON object.
+    The response MUST be valid JSON (no markdown) with these keys:
+    {
+      "score": number,
+      "metrics": [{ "label": "Title Quality", "value": number, "color": "var(--success)|var(--warning)|var(--error)" }, ...],
+      "market": { "median": "string", "range": "string", "sellThrough": "string", "velocity": "High"|"Medium"|"Low" },
+      "issues": [{ "type": "warning"|"info"|"success"|"error", "text": "string" }],
+      "improvedTitle": "string (exactly 80 chars)"
+    }
     `;
 
-    const result_ai = await model.generateContent(prompt);
-    const text = result_ai.response.text();
-    return extractJSON(text);
+    try {
+        const result_ai = await model.generateContent(prompt);
+        const text = result_ai.response.text();
+        const parsed = extractJSON(text);
+
+        // Final sanity check on structure
+        return {
+            title: listingData.title,
+            price: listingData.price,
+            score: parsed.score || 0,
+            metrics: Array.isArray(parsed.metrics) ? parsed.metrics : [
+                { label: "Title Quality", value: 50, color: "var(--warning)" },
+                { label: "Price Value", value: 50, color: "var(--warning)" },
+                { label: "Search Rank", value: 50, color: "var(--warning)" },
+                { label: "Market Demand", value: 50, color: "var(--warning)" }
+            ],
+            market: parsed.market || { median: "---", range: "---", sellThrough: "---", velocity: "Medium" },
+            issues: Array.isArray(parsed.issues) ? parsed.issues : [{ type: "info", text: "Optimizing listing data..." }],
+            improvedTitle: parsed.improvedTitle || listingData.title
+        };
+    } catch (e) {
+        console.error("AI Analysis Failed:", e);
+        return {
+            title: listingData.title,
+            price: listingData.price,
+            score: 0,
+            metrics: [
+                { label: "Title Quality", value: 0, color: "var(--error)" },
+                { label: "Price Value", value: 0, color: "var(--error)" },
+                { label: "Search Rank", value: 0, color: "var(--error)" },
+                { label: "Market Demand", value: 0, color: "var(--error)" }
+            ],
+            market: { median: "N/A", range: "N/A", sellThrough: "N/A", velocity: "Medium" },
+            issues: [{ type: "error", text: "Failed to generate AI insights. Please try again." }],
+            improvedTitle: listingData.title
+        };
+    }
 }

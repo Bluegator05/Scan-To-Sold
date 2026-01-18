@@ -1560,18 +1560,24 @@ function App() {
                 if (!response.ok) throw new Error(`API returned ${response.status}`);
                 const data = await response.json();
 
-                // 1. AI Analysis
-                const aiResponse = await analyzeListingWithGemini({
-                    title: data.title,
-                    price: `${data.price.value} ${data.price.currency}`,
-                    category: data.categoryPath,
-                    condition: data.condition,
-                    url: queryToUse,
-                    specifics: data.localizedAspects || []
-                });
-
-                // 2. Market Data
-                const marketData = await fetchMarketData(data.title, data.condition);
+                // 1. & 2. Execute AI Analysis and Market Data in Parallel
+                const [aiResponse, marketData] = await Promise.all([
+                    analyzeListingWithGemini({
+                        title: data.title,
+                        price: `${data.price.value} ${data.price.currency}`,
+                        category: data.categoryPath,
+                        condition: data.condition,
+                        url: queryToUse,
+                        specifics: data.localizedAspects || []
+                    }).catch(err => {
+                        console.error("AI Analysis Parallel Error:", err);
+                        return null;
+                    }),
+                    fetchMarketData(data.title, data.condition).catch(err => {
+                        console.error("Market Data Parallel Error:", err);
+                        return null;
+                    })
+                ]);
 
                 const finalResult = {
                     score: 0,
@@ -1688,7 +1694,7 @@ function App() {
 
     const renderCommandView = () => {
         return (
-            <div className="command-container flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden pt-safe">
+            <div className="command-container flex flex-col h-full bg-slate-950 text-slate-100 overflow-visible pt-safe">
                 <div className="p-4 border-b border-slate-800 bg-[#141921] sticky top-0 z-10 backdrop-blur-md bg-opacity-80">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
@@ -1773,7 +1779,7 @@ function App() {
                                             <>
                                                 <div className="glass-panel p-6 flex gap-6 items-start">
                                                     <div className="relative">
-                                                        <img src={intelligenceResult.image?.imageUrl} className="w-24 h-24 rounded-xl object-cover border border-white/10 shadow-xl" alt="" />
+                                                        <img src={typeof intelligenceResult.image === 'string' ? intelligenceResult.image : intelligenceResult.image?.imageUrl} className="w-24 h-24 rounded-xl object-cover border border-white/10 shadow-xl" alt="" />
                                                         <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-[#141921] border-2 border-[#06b6d4] flex items-center justify-center font-black text-[#06b6d4] text-xs shadow-lg">
                                                             {Math.round(Number(intelligenceResult.score || 0))}%
                                                         </div>
@@ -1873,7 +1879,7 @@ function App() {
                                         {intelligenceResult.pricingRecommendations && (
                                             <div className="glass-panel p-6">
                                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Pricing Strategy</h4>
-                                                <div className="flex gap-5 overflow-x-auto overflow-y-visible pb-10 no-scrollbar" style={{ minHeight: '350px' }}>
+                                                <div className="flex gap-5 overflow-x-auto pb-10 no-scrollbar" style={{ minHeight: '400px' }}>
                                                     {(['quickSale', 'competitive', 'premium'] as const).map((tier) => {
                                                         const rec = (intelligenceResult.pricingRecommendations as any)[tier];
                                                         if (!rec) return null;
