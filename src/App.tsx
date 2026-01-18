@@ -1639,18 +1639,20 @@ function App() {
             const data = await response.json();
 
             if (!response.ok || data.error) {
-                if (data.diagnostics) {
-                    console.error('[Bulk] Fetch Diagnostics:', data.diagnostics);
+                if (data.diagnostics || data.stats) {
+                    console.error('[Bulk] Fetch Diagnostics:', data.diagnostics || data.stats);
                 }
                 throw new Error(data.error || `API returned ${response.status}`);
             }
 
-            console.log(`[Bulk] Found ${data.length} listings. Sample:`, data[0]);
+            if (data._debug) console.log('[Bulk] Debug Info:', data._debug);
+            const itemsToMap = Array.isArray(data) ? data : (data.items || []);
+            console.log(`[Bulk] Found ${itemsToMap.length} listings. Sample:`, itemsToMap[0]);
 
             // Map items for the queue
-            const mappedItems = data.map((item: any) => {
+            const mappedItems = itemsToMap.map((item: any) => {
                 const rawDate = item.listedDate;
-                console.log(`[Bulk] Item ID: ${item.itemId?.[0]} | Raw Date: ${rawDate}`);
+                console.log(`[Bulk] Item ID: ${item.itemId?.[0]} | Raw Date: ${rawDate} | Source: ${item._source}`);
 
                 return {
                     itemId: Array.isArray(item.itemId) ? item.itemId[0] : item.itemId,
