@@ -2483,7 +2483,6 @@ function App() {
     };
 
     const renderAnalysis = () => {
-
         return (
             <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
                 <div className="relative w-full h-72 bg-black shrink-0">
@@ -2527,104 +2526,109 @@ function App() {
                                     STOP
                                 </button>
                             </div>
-                        ) : (<div className="flex justify-between items-end">{scannedBarcode && (<div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20"><ScanLine size={12} /> {scannedBarcode}</div>)}
-                            <div className="flex items-center gap-2">
-                                {isBackgroundAnalyzing && (
-                                    <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
-                                        <span className="relative flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                        </span>
-                                        <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
+                        ) : (
+                            <div className="flex justify-between items-end">
+                                {scannedBarcode && (
+                                    <div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20">
+                                        <ScanLine size={12} /> {scannedBarcode}
                                     </div>
                                 )}
-                                <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
+                                <div className="flex items-center gap-2">
+                                    {isBackgroundAnalyzing && (
+                                        <div className="flex items-center gap-2 bg-black/40 backdrop-blur px-2 py-1 rounded-lg border border-white/10">
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                            </span>
+                                            <span className="text-[10px] font-bold text-emerald-400 font-mono tracking-wider">AI WORKING...</span>
+                                        </div>
+                                    )}
+                                    <span className="text-xs font-mono bg-emerald-500/20 backdrop-blur px-2 py-1 rounded text-emerald-400 border border-emerald-500/30 font-bold">{scoutResult?.confidence}% CONFIDENCE</span>
+                                </div>
                             </div>
-                        </div>)
-                        }
-                    </div >
-                    {status === ScoutStatus.COMPLETE && (<button onClick={handleStartScan} className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/70 transition-colors"><Camera size={20} /></button>)}
-                </div >
+                        )}
+                    </div>
+                    {status === ScoutStatus.COMPLETE && (
+                        <button onClick={handleStartScan} className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/70 transition-colors">
+                            <Camera size={20} />
+                        </button>
+                    )}
+                </div>
 
                 <div className="flex-1 p-4 space-y-6">
                     {status === ScoutStatus.ANALYZING ? (
-                        <div className="space-y-6 mt-4 opacity-50"><div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-3/4 animate-pulse"></div><div className="h-32 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div><div className="h-40 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div></div>
+                        <div className="space-y-6 mt-4 opacity-50">
+                            <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-3/4 animate-pulse"></div>
+                            <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div>
+                            <div className="h-40 bg-slate-200 dark:bg-slate-800 rounded w-full animate-pulse"></div>
+                        </div>
                     ) : scoutResult ? (
-                        <div className="animate-in slide-in-from-bottom-4 duration-500 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                            {/* --- LEFT: EDITOR --- */}
-                            <div className="lg:col-span-8 space-y-6">
-                                {/* Title */}
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title</label>
-                                        <div className="flex gap-2">
-                                            <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>
-                                            <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button>
-                                        </div>
-                                    </div>
-                                    <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
-                                </div>
-
-                                {/* Description */}
-                                <div className="space-y-2">
-                                    <label className="text-xs text-slate-500 font-mono uppercase tracking-wider">Description</label>
-                                    <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2">
-                                        <button onClick={() => {
-                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!";
-                                            setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Tested</button>
-                                        <button onClick={() => {
-                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details.";
-                                            setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Used</button>
-                                        <button onClick={() => {
-                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                            const newContent = currentContent + (currentContent ? "\n\n" : "") + "• Sold as-is for parts or repair.\n• No returns.";
-                                            setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">Parts</button>
-                                        {customTemplates.map((tmpl, idx) => (
-                                            <button key={idx} onClick={() => {
-                                                const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
-                                                const newContent = currentContent + (currentContent ? "\n\n" : "") + tmpl;
-                                                setGeneratedListing({ platform: 'EBAY', content: newContent });
-                                            }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
-                                        ))}
-                                        <button onClick={() => {
-                                            const text = prompt("Enter new template text:");
-                                            if (text) {
-                                                const newTemplates = [...customTemplates, text];
-                                                setCustomTemplates(newTemplates);
-                                                localStorage.setItem('sts_custom_templates', JSON.stringify(newTemplates));
-                                            }
-                                        }} className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Plus size={12} /> Add</button>
-                                    </div>
-                                    <textarea
-                                        value={typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "")}
-                                        onChange={(e) => setGeneratedListing({ platform: 'EBAY', content: e.target.value })}
-                                        className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-32 shadow-sm"
-                                        placeholder="Detailed item description..."
-                                    />
-                                </div>
-
-                                {/* Condition & Bin */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700">
-                                        <label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label>
-                                        <div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1">
-                                            <button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button>
-                                            <button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700">
-                                        <label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label>
-                                        <input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" />
+                        <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col space-y-6">
+                            {/* Title */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs text-slate-500 font-mono uppercase tracking-wider flex items-center gap-2">Item Title</label>
+                                    <div className="flex gap-2">
+                                        <button onClick={handleOptimizeTitle} className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"><Wand2 size={10} /> Optimize</button>
+                                        <button onClick={() => toggleRecording('title')} className={`p-1.5 rounded-full transition-all ${isRecording === 'title' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:white'}`}>{isRecording === 'title' ? <MicOff size={14} /> : <Mic size={14} />}</button>
                                     </div>
                                 </div>
+                                <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
+                            </div>
 
-                                {/* Item Specifics */}
-                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
+                            {/* Description */}
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-500 font-mono uppercase tracking-wider">Description</label>
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-2">
+                                    {['Tested', 'Used', 'Parts'].map(tag => (
+                                        <button key={tag} onClick={() => {
+                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                            const snippet = tag === 'Tested' ? "• Tested and working perfectly.\n• Includes original accessories.\n• Fast shipping!" : tag === 'Used' ? "• Good used condition.\n• Shows minor signs of wear.\n• See photos for details." : "• Sold as-is for parts or repair.\n• No returns.";
+                                            setGeneratedListing({ platform: 'EBAY', content: currentContent + (currentContent ? "\n\n" : "") + snippet });
+                                        }} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap font-medium">{tag}</button>
+                                    ))}
+                                    {customTemplates.map((tmpl, idx) => (
+                                        <button key={idx} onClick={() => {
+                                            const currentContent = typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "");
+                                            setGeneratedListing({ platform: 'EBAY', content: currentContent + (currentContent ? "\n\n" : "") + tmpl });
+                                        }} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap truncate max-w-[100px]" title={tmpl}>{tmpl.substring(0, 10)}...</button>
+                                    ))}
+                                    <button onClick={() => {
+                                        const text = prompt("Enter new template text:");
+                                        if (text) {
+                                            const newTemplates = [...customTemplates, text];
+                                            setCustomTemplates(newTemplates);
+                                            localStorage.setItem('sts_custom_templates', JSON.stringify(newTemplates));
+                                        }
+                                    }} className="text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors whitespace-nowrap font-bold flex items-center gap-1"><Plus size={12} /> Add</button>
+                                </div>
+                                <textarea
+                                    value={typeof generatedListing === 'string' ? generatedListing : (generatedListing?.content || "")}
+                                    onChange={(e) => setGeneratedListing({ platform: 'EBAY', content: e.target.value })}
+                                    className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-32 shadow-sm"
+                                    placeholder="Detailed item description..."
+                                />
+                            </div>
+
+                            {/* Condition & Bin */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700">
+                                    <label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Condition</label>
+                                    <div className="flex bg-gray-100 dark:bg-slate-900 rounded p-1">
+                                        <button onClick={() => handleConditionChange('USED')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Used</button>
+                                        <button onClick={() => handleConditionChange('NEW')} className={`flex-1 text-xs font-bold py-1 rounded transition-colors ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>New</button>
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700">
+                                    <label className="text-[10px] text-slate-500 font-mono uppercase mb-1 block">Location / Bin</label>
+                                    <input type="text" value={binLocation} onChange={(e) => setBinLocation(e.target.value)} placeholder="e.g. A1" className="w-full bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none" />
+                                </div>
+                            </div>
+
+                            {/* Item Specifics & Market Insight Row */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                                {/* Left: Item Specifics */}
+                                <div className="lg:col-span-8 bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-3">
                                     <div className="flex justify-between items-center mb-1 border-b border-gray-100 dark:border-slate-700 pb-2">
                                         <div className="flex items-center gap-2">
                                             <Tag size={14} className="text-emerald-500" />
@@ -2654,48 +2658,8 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Source & Policies */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
-                                        <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Unit</label>
-                                        <select value={activeUnit || ""} onChange={(e) => setActiveUnit(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none">
-                                            <option value="" disabled>Select Unit</option>
-                                            {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
-                                        </select>
-                                    </div>
-                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
-                                        <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">eBay Policies</label>
-                                        <div className="flex gap-2">
-                                            <select value={localStorage.getItem('sts_default_shipping_policy') || ""} onChange={(e) => { e.target.value && localStorage.setItem('sts_default_shipping_policy', e.target.value); setScoutResult(prev => prev ? ({ ...prev, ebayShippingPolicyId: e.target.value }) : null); }} className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                                                <option value="">Shipping...</option>
-                                                {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
-                                            </select>
-                                            <select value={localStorage.getItem('sts_default_return_policy') || ""} onChange={(e) => { e.target.value && localStorage.setItem('sts_default_return_policy', e.target.value); setScoutResult(prev => prev ? ({ ...prev, ebayReturnPolicyId: e.target.value }) : null); }} className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                                                <option value="">Returns...</option>
-                                                {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Condition Notes */}
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Tested</button>
-                                            <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good condition.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Good</button>
-                                        </div>
-                                    </div>
-                                    <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" />
-                                </div>
-
-                                <button onClick={() => { if (window.confirm("Discard this scan?")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
-                            </div>
-
-                            {/* --- RIGHT: RESEARCH & TOOLS --- */}
-                            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4 h-fit">
-                                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+                                {/* Right: Market Insight */}
+                                <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
                                     <div className="flex justify-between items-center">
                                         <h4 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider flex items-center gap-2"><Globe size={14} /> Market Insight</h4>
                                         <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-950 border dark:border-slate-800 ${strColor}`}>
@@ -2748,17 +2712,56 @@ function App() {
                                     </div>
                                     <button onClick={() => setIsCompsOpen(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-500 shadow-lg active:scale-95 transition-all">Deep Market Analysis</button>
                                 </div>
-
-                                <ProfitCalculator
-                                    estimatedPrice={scoutResult.estimatedSoldPrice}
-                                    estimatedShipping={scoutResult.estimatedShippingCost}
-                                    estimatedWeight={scoutResult.estimatedWeight}
-                                    onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
-                                    onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
-                                    isScanning={false}
-                                    isLoading={isSaving}
-                                />
                             </div>
+
+                            {/* Profit Calculator */}
+                            <ProfitCalculator
+                                estimatedPrice={scoutResult.estimatedSoldPrice}
+                                estimatedShipping={scoutResult.estimatedShippingCost}
+                                estimatedWeight={scoutResult.estimatedWeight}
+                                onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
+                                onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
+                                isScanning={false}
+                                isLoading={isSaving}
+                            />
+
+                            {/* Source & Policies */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
+                                    <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Unit</label>
+                                    <select value={activeUnit || ""} onChange={(e) => setActiveUnit(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 dark:text-white focus:outline-none">
+                                        <option value="" disabled>Select Unit</option>
+                                        {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
+                                    </select>
+                                </div>
+                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 space-y-1">
+                                    <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">eBay Policies</label>
+                                    <div className="flex gap-2">
+                                        <select value={localStorage.getItem('sts_default_shipping_policy') || ""} onChange={(e) => { e.target.value && localStorage.setItem('sts_default_shipping_policy', e.target.value); setScoutResult(prev => prev ? ({ ...prev, ebayShippingPolicyId: e.target.value }) : null); }} className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                            <option value="">Shipping...</option>
+                                            {(Array.isArray(ebayPolicies?.shippingPolicies) ? ebayPolicies.shippingPolicies : []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
+                                        </select>
+                                        <select value={localStorage.getItem('sts_default_return_policy') || ""} onChange={(e) => { e.target.value && localStorage.setItem('sts_default_return_policy', e.target.value); setScoutResult(prev => prev ? ({ ...prev, ebayReturnPolicyId: e.target.value }) : null); }} className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                            <option value="">Returns...</option>
+                                            {(Array.isArray(ebayPolicies?.returnPolicies) ? ebayPolicies.returnPolicies : []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Condition Notes */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] text-slate-500 font-mono uppercase">Condition Notes</label>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Tested and working.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Tested</button>
+                                        <button onClick={() => setConditionNotes(prev => prev + (prev ? "\n" : "") + "Good condition.")} className="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Good</button>
+                                    </div>
+                                </div>
+                                <textarea value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none h-20 shadow-sm" placeholder="Details about flaws..." />
+                            </div>
+
+                            <button onClick={() => { if (window.confirm("Discard this scan?")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
@@ -3057,144 +3060,110 @@ function App() {
 
                         {/* Side-by-Side Content */}
                         <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 pb-32">
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 md:p-6 items-start">
-                                {/* LEFT: MEDIA & FORM */}
-                                <div className="lg:col-span-8 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 group shadow-inner">
-                                            <img src={editingItem.imageUrl} className="w-full h-full object-contain" />
-                                            <button onClick={() => editImageInputRef.current?.click()} className="absolute bottom-2 right-2 bg-black/60 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"><Camera size={16} /></button>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 content-start">
-                                            {(editingItem.additionalImages || []).map((img, idx) => (
-                                                <div key={idx} className="relative aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 group">
-                                                    <img src={img} className="w-full h-full object-cover" />
-                                                    <button onClick={() => { const newImgs = [...(editingItem.additionalImages || [])]; newImgs.splice(idx, 1); setEditingItem({ ...editingItem, additionalImages: newImgs }); }} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
-                                                </div>
-                                            ))}
-                                            <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-slate-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><Plus size={24} /><span className="text-[8px] font-bold uppercase mt-1">Add Photo</span></button>
+                            <div className="flex flex-col space-y-6 p-4 md:p-6">
+                                {/* MEDIA ROW */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 group shadow-inner">
+                                        <img src={editingItem.imageUrl} className="w-full h-full object-contain" />
+                                        <button onClick={() => editImageInputRef.current?.click()} className="absolute bottom-2 right-2 bg-black/60 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"><Camera size={16} /></button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 content-start">
+                                        {(editingItem.additionalImages || []).map((img, idx) => (
+                                            <div key={idx} className="relative aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 group">
+                                                <img src={img} className="w-full h-full object-cover" />
+                                                <button onClick={() => { const newImgs = [...(editingItem.additionalImages || [])]; newImgs.splice(idx, 1); setEditingItem({ ...editingItem, additionalImages: newImgs }); }} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
+                                            </div>
+                                        ))}
+                                        <button onClick={() => additionalImageInputRef.current?.click()} className="aspect-square bg-slate-50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><Plus size={24} /><span className="text-[8px] font-bold uppercase mt-1">Add Photo</span></button>
+                                    </div>
+                                </div>
+
+                                {/* TITLE */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-xs font-mono uppercase text-slate-500">Title</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleOptimizeTitle()} className="text-[10px] flex items-center gap-1 text-blue-500 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize</button>
                                         </div>
                                     </div>
+                                    <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-20 resize-none focus:border-emerald-500 outline-none transition-all" />
+                                </div>
 
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500">Title</label>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleOptimizeTitle()} className="text-[10px] flex items-center gap-1 text-blue-500 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-0.5 rounded transition-all border border-blue-100 dark:border-blue-800"><Wand2 size={12} /> Optimize</button>
-                                                </div>
-                                            </div>
-                                            <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-20 resize-none focus:border-emerald-500 outline-none transition-all" />
+                                {/* DESCRIPTION */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-xs font-mono uppercase text-slate-500">Description</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setIsManagingTemplates(!isManagingTemplates)} className="text-[10px] text-slate-400 hover:text-blue-500 font-bold flex items-center gap-1"><Settings size={10} /> {isManagingTemplates ? 'Done' : 'Manage'}</button>
+                                            <button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 font-bold flex items-center gap-1"><Wand2 size={10} /> Auto-Write</button>
                                         </div>
-
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500">Description</label>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => setIsManagingTemplates(!isManagingTemplates)} className="text-[10px] text-slate-400 hover:text-blue-500 font-bold flex items-center gap-1"><Settings size={10} /> {isManagingTemplates ? 'Done' : 'Manage'}</button>
-                                                    <button onClick={() => handleGenerateListing('EBAY')} className="text-[10px] text-blue-500 font-bold flex items-center gap-1"><Wand2 size={10} /> Auto-Write</button>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 mb-1 items-center">
-                                                {['Tested', 'Used', 'Parts'].map(name => (
-                                                    <button key={name} onClick={() => {
-                                                        const current = editingItem.generatedListing?.content || "";
-                                                        const snippet = name === 'Tested' ? "• Tested and working perfectly." : name === 'Used' ? "• Good used condition." : "• For parts or repair only.";
-                                                        setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: current + (current ? "\n\n" : "") + snippet } });
-                                                    }} className="text-[9px] bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 font-medium whitespace-nowrap hover:bg-slate-50 transition-colors shadow-sm">{name}</button>
-                                                ))}
-                                                <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 shrink-0" />
-                                                {(customTemplates || []).map((tmpl, idx) => (
-                                                    <div key={idx} className="relative group shrink-0">
-                                                        <button onClick={() => {
-                                                            const current = editingItem.generatedListing?.content || "";
-                                                            setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: current + (current ? "\n\n" : "") + tmpl } });
-                                                        }} className="text-[9px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md border border-blue-100 dark:border-blue-900/30 font-medium whitespace-nowrap hover:bg-blue-100 transition-colors shadow-sm">{tmpl.substring(0, 8)}...</button>
-                                                        {isManagingTemplates && (
-                                                            <button onClick={() => { const newT = customTemplates.filter((_, i) => i !== idx); setCustomTemplates(newT); localStorage.setItem('sts_custom_templates', JSON.stringify(newT)); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm"><X size={8} /></button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                {!isManagingTemplates && (
-                                                    <button onClick={() => { if (window.confirm("Clear description?")) setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: "" } }); }} className="text-[9px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/30 font-bold whitespace-nowrap"><Trash2 size={10} /></button>
+                                    </div>
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 mb-1 items-center">
+                                        {['Tested', 'Used', 'Parts'].map(name => (
+                                            <button key={name} onClick={() => {
+                                                const current = editingItem.generatedListing?.content || "";
+                                                const snippet = name === 'Tested' ? "• Tested and working perfectly." : name === 'Used' ? "• Good used condition." : "• For parts or repair only.";
+                                                setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: current + (current ? "\n\n" : "") + snippet } });
+                                            }} className="text-[9px] bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 font-medium whitespace-nowrap hover:bg-slate-50 transition-colors shadow-sm">{name}</button>
+                                        ))}
+                                        <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 shrink-0" />
+                                        {(customTemplates || []).map((tmpl, idx) => (
+                                            <div key={idx} className="relative group shrink-0">
+                                                <button onClick={() => {
+                                                    const current = editingItem.generatedListing?.content || "";
+                                                    setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: current + (current ? "\n\n" : "") + tmpl } });
+                                                }} className="text-[9px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md border border-blue-100 dark:border-blue-900/30 font-medium whitespace-nowrap hover:bg-blue-100 transition-colors shadow-sm">{tmpl.substring(0, 8)}...</button>
+                                                {isManagingTemplates && (
+                                                    <button onClick={() => { const newT = customTemplates.filter((_, i) => i !== idx); setCustomTemplates(newT); localStorage.setItem('sts_custom_templates', JSON.stringify(newT)); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-sm"><X size={8} /></button>
                                                 )}
                                             </div>
-                                            <textarea value={editingItem.generatedListing?.content || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-28 resize-none focus:border-emerald-500 outline-none transition-all" />
-                                        </div>
+                                        ))}
+                                        {!isManagingTemplates && (
+                                            <button onClick={() => { if (window.confirm("Clear description?")) setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: "" } }); }} className="text-[9px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/30 font-bold whitespace-nowrap"><Trash2 size={10} /></button>
+                                        )}
+                                    </div>
+                                    <textarea value={editingItem.generatedListing?.content || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-28 resize-none focus:border-emerald-500 outline-none transition-all" />
+                                </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-[10px] font-mono uppercase text-slate-500 mb-1 block">Condition</label>
-                                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                                                    <button onClick={() => { setItemCondition('NEW'); setEditingItem({ ...editingItem, conditionNotes: 'NEW' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600' : 'text-slate-500'}`}>NEW</button>
-                                                    <button onClick={() => { setItemCondition('USED'); setEditingItem({ ...editingItem, conditionNotes: 'USED' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-slate-500'}`}>USED</button>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-mono uppercase text-slate-500">Location / Bin</label>
-                                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 h-[38px]">
-                                                    <Box size={14} className="text-slate-400" />
-                                                    <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none" placeholder="e.g. A1" />
-                                                </div>
-                                            </div>
+                                {/* CONDITION & BIN */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-mono uppercase text-slate-500 mb-1 block">Condition</label>
+                                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                                            <button onClick={() => { setItemCondition('NEW'); setEditingItem({ ...editingItem, conditionNotes: 'NEW' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600' : 'text-slate-500'}`}>NEW</button>
+                                            <button onClick={() => { setItemCondition('USED'); setEditingItem({ ...editingItem, conditionNotes: 'USED' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-slate-500'}`}>USED</button>
                                         </div>
-
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500 flex items-center gap-2"><Tag size={14} /> Item Specifics</label>
-                                                <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 font-bold hover:underline">+ Add</button>
-                                            </div>
-                                            <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1 max-h-64 overflow-y-auto no-scrollbar">
-                                                {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
-                                                    <div key={idx} className="flex gap-2 items-center">
-                                                        <div className="w-1/3 bg-slate-100 dark:bg-slate-800/50 px-2 py-1.5 rounded text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{key}</div>
-                                                        <input className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500 transition-all" value={val} onChange={(e) => handleUpdateSpecific(key, e.target.value)} />
-                                                        <button onClick={() => handleDeleteSpecific(key)} className="text-slate-300 hover:text-red-500 transition-colors"><X size={12} /></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
-                                                <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Unit</label>
-                                                <select value={editingItem.storageUnitId || ''} onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none">
-                                                    <option value="" disabled>Select Unit</option>
-                                                    {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
-                                                </select>
-                                            </div>
-                                            <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
-                                                <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">eBay Policies</label>
-                                                <div className="flex gap-2">
-                                                    <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayShippingPolicyId: e.target.value })} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                                                        <option value="">Default Shipping</option>
-                                                        {(ebayPolicies?.shippingPolicies || []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
-                                                    </select>
-                                                    <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayReturnPolicyId: e.target.value })} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
-                                                        <option value="">Default Return</option>
-                                                        {(ebayPolicies?.returnPolicies || []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500">Condition Notes</label>
-                                                <div className="flex gap-2">
-                                                    {['Tested', 'Good'].map(tag => (
-                                                        <button key={tag} onClick={() => setEditingItem({ ...editingItem, conditionNotes: (editingItem.conditionNotes || "") + (editingItem.conditionNotes ? ", " : "") + tag })} className="text-[10px] bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 font-medium">{tag}</button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <textarea value={editingItem.conditionNotes || ''} onChange={e => setEditingItem({ ...editingItem, conditionNotes: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-20 resize-none focus:border-emerald-500 outline-none transition-all" placeholder="Enter details about scratches, flaws, etc..." />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-mono uppercase text-slate-500">Location / Bin</label>
+                                        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 h-[38px]">
+                                            <Box size={14} className="text-slate-400" />
+                                            <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none" placeholder="e.g. A1" />
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* RIGHT: RESEARCH & TOOLS */}
-                                <div className="lg:sticky lg:top-4 space-y-6">
-                                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+                                {/* SPECIFICS & MARKET INSIGHT ROW */}
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                                    {/* Left: Item Specifics */}
+                                    <div className="lg:col-span-8 bg-white dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-xs font-mono uppercase text-slate-500 flex items-center gap-2"><Tag size={14} /> Item Specifics</label>
+                                            <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 font-bold hover:underline">+ Add</button>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
+                                            {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
+                                                <div key={idx} className="flex gap-2 items-center group">
+                                                    <div className="w-1/3 bg-slate-100 dark:bg-slate-800/50 px-2 py-1.5 rounded text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{key}</div>
+                                                    <input className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500 transition-all" value={val} onChange={(e) => handleUpdateSpecific(key, e.target.value)} />
+                                                    <button onClick={() => handleDeleteSpecific(key)} className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><X size={12} /></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Market Insight */}
+                                    <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
                                         <div className="flex justify-between items-center">
                                             <h4 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider flex items-center gap-2"><Globe size={14} /> Market Insight</h4>
                                             {scoutResult && (
@@ -3218,7 +3187,7 @@ function App() {
                                                     const data = await searchEbayComps(editedTitle || editingItem.title, 'ACTIVE', itemCondition);
                                                     setVisualSearchResults(data.comps || []);
                                                 } catch (e) { } finally { setIsResearching(false); }
-                                            }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-2">
+                                            }} className="bg-blue-600 text-white px-2 py-2 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all flex items-center justify-center">
                                                 {isResearching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                                             </button>
                                         </div>
@@ -3286,18 +3255,56 @@ function App() {
                                             </div>
                                         )}
                                     </div>
+                                </div>
 
-                                    <ProfitCalculator
-                                        estimatedPrice={editingItem.calculation.soldPrice}
-                                        estimatedShipping={editingItem.calculation.shippingCost}
-                                        estimatedWeight={editingItem.itemSpecifics?.Weight}
-                                        estimatedDimensions={editingItem.dimensions}
-                                        onSave={handleSaveEditedItem}
-                                        onPriceChange={setCurrentListingPrice}
-                                        onEstimate={handleEstimateWeight}
-                                        isScanning={false}
-                                        isLoading={isGeneratingListing || isSaving}
-                                    />
+                                {/* PROFIT CALCULATOR */}
+                                <ProfitCalculator
+                                    estimatedPrice={editingItem.calculation.soldPrice}
+                                    estimatedShipping={editingItem.calculation.shippingCost}
+                                    estimatedWeight={editingItem.itemSpecifics?.Weight}
+                                    estimatedDimensions={editingItem.dimensions}
+                                    onSave={handleSaveEditedItem}
+                                    onPriceChange={setCurrentListingPrice}
+                                    onEstimate={handleEstimateWeight}
+                                    isScanning={false}
+                                    isLoading={isGeneratingListing || isSaving}
+                                />
+
+                                {/* SOURCE & POLICIES */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Unit</label>
+                                        <select value={editingItem.storageUnitId || ''} onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none">
+                                            <option value="" disabled>Select Unit</option>
+                                            {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
+                                        </select>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+                                        <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">eBay Policies</label>
+                                        <div className="flex gap-2">
+                                            <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayShippingPolicyId: e.target.value })} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                                <option value="">Default Shipping</option>
+                                                {(ebayPolicies?.shippingPolicies || []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
+                                            </select>
+                                            <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayReturnPolicyId: e.target.value })} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                                <option value="">Default Return</option>
+                                                {(ebayPolicies?.returnPolicies || []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* CONDITION NOTES */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-xs font-mono uppercase text-slate-500">Condition Notes</label>
+                                        <div className="flex gap-2">
+                                            {['Tested', 'Good'].map(tag => (
+                                                <button key={tag} onClick={() => setEditingItem({ ...editingItem, conditionNotes: (editingItem.conditionNotes || "") + (editingItem.conditionNotes ? ", " : "") + tag })} className="text-[10px] bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 font-medium">{tag}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <textarea value={editingItem.conditionNotes || ''} onChange={e => setEditingItem({ ...editingItem, conditionNotes: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-20 resize-none focus:border-emerald-500 outline-none transition-all" placeholder="Enter details about scratches, flaws, etc..." />
                                 </div>
                             </div>
                         </div>
