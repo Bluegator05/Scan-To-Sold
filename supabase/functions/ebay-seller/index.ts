@@ -74,15 +74,16 @@ serve(async (req) => {
                 );
                 if (detailResponse.ok) {
                     const fullItem = await detailResponse.json();
+                    // listingStartTime is the official field for the Browse API browse/v1/item/{itemId}
                     return {
                         ...item,
-                        listedDate: fullItem.listingStartTime || fullItem.listingInfo?.startTime || 'Recent'
+                        listedDate: fullItem.listingStartTime || 'Unknown'
                     };
                 }
             } catch (e) {
                 console.error(`Failed to enrich item ${item.itemId}:`, e);
             }
-            return { ...item, listedDate: 'Active' };
+            return { ...item, listedDate: 'Unknown' };
         }));
 
         // 3. Format for Frontend

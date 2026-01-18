@@ -2108,7 +2108,12 @@ function App() {
                                                             <div className="flex items-center gap-3 mt-1">
                                                                 <span className="text-[11px] font-black text-[#06b6d4]">${typeof item.price?.value === 'object' ? JSON.stringify(item.price.value) : String(item.price?.value || 0)}</span>
                                                                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
-                                                                    Listed: {item.listedDate ? (item.listedDate.includes('T') ? new Date(item.listedDate).toLocaleDateString() : item.listedDate) : 'Active'}
+                                                                    Listed: {(() => {
+                                                                        const d = item.listedDate;
+                                                                        if (!d || d === 'Unknown' || d === 'Active') return 'Recently';
+                                                                        const dateObj = new Date(d);
+                                                                        return isNaN(dateObj.getTime()) ? d : dateObj.toLocaleDateString();
+                                                                    })()}
                                                                 </span>
                                                                 {item.score && (
                                                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.score > 80 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>
