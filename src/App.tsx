@@ -3087,50 +3087,6 @@ function App() {
                                             <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-20 resize-none focus:border-emerald-500 outline-none transition-all" />
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500">Source / Location</label>
-                                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2">
-                                                    <Warehouse size={14} className="text-slate-400" />
-                                                    <select value={editingItem.storageUnitId || ''} onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none">
-                                                        <option value="" disabled>Select Source</option>
-                                                        {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500">Bin / SKU</label>
-                                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2">
-                                                    <Box size={14} className="text-slate-400" />
-                                                    <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none" placeholder="Enter Bin..." />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="text-xs font-mono uppercase text-slate-500 mb-1 block">Condition</label>
-                                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                                                <button onClick={() => { setItemCondition('NEW'); setEditingItem({ ...editingItem, conditionNotes: 'NEW' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600' : 'text-slate-500'}`}>NEW</button>
-                                                <button onClick={() => { setItemCondition('USED'); setEditingItem({ ...editingItem, conditionNotes: 'USED' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-slate-500'}`}>USED</button>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-mono uppercase text-slate-500">Item Specifics</label>
-                                                <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 font-bold hover:underline">+ Add Specific</button>
-                                            </div>
-                                            <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1 max-h-48 overflow-y-auto no-scrollbar">
-                                                {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
-                                                    <div key={idx} className="flex gap-2 items-center">
-                                                        <input className="w-1/3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none" value={key} onChange={(e) => handleRenameSpecific(key, e.target.value)} disabled={DEFAULT_SPECIFIC_KEYS.includes(key)} />
-                                                        <input className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-[10px] text-slate-900 dark:text-white font-medium focus:outline-none" value={val} onChange={(e) => handleUpdateSpecific(key, e.target.value)} />
-                                                        <button onClick={() => handleDeleteSpecific(key)} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
                                                 <label className="text-xs font-mono uppercase text-slate-500">Description</label>
@@ -3165,23 +3121,95 @@ function App() {
                                             </div>
                                             <textarea value={editingItem.generatedListing?.content || ''} onChange={e => setEditingItem({ ...editingItem, generatedListing: { platform: 'EBAY', content: e.target.value } })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-28 resize-none focus:border-emerald-500 outline-none transition-all" />
                                         </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-mono uppercase text-slate-500 mb-1 block">Condition</label>
+                                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                                                    <button onClick={() => { setItemCondition('NEW'); setEditingItem({ ...editingItem, conditionNotes: 'NEW' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'NEW' ? 'bg-white dark:bg-slate-600 shadow text-emerald-600' : 'text-slate-500'}`}>NEW</button>
+                                                    <button onClick={() => { setItemCondition('USED'); setEditingItem({ ...editingItem, conditionNotes: 'USED' }); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${itemCondition === 'USED' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-slate-500'}`}>USED</button>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-mono uppercase text-slate-500">Location / Bin</label>
+                                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 h-[38px]">
+                                                    <Box size={14} className="text-slate-400" />
+                                                    <input type="text" value={editingItem.binLocation || ''} onChange={e => setEditingItem({ ...editingItem, binLocation: e.target.value })} className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-white focus:outline-none" placeholder="e.g. A1" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500 flex items-center gap-2"><Tag size={14} /> Item Specifics</label>
+                                                <button onClick={handleAddSpecific} className="text-[10px] text-blue-500 font-bold hover:underline">+ Add</button>
+                                            </div>
+                                            <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1 max-h-64 overflow-y-auto no-scrollbar">
+                                                {Object.entries(editingItem.itemSpecifics || {}).filter(([key]) => key !== 'Weight').map(([key, val], idx) => (
+                                                    <div key={idx} className="flex gap-2 items-center">
+                                                        <div className="w-1/3 bg-slate-100 dark:bg-slate-800/50 px-2 py-1.5 rounded text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{key}</div>
+                                                        <input className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-900 dark:text-white font-medium focus:outline-none focus:border-blue-500 transition-all" value={val} onChange={(e) => handleUpdateSpecific(key, e.target.value)} />
+                                                        <button onClick={() => handleDeleteSpecific(key)} className="text-slate-300 hover:text-red-500 transition-colors"><X size={12} /></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+                                                <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">Source / Unit</label>
+                                                <select value={editingItem.storageUnitId || ''} onChange={(e) => setEditingItem({ ...editingItem, storageUnitId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none">
+                                                    <option value="" disabled>Select Unit</option>
+                                                    {(storageUnits || []).map(unit => (<option key={unit.id} value={unit.storeNumber}>{unit.storeNumber} {unit.address ? `(${unit.address})` : ''}</option>))}
+                                                </select>
+                                            </div>
+                                            <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+                                                <label className="text-[10px] text-slate-500 font-mono uppercase block mb-1">eBay Policies</label>
+                                                <div className="flex gap-2">
+                                                    <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayShippingPolicyId: e.target.value })} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                                        <option value="">Default Shipping</option>
+                                                        {(ebayPolicies?.shippingPolicies || []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
+                                                    </select>
+                                                    <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayReturnPolicyId: e.target.value })} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 text-[10px] text-slate-900 dark:text-white outline-none focus:border-blue-500">
+                                                        <option value="">Default Return</option>
+                                                        {(ebayPolicies?.returnPolicies || []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-mono uppercase text-slate-500">Condition Notes</label>
+                                                <div className="flex gap-2">
+                                                    {['Tested', 'Good'].map(tag => (
+                                                        <button key={tag} onClick={() => setEditingItem({ ...editingItem, conditionNotes: (editingItem.conditionNotes || "") + (editingItem.conditionNotes ? ", " : "") + tag })} className="text-[10px] bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 font-medium">{tag}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <textarea value={editingItem.conditionNotes || ''} onChange={e => setEditingItem({ ...editingItem, conditionNotes: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-xs h-20 resize-none focus:border-emerald-500 outline-none transition-all" placeholder="Enter details about scratches, flaws, etc..." />
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* RIGHT: RESEARCH & TOOLS */}
-                                <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-0 h-fit">
+                                <div className="lg:sticky lg:top-4 space-y-6">
                                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
                                         <div className="flex justify-between items-center">
                                             <h4 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider flex items-center gap-2"><Globe size={14} /> Market Insight</h4>
                                             {scoutResult && (
-                                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 dark:bg-slate-800 border dark:border-slate-700 ${strColor}`}>
-                                                    <StrIcon size={10} /> {marketLabel}
+                                                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-950 border dark:border-slate-800 ${strColor}`}>
+                                                    <StrIcon size={12} />
+                                                    {marketLabel}
                                                 </div>
                                             )}
                                         </div>
 
                                         <div className="flex gap-2">
-                                            <input type="text" value={editedTitle || editingItem.title} onChange={(e) => setEditedTitle(e.target.value)} className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-500" placeholder="Search..." />
+                                            <div className="relative flex-1">
+                                                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input type="text" value={editedTitle || editingItem.title} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-blue-500 transition-all font-medium" placeholder="Search market..." />
+                                            </div>
                                             <button onClick={async () => {
                                                 setIsResearching(true);
                                                 try {
@@ -3190,30 +3218,42 @@ function App() {
                                                     const data = await searchEbayComps(editedTitle || editingItem.title, 'ACTIVE', itemCondition);
                                                     setVisualSearchResults(data.comps || []);
                                                 } catch (e) { } finally { setIsResearching(false); }
-                                            }} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all">{isResearching ? '...' : 'Research'}</button>
+                                            }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-2">
+                                                {isResearching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                            </button>
                                         </div>
 
                                         {scoutResult?.marketData && (
-                                            <div className="space-y-3 pt-2">
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div className="bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
-                                                        <p className="text-[8px] text-slate-400 uppercase font-mono mb-0.5">Sold (90d)</p>
-                                                        <p className="text-sm font-black text-emerald-500">{scoutResult.marketData.totalSold}</p>
+                                            <div className="space-y-4 pt-2">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-center">
+                                                        <p className="text-[9px] text-slate-400 uppercase font-mono mb-0.5">Sold (90d)</p>
+                                                        <p className="text-xl font-black text-emerald-500">{scoutResult.marketData.totalSold}</p>
                                                     </div>
-                                                    <div className="bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
-                                                        <p className="text-[8px] text-slate-400 uppercase font-mono mb-0.5">Active</p>
-                                                        <p className="text-sm font-black text-blue-500">{scoutResult.marketData.totalActive}</p>
+                                                    <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-center">
+                                                        <p className="text-[9px] text-slate-400 uppercase font-mono mb-0.5">Active</p>
+                                                        <p className="text-xl font-black text-blue-500">{scoutResult.marketData.totalActive}</p>
                                                     </div>
                                                 </div>
 
-                                                <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-100 dark:border-slate-800">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <p className="text-[8px] text-slate-400 uppercase font-mono">Sell Through Rate</p>
-                                                        <p className={`text-[10px] font-black ${strColor}`}>{Math.round(sellThroughRate)}%</p>
+                                                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <p className="text-[9px] text-slate-400 uppercase font-mono">Sell Through Rate</p>
+                                                        <p className={`text-sm font-black ${strColor}`}>{Math.round(sellThroughRate)}%</p>
                                                     </div>
-                                                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
+                                                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                                                         <div className="h-full transition-all duration-1000" style={{ width: `${Math.min(sellThroughRate, 100)}%`, backgroundColor: isGreat ? '#39ff14' : isGood ? '#facc15' : '#ef4444' }}></div>
                                                     </div>
+                                                </div>
+
+                                                <div className="p-5 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 text-center relative overflow-hidden group">
+                                                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                        <DollarSign size={48} className="text-emerald-500" />
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-500 uppercase font-mono mb-1">Estimated Value</p>
+                                                    <p className="text-4xl font-black text-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                                        ${Number(scoutResult.marketData.isEstimated ? (scoutResult.marketData.totalSold || 0) : (scoutResult.estimatedSoldPrice || 0)).toFixed(0)}
+                                                    </p>
                                                 </div>
 
                                                 {scoutResult.marketData.isEstimated && (
@@ -3224,20 +3264,23 @@ function App() {
                                                 )}
 
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Sold</button>
-                                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Active</button>
+                                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || editingItem.title)} className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Sold</button>
+                                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || editingItem.title)} className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Active</button>
                                                 </div>
-                                                <button onClick={() => setIsCompsOpen(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-500 shadow-lg active:scale-95 transition-all">Deep Market Analysis</button>
+                                                <button onClick={() => setIsCompsOpen(true)} className="w-full py-4 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-500 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">Deep Market Analysis</button>
                                             </div>
                                         )}
 
                                         {visualSearchResults.length > 0 && !scoutResult?.marketData && (
-                                            <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pt-2 border-t dark:border-slate-800">
+                                            <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar pt-2 border-t dark:border-slate-800">
                                                 {visualSearchResults.slice(0, 3).map((match, idx) => (
-                                                    <div key={idx} className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-blue-100 dark:border-slate-700 flex gap-2">
-                                                        <img src={match.image} className="w-10 h-10 object-cover rounded" />
-                                                        <div className="flex-1 min-w-0"><p className="text-[9px] font-bold truncate">{match.title}</p><p className="text-[10px] font-black text-blue-600">${match.price?.toFixed(2)}</p></div>
-                                                        <button onClick={() => handleSellSimilar(match)} className="text-[9px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold self-center">Import</button>
+                                                    <div key={idx} className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-blue-100 dark:border-slate-700 flex gap-3 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer group" onClick={() => handleSellSimilar(match)}>
+                                                        <img src={match.image} className="w-12 h-12 object-cover rounded-lg shadow-sm" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[10px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">{match.title}</p>
+                                                            <p className="text-sm font-black text-blue-600">${match.price?.toFixed(2)}</p>
+                                                        </div>
+                                                        <button className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg font-bold self-center border border-blue-100 dark:border-blue-900/50">Import</button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -3255,28 +3298,6 @@ function App() {
                                         isScanning={false}
                                         isLoading={isGeneratingListing || isSaving}
                                     />
-
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                                        <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-3 flex items-center gap-1"><ShieldCheck size={12} /> eBay Policies</h4>
-                                        {ebayConnected ? (
-                                            <div className="space-y-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-[9px] uppercase text-slate-400 font-mono">Shipping Policy</label>
-                                                    <select value={editingItem.ebayShippingPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayShippingPolicyId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1.5 text-[10px] outline-none focus:border-blue-500">
-                                                        <option value="">Select Shipping...</option>
-                                                        {(ebayPolicies?.shippingPolicies || []).map((p: any) => (<option key={p.fulfillmentPolicyId} value={p.fulfillmentPolicyId}>{p.name}</option>))}
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[9px] uppercase text-slate-400 font-mono">Return Policy</label>
-                                                    <select value={editingItem.ebayReturnPolicyId || ""} onChange={(e) => setEditingItem({ ...editingItem, ebayReturnPolicyId: e.target.value })} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1.5 text-[10px] outline-none focus:border-blue-500">
-                                                        <option value="">Select Returns...</option>
-                                                        {(ebayPolicies?.returnPolicies || []).map((p: any) => (<option key={p.returnPolicyId} value={p.returnPolicyId}>{p.name}</option>))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        ) : <p className="text-[10px] text-slate-500 italic text-center py-2">Link eBay to see policies</p>}
-                                    </div>
                                 </div>
                             </div>
                         </div>
