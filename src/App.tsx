@@ -2693,18 +2693,8 @@ function App() {
                                 <button onClick={() => { if (window.confirm("Discard this scan?")) setStatus(ScoutStatus.IDLE); }} className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-800 text-slate-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-900 hover:text-red-500 transition-all flex items-center justify-center gap-2"><Trash2 size={18} /> Discard Scan</button>
                             </div>
 
-                            {/* --- RIGHT: MARKET INSIGHTS --- */}
+                            {/* --- RIGHT: RESEARCH & TOOLS --- */}
                             <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4 h-fit">
-                                <ProfitCalculator
-                                    estimatedPrice={scoutResult.estimatedSoldPrice}
-                                    estimatedShipping={scoutResult.estimatedShippingCost}
-                                    estimatedWeight={scoutResult.estimatedWeight}
-                                    onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
-                                    onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
-                                    isScanning={false}
-                                    isLoading={isSaving}
-                                />
-
                                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
                                     <div className="flex justify-between items-center">
                                         <h4 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider flex items-center gap-2"><Globe size={14} /> Market Insight</h4>
@@ -2758,6 +2748,16 @@ function App() {
                                     </div>
                                     <button onClick={() => setIsCompsOpen(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-500 shadow-lg active:scale-95 transition-all">Deep Market Analysis</button>
                                 </div>
+
+                                <ProfitCalculator
+                                    estimatedPrice={scoutResult.estimatedSoldPrice}
+                                    estimatedShipping={scoutResult.estimatedShippingCost}
+                                    estimatedWeight={scoutResult.estimatedWeight}
+                                    onSave={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims)}
+                                    onList={(calc, code, cost, weight, dims) => handleSaveToInventory(calc, code, cost, weight, dims, true)}
+                                    isScanning={false}
+                                    isLoading={isSaving}
+                                />
                             </div>
                         </div>
                     ) : (
