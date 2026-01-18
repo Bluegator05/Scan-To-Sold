@@ -1692,7 +1692,7 @@ function App() {
                             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
                                 <Zap className="text-emerald-400" size={18} />
                             </div>
-                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Command Center <span className="text-[8px] opacity-30">v1.1</span></h2>
+                            <h2 className="text-xl font-black tracking-tight vibrant-gradient uppercase">Store Optimizer <span className="text-[8px] opacity-30">v1.1</span></h2>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-500 tracking-tighter">
@@ -2143,7 +2143,7 @@ function App() {
             <div className="flex justify-between items-center max-w-lg mx-auto">
                 <button onClick={() => setView('command')} className={`flex flex-col items-center gap-1 transition-all ${view === 'command' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                     <LayoutDashboard size={20} className={view === 'command' ? 'scale-110' : ''} />
-                    <span className="text-[10px] font-bold">COMMAND</span>
+                    <span className="text-[10px] font-bold">STORE OPTIMIZER</span>
                 </button>
                 <button onClick={() => { setView('scout'); handleStartScan(); }} className={`flex flex-col items-center gap-1 transition-all ${view === 'scout' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                     <ScanLine size={20} className={view === 'scout' ? 'scale-110' : ''} />
@@ -2439,18 +2439,31 @@ function App() {
                 </div>
 
                 {/* Large START SCAN Button */}
-                <div className="flex-1 flex items-center justify-center mb-8">
+                <div className="flex-1 flex items-center justify-center mb-8 relative">
                     <button
                         onClick={() => { setCameraMode('SCOUT'); setStatus(ScoutStatus.SCANNING); }}
-                        className="relative group"
+                        className="relative group bg-transparent border-none p-0 outline-none focus:outline-none transition-transform active:scale-95"
                     >
-                        {/* Green Glow Effect */}
-                        <div className="absolute inset-0 bg-neon-green rounded-full blur-[60px] opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                        {/* Multi-layered Deep Glow */}
+                        <div className="absolute inset-0 bg-neon-green/20 rounded-full blur-3xl group-hover:bg-neon-green/40 group-hover:blur-[60px] transition-all duration-700"></div>
+                        <div className="absolute -inset-4 bg-neon-green/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-1000"></div>
 
-                        {/* Button Circle */}
-                        <div className="relative w-48 h-48 bg-slate-900 rounded-full border-4 border-slate-800 flex flex-col items-center justify-center group-hover:border-neon-green/50 transition-all group-active:scale-95">
-                            <Aperture size={64} className="text-neon-green mb-2" strokeWidth={2} />
-                            <span className="text-neon-green font-black text-sm tracking-[0.2em] uppercase">Start Scan</span>
+                        {/* Animated Outer Ring */}
+                        <div className="absolute -inset-3 border-2 border-neon-green/0 rounded-full group-hover:border-neon-green/20 group-hover:scale-110 transition-all duration-700 animate-pulse-slow"></div>
+
+                        {/* Main Button Body */}
+                        <div className="relative w-48 h-48 bg-slate-900 rounded-full border-[1px] border-white/5 flex flex-col items-center justify-center transition-all duration-500 overflow-hidden">
+                            {/* Inner Gradient Shade */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-black/50 via-transparent to-white/5 pointer-events-none"></div>
+
+                            {/* Glow behind icon */}
+                            <div className="absolute w-24 h-24 bg-neon-green/10 rounded-full blur-2xl group-hover:bg-neon-green/20 transition-all duration-500"></div>
+
+                            <Aperture size={64} className="text-neon-green mb-2 group-hover:rotate-180 transition-transform duration-1000 ease-in-out relative z-10" strokeWidth={1.5} />
+                            <span className="text-neon-green font-black text-xs tracking-[0.3em] uppercase group-hover:tracking-[0.4em] transition-all duration-500 relative z-10">Start Scan</span>
+
+                            {/* Inner Border Highlight */}
+                            <div className="absolute inset-0 rounded-full border border-white/10 group-hover:border-neon-green/50 transition-colors duration-500"></div>
                         </div>
                     </button>
                 </div>
