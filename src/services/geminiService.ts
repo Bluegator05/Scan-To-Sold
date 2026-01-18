@@ -222,8 +222,27 @@ export const analyzeListingWithGemini = async (listingData: ListingData): Promis
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    const cleanedText = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(cleanedText);
+
+    // Improved JSON Extraction: Find first '{' and last '}'
+    const startIndex = text.indexOf('{');
+    const endIndex = text.lastIndexOf('}');
+
+    if (startIndex === -1 || endIndex === -1) {
+      console.warn("Gemini Response contained no JSON block:", text);
+      return null;
+    }
+
+    const cleanedText = text.substring(startIndex, endIndex + 1);
+    const parsed = JSON.parse(cleanedText);
+
+    // Ensure critical arrays and defaults exist
+    return {
+      ...parsed,
+      metrics: Array.isArray(parsed.metrics) ? parsed.metrics : [],
+      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      score: typeof parsed.score === 'number' ? parsed.score : 0,
+      improvedTitle: parsed.improvedTitle || listingData.title
+    };
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
     return null;

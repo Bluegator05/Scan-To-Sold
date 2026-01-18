@@ -1574,6 +1574,9 @@ function App() {
                 const marketData = await fetchMarketData(data.title, data.condition);
 
                 const finalResult = {
+                    score: 0,
+                    metrics: [],
+                    issues: [],
                     ...(aiResponse || {}),
                     title: aiResponse?.title || data.title,
                     improvedTitle: aiResponse?.improvedTitle || data.title,
@@ -1582,12 +1585,12 @@ function App() {
                     image: data.image,
                     isUrlSearch: true,
                     // Market data merge
-                    soldItems: marketData?.soldComps || [],
-                    activeItems: marketData?.activeComps || [],
-                    soldCount: marketData?.soldCount || 0,
-                    sellThroughRate: marketData?.sellThroughRate || 0,
-                    medianSoldPrice: marketData?.medianSoldPrice || 0,
-                    pricingRecommendations: marketData?.pricingRecommendations || null
+                    soldItems: (marketData as any)?.soldComps || [],
+                    activeItems: (marketData as any)?.activeComps || [],
+                    soldCount: (marketData as any)?.soldCount || 0,
+                    sellThroughRate: (marketData as any)?.sellThroughRate || 0,
+                    medianSoldPrice: (marketData as any)?.medianSoldPrice || 0,
+                    pricingRecommendations: (marketData as any)?.pricingRecommendations || null
                 };
 
                 setIntelligenceResult(finalResult);
@@ -1772,7 +1775,7 @@ function App() {
                                                     <div className="relative">
                                                         <img src={intelligenceResult.image?.imageUrl} className="w-24 h-24 rounded-xl object-cover border border-white/10 shadow-xl" alt="" />
                                                         <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-[#141921] border-2 border-[#06b6d4] flex items-center justify-center font-black text-[#06b6d4] text-xs shadow-lg">
-                                                            {String(intelligenceResult.score || 0)}%
+                                                            {Math.round(Number(intelligenceResult.score || 0))}%
                                                         </div>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -1784,7 +1787,7 @@ function App() {
                                                             </div>
                                                             <div>
                                                                 <div className="text-[10px] font-black uppercase text-[#10b981] mb-0.5 tracking-tighter">Market Target</div>
-                                                                <div className="text-lg font-black text-[#10b981]">{typeof intelligenceResult.market?.median === 'object' ? JSON.stringify(intelligenceResult.market.median) : (intelligenceResult.market?.median || '...')}</div>
+                                                                <div className="text-lg font-black text-[#10b981]">{typeof intelligenceResult.market?.median === 'object' ? JSON.stringify(intelligenceResult.market.median) : (intelligenceResult.market?.median || (intelligenceResult.medianSoldPrice ? `$${intelligenceResult.medianSoldPrice}` : '...'))}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1870,7 +1873,7 @@ function App() {
                                         {intelligenceResult.pricingRecommendations && (
                                             <div className="glass-panel p-6">
                                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-6">Pricing Strategy</h4>
-                                                <div className="flex gap-5 overflow-x-auto pb-5 no-scrollbar">
+                                                <div className="flex gap-5 overflow-x-auto overflow-y-visible pb-10 no-scrollbar" style={{ minHeight: '160px' }}>
                                                     {(['quickSale', 'competitive', 'premium'] as const).map((tier) => {
                                                         const rec = (intelligenceResult.pricingRecommendations as any)[tier];
                                                         if (!rec) return null;
@@ -1913,12 +1916,12 @@ function App() {
                                                         {(intelligenceResult?.activeItems || []).map((comp: any, idx: number) => (
                                                             <div key={idx} className="bg-slate-900/50 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors">
                                                                 <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
-                                                                    {comp.image?.imageUrl ? <img src={comp.image.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
+                                                                    {comp.image ? <img src={comp.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                                    <a href={comp.itemWebUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-300 hover:text-white hover:underline line-clamp-2 leading-snug">{comp.title}</a>
+                                                                    <a href={comp.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-300 hover:text-white hover:underline line-clamp-2 leading-snug">{comp.title}</a>
                                                                     <div className="flex items-center justify-between mt-1">
-                                                                        <span className="text-sm font-black text-white">${typeof comp.price?.value === 'object' ? JSON.stringify(comp.price.value) : Number(comp.price?.value || 0).toFixed(2)}</span>
+                                                                        <span className="text-sm font-black text-white">${Number(comp.price || 0).toFixed(2)}</span>
                                                                         <span className="text-[9px] text-slate-500 font-mono uppercase text-right">Active</span>
                                                                     </div>
                                                                 </div>
@@ -1940,13 +1943,13 @@ function App() {
                                                         {(intelligenceResult?.soldItems || []).map((comp: any, idx: number) => (
                                                             <div key={idx} className="bg-slate-900/50 border border-slate-800 hover:border-slate-600 p-3 rounded-xl flex gap-3 group transition-colors">
                                                                 <div className="w-16 h-16 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 shrink-0">
-                                                                    {comp.image?.imageUrl ? <img src={comp.image.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
+                                                                    {comp.image ? <img src={comp.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600"><ImageIcon size={20} /></div>}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                                    <a href={comp.itemWebUrl} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-300 hover:text-white hover:underline line-clamp-2 leading-snug">{comp.title}</a>
+                                                                    <a href={comp.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-slate-300 hover:text-white hover:underline line-clamp-2 leading-snug">{comp.title}</a>
                                                                     <div className="flex items-center justify-between mt-1">
-                                                                        <span className="text-sm font-black text-[#10b981]">${typeof comp.price?.value === 'object' ? JSON.stringify(comp.price.value) : Number(comp.price?.value || 0).toFixed(2)}</span>
-                                                                        <span className="text-[8px] text-slate-500 font-mono uppercase text-right">Sold {comp.endTime ? new Date(comp.endTime).toLocaleDateString() : ''}</span>
+                                                                        <span className="text-sm font-black text-[#10b981]">${Number(comp.price || 0).toFixed(2)}</span>
+                                                                        <span className="text-[8px] text-slate-500 font-mono uppercase text-right">Sold {comp.dateSold ? new Date(comp.dateSold).toLocaleDateString() : ''}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
