@@ -2442,28 +2442,24 @@ function App() {
                 <div className="flex-1 flex items-center justify-center mb-8 relative">
                     <button
                         onClick={() => { setCameraMode('SCOUT'); setStatus(ScoutStatus.SCANNING); }}
-                        className="relative group bg-transparent border-none p-0 outline-none focus:outline-none transition-transform active:scale-95"
+                        className="relative group w-64 h-64 flex items-center justify-center bg-transparent border-none rounded-full outline-none focus:outline-none transition-transform active:scale-95 overflow-visible"
                     >
-                        {/* Multi-layered Deep Glow */}
-                        <div className="absolute inset-0 bg-neon-green/20 rounded-full blur-3xl group-hover:bg-neon-green/40 group-hover:blur-[60px] transition-all duration-700"></div>
-                        <div className="absolute -inset-4 bg-neon-green/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-1000"></div>
+                        {/* Seamless Radial Glow */}
+                        <div className="absolute inset-4 rounded-full bg-neon-green/0 group-hover:bg-neon-green/5 transition-all duration-700 shadow-[0_0_60px_rgba(57,255,20,0)] group-hover:shadow-[0_0_100px_rgba(57,255,20,0.3)]"></div>
 
                         {/* Animated Outer Ring */}
-                        <div className="absolute -inset-3 border-2 border-neon-green/0 rounded-full group-hover:border-neon-green/20 group-hover:scale-110 transition-all duration-700 animate-pulse-slow"></div>
+                        <div className="absolute inset-8 border border-neon-green/0 rounded-full group-hover:border-neon-green/20 group-hover:scale-110 transition-all duration-1000 animate-pulse-slow"></div>
 
                         {/* Main Button Body */}
-                        <div className="relative w-48 h-48 bg-slate-900 rounded-full border-[1px] border-white/5 flex flex-col items-center justify-center transition-all duration-500 overflow-hidden">
-                            {/* Inner Gradient Shade */}
-                            <div className="absolute inset-0 bg-gradient-to-tr from-black/50 via-transparent to-white/5 pointer-events-none"></div>
-
-                            {/* Glow behind icon */}
-                            <div className="absolute w-24 h-24 bg-neon-green/10 rounded-full blur-2xl group-hover:bg-neon-green/20 transition-all duration-500"></div>
+                        <div className="relative w-48 h-48 bg-slate-900 rounded-full border border-white/10 flex flex-col items-center justify-center transition-all duration-500 shadow-2xl z-10">
+                            {/* Inner Glass Highlight */}
+                            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-black/40 via-transparent to-white/10 pointer-events-none"></div>
 
                             <Aperture size={64} className="text-neon-green mb-2 group-hover:rotate-180 transition-transform duration-1000 ease-in-out relative z-10" strokeWidth={1.5} />
-                            <span className="text-neon-green font-black text-xs tracking-[0.3em] uppercase group-hover:tracking-[0.4em] transition-all duration-500 relative z-10">Start Scan</span>
+                            <span className="text-neon-green font-black text-[10px] tracking-[0.4em] uppercase group-hover:tracking-[0.5em] transition-all duration-500 relative z-10">Start Scan</span>
 
-                            {/* Inner Border Highlight */}
-                            <div className="absolute inset-0 rounded-full border border-white/10 group-hover:border-neon-green/50 transition-colors duration-500"></div>
+                            {/* Inner Border Glow */}
+                            <div className="absolute inset-0 rounded-full border border-neon-green/0 group-hover:border-neon-green/30 transition-colors duration-500"></div>
                         </div>
                     </button>
                 </div>
