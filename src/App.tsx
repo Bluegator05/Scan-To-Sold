@@ -1654,68 +1654,71 @@ function App() {
         setIsBulkFetching(false);
     };
 
+    const handleOptimizeSingleBulkItem = async (currentId: string) => {
+        try {
+            const { data: { session } = {} } = await supabase.auth.getSession();
+            const headers: HeadersInit = { 'Content-Type': 'application/json' };
+            if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+            console.log(`[Bulk] Processing item ${currentId}...`);
+            setBulkItems(prev => prev.map(item =>
+                item.itemId === currentId ? { ...item, status: 'processing' } : item
+            ));
+
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(currentId)}`, { headers });
+            if (!response.ok) throw new Error(`eBay Item API returned ${response.status}`);
+
+            const data = await response.json();
+            console.log(`[Bulk] Item details fetched for ${currentId}. Running AI analysis...`);
+            const aiResponse = await analyzeListingWithGemini({
+                title: data.title,
+                price: `${data.price.value} ${data.price.currency}`,
+                category: data.categoryPath,
+                condition: data.condition,
+                url: data.itemWebUrl,
+                specifics: data.localizedAspects || []
+            });
+
+            if (aiResponse) {
+                console.log(`[Bulk] AI Analysis complete for ${currentId}. Score: ${aiResponse.score}`);
+                setBulkProcessResults(prev => ({
+                    ...prev,
+                    [currentId]: {
+                        ...aiResponse,
+                        improvedTitle: typeof aiResponse.improvedTitle === 'object' ? JSON.stringify(aiResponse.improvedTitle) : String(aiResponse.improvedTitle || '')
+                    }
+                }));
+                setBulkItems(prev => prev.map(item =>
+                    item.itemId === currentId ? { ...item, status: 'complete', score: aiResponse.score } : item
+                ));
+            } else {
+                throw new Error("AI analysis failed");
+            }
+        } catch (error: any) {
+            console.error(`[Bulk] Failed to process item ${currentId}:`, error);
+            setBulkItems(prev => prev.map(item =>
+                item.itemId === currentId ? { ...item, status: 'error' } : item
+            ));
+        }
+    };
+
     const processBulkOptimization = async () => {
         if (bulkItems.length === 0 || isBulkOptimizing) return;
+
+        const pendingItems = bulkItems.filter(item => item.status === 'pending' || item.status === 'error');
+        if (pendingItems.length === 0) {
+            alert("No pending items to optimize. Fetch more listings or retry failed ones.");
+            return;
+        }
+
         setIsBulkOptimizing(true);
-
-        console.log(`[Bulk] Starting parallel optimization for ${bulkItems.length} items`);
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-
-        // Process in small batches to avoid hitting rate limits too hard but keep it fast
-        const pendingItems = bulkItems.filter(item => item.status === 'pending');
-
-        // Helper for single item optimization
-        const optimizeSingleItem = async (currentId: string) => {
-            try {
-                console.log(`[Bulk] Processing item ${currentId}...`);
-                setBulkItems(prev => prev.map(item =>
-                    item.itemId === currentId ? { ...item, status: 'processing' } : item
-                ));
-
-                const response = await fetch(`${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(currentId)}`, { headers });
-                if (!response.ok) throw new Error(`eBay Item API returned ${response.status}`);
-
-                const data = await response.json();
-                console.log(`[Bulk] Item details fetched for ${currentId}. Running AI analysis...`);
-                const aiResponse = await analyzeListingWithGemini({
-                    title: data.title,
-                    price: `${data.price.value} ${data.price.currency}`,
-                    category: data.categoryPath,
-                    condition: data.condition,
-                    url: data.itemWebUrl,
-                    specifics: data.localizedAspects || []
-                });
-
-                if (aiResponse) {
-                    console.log(`[Bulk] AI Analysis complete for ${currentId}. Score: ${aiResponse.score}`);
-                    setBulkProcessResults(prev => ({
-                        ...prev,
-                        [currentId]: {
-                            ...aiResponse,
-                            improvedTitle: typeof aiResponse.improvedTitle === 'object' ? JSON.stringify(aiResponse.improvedTitle) : String(aiResponse.improvedTitle || '')
-                        }
-                    }));
-                    setBulkItems(prev => prev.map(item =>
-                        item.itemId === currentId ? { ...item, status: 'complete', score: aiResponse.score } : item
-                    ));
-                } else {
-                    throw new Error("AI analysis failed");
-                }
-            } catch (error: any) {
-                console.error(`[Bulk] Failed to process item ${currentId}:`, error);
-                setBulkItems(prev => prev.map(item =>
-                    item.itemId === currentId ? { ...item, status: 'error' } : item
-                ));
-            }
-        };
+        console.log(`[Bulk] Starting parallel optimization for ${pendingItems.length} items`);
 
         // Execute processing with concurrency of 3
         const concurrency = 3;
         for (let i = 0; i < pendingItems.length; i += concurrency) {
             const batch = pendingItems.slice(i, i + concurrency);
-            await Promise.all(batch.map(item => optimizeSingleItem(item.itemId)));
+            await Promise.all(batch.map(item => handleOptimizeSingleBulkItem(item.itemId)));
         }
 
         console.log("[Bulk] Optimization cycle finished");
@@ -2090,8 +2093,22 @@ function App() {
                                                                     <div className="text-[8px] font-black text-slate-500 uppercase mb-0.5">Review Fixes</div>
                                                                     <ChevronRight size={14} className={`text-slate-600 transition-transform ${expandedBulkItem === item.itemId ? 'rotate-90' : ''}`} />
                                                                 </div>
+                                                            ) : item.status === 'error' ? (
+                                                                <div
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-[#ef4444] cursor-pointer hover:bg-[#ef4444]/20 transition-all"
+                                                                    onClick={(e) => { e.stopPropagation(); handleOptimizeSingleBulkItem(item.itemId); }}
+                                                                >
+                                                                    <AlertCircle size={12} />
+                                                                    <span className="text-[10px] font-black uppercase">Retry</span>
+                                                                </div>
                                                             ) : (
-                                                                <Wand2 size={14} className="text-slate-600 hover:text-[#06b6d4] transition-colors" />
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleOptimizeSingleBulkItem(item.itemId); }}
+                                                                    className="p-2.5 hover:bg-[#06b6d4]/10 rounded-full transition-all group"
+                                                                    title="Optimize this item"
+                                                                >
+                                                                    <Wand2 size={16} className="text-slate-500 group-hover:text-[#06b6d4] transition-colors" />
+                                                                </button>
                                                             )}
                                                         </div>
                                                     </div>
