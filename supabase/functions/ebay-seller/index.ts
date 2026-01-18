@@ -1,5 +1,5 @@
 // Supabase Edge Function: ebay-seller
-// Shopping API Rescue Version (v19): Guaranteed Dates via GetSingleItem
+// Ultimate Diagnostic Version (v20): Raw Pulse Returns for Depth Inspection
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -11,9 +11,9 @@ serve(async (req) => {
     if (corsResponse) return corsResponse;
 
     const stats: any = {
-        meta: { id: 'unknown', v: '19' },
+        meta: { id: 'unknown', v: '20' },
         tier: 'none',
-        shopping: { total: 0, hits: 0, fails: 0, errors: [] }
+        enrichment: { total: 0, hits: 0, fails: 0 }
     };
 
     try {
@@ -28,16 +28,17 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v19:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v20:${rawSellerId}:p:${page}`;
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        console.log(`[ebay-seller] V19 SHOPPING RESCUE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V20 ULTIMATE DIAGNOSTIC: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
-        let rawDebugPulse: any = null;
+        let rawFindingPulse: any = null;
+        let rawShoppingPulse: any = null;
 
         // TIER 1: FINDING API (Oldest First)
         if (EBAY_APP_ID) {
@@ -55,6 +56,7 @@ serve(async (req) => {
                 const data = await res.json();
                 const items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
                 if (items?.length > 0) {
+                    rawFindingPulse = items[0]; // Capture first raw item
                     finalItems = items.map((item: any) => ({
                         itemId: [String(item.itemId[0])], title: [item.title[0]],
                         sellingStatus: [{ currentPrice: [{ '__value__': item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0", '@currencyId': item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD" }] }],
@@ -88,18 +90,17 @@ serve(async (req) => {
             } catch (e) { console.warn('Browse fail:', e); }
         }
 
-        // SHOPPING API ENRICHMENT: The ultimate source for dates
+        // ULTIMATE ENRICHMENT: Shopping API GetSingleItem
         if (finalItems.length > 0 && EBAY_APP_ID) {
-            stats.shopping.total = finalItems.length;
+            stats.enrichment.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
-                // If finding API ALREADY gave us a valid ISO date, we can skip enrichment to save time
+                // If finding API ALREADY gave us a valid ISO date, return as-is
                 const hasDate = item.listedDate && item.listedDate.includes('-') && item.listedDate.includes('T');
                 if (hasDate) {
-                    stats.shopping.hits++;
+                    stats.enrichment.hits++;
                     return item;
                 }
 
-                // Clean the ID (strip v1| prefix if present for Shopping API)
                 let cleanId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
                 if (cleanId.includes('|')) {
                     const parts = cleanId.split('|');
@@ -107,41 +108,34 @@ serve(async (req) => {
                 }
 
                 try {
-                    // Shopping API: GetSingleItem
-                    const sParams = new URLSearchParams({
-                        callname: 'GetSingleItem',
-                        responseencoding: 'JSON',
-                        appid: EBAY_APP_ID,
-                        siteid: '0',
-                        version: '967',
-                        ItemID: cleanId,
-                        IncludeSelector: 'Details'
-                    });
+                    const sParams = new URLSearchParams({ callname: 'GetSingleItem', responseencoding: 'JSON', appid: EBAY_APP_ID, siteid: '0', version: '967', ItemID: cleanId, IncludeSelector: 'Details' });
                     const sRes = await fetch(`https://open.api.ebay.com/shopping?${sParams}`);
-                    if (sRes.ok) {
-                        const sData = await sRes.json();
-                        if (idx === 0) rawDebugPulse = sData; // Debug first item
+                    const sData = await sRes.json();
 
-                        // Shopping API returns 'StartTime' directly
-                        const startTime = sData.Item?.StartTime;
-                        if (startTime) {
-                            stats.shopping.hits++;
-                            return { ...item, listedDate: startTime };
-                        }
+                    if (idx === 0) rawShoppingPulse = sData; // Critical diagnostic pulse
+
+                    const date = sData.Item?.StartTime || sData.Item?.RegistrationDate || sData.Item?.ListingInfo?.StartTime;
+
+                    if (date) {
+                        stats.enrichment.hits++;
+                        return { ...item, listedDate: date };
                     } else {
-                        stats.shopping.fails++;
-                        stats.shopping.errors.push(`${cleanId}: HTTP ${sRes.status}`);
+                        stats.enrichment.fails++;
+                        // SKU Rescue as final fallback
+                        if (sData.Item?.SellerCustomLabel) {
+                            const match = sData.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                            if (match) return { ...item, listedDate: new Date(match[1]).toISOString() };
+                        }
                     }
                 } catch (e) {
-                    stats.shopping.fails++;
-                    stats.shopping.errors.push(`${cleanId}: ${e.message}`);
+                    stats.enrichment.fails++;
                 }
                 return item;
             }));
         }
 
         if (finalItems.length > 0) {
-            const responseData = { items: finalItems, _debug: stats, _debugRaw: rawDebugPulse };
+            const responseData = { items: finalItems, _debug: stats, _debugRawFinding: rawFindingPulse, _debugRawShopping: rawShoppingPulse };
             setCachedData(cacheKey, responseData);
             return new Response(JSON.stringify(responseData), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }

@@ -1646,7 +1646,8 @@ function App() {
             }
 
             if (data._debug) console.log('[Bulk] Debug Stats:', data._debug);
-            if (data._debugRaw) console.log('[Bulk] RAW Item Pulse (v17):', data._debugRaw);
+            if (data._debugRawFinding) console.log('[Bulk] RAW Finding Pulse (v20):', data._debugRawFinding);
+            if (data._debugRawShopping) console.log('[Bulk] RAW Shopping Pulse (v20):', data._debugRawShopping);
 
             const itemsToMap = Array.isArray(data) ? data : (data.items || []);
             console.log(`[Bulk] Found ${itemsToMap.length} listings. sample:`, itemsToMap[0]);
@@ -2119,7 +2120,9 @@ function App() {
                                                                         const d = item.listedDate;
                                                                         if (!d || d === 'Unknown' || d === 'Active') return 'Recently';
                                                                         const dateObj = new Date(d);
-                                                                        return isNaN(dateObj.getTime()) ? d : dateObj.toLocaleDateString();
+                                                                        const formatted = isNaN(dateObj.getTime()) ? d : dateObj.toLocaleDateString();
+                                                                        // If formatted date is still 'Invalid Date' and d has content, show raw d
+                                                                        return formatted;
                                                                     })()}
                                                                 </span>
                                                                 {item.score && (
