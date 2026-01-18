@@ -23,20 +23,23 @@ serve(async (req) => {
             );
         }
 
-        // Extract item ID from URL if needed
+        // Extract item ID from URL or path
         let itemId = idOrUrl;
-        if (idOrUrl.includes('ebay.com')) {
-            const match = idOrUrl.match(/\/itm\/(\d+)/);
+        if (idOrUrl.includes('ebay.com') || idOrUrl.includes('itm/')) {
+            const match = idOrUrl.match(/itm\/(\d+)/);
             itemId = match ? match[1] : idOrUrl;
         }
 
         console.log('Extracted item ID:', itemId);
 
+        // Normalize itemId for Browse API - prevent double-wrapping v1| IDs
+        const browseId = itemId.startsWith('v1|') ? itemId : `v1|${itemId}|0`;
+
         // Check cache
-        const cacheKey = `item:${itemId}`;
+        const cacheKey = `item:${browseId}`;
         const cached = getCachedData(cacheKey);
         if (cached) {
-            console.log('Returning cached data for:', itemId);
+            console.log('Returning cached data for:', browseId);
             return new Response(JSON.stringify(cached), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
@@ -58,9 +61,9 @@ serve(async (req) => {
             );
         }
 
-        console.log('Fetching item from eBay API...');
+        console.log('Fetching item from eBay API using ID:', browseId);
         const response = await fetch(
-            `https://api.ebay.com/buy/browse/v1/item/v1|${itemId}|0`,
+            `https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,

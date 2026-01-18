@@ -1671,11 +1671,11 @@ function App() {
             const data = await response.json();
             console.log(`[Bulk] Item details fetched for ${currentId}. Running AI analysis...`);
             const aiResponse = await analyzeListingWithGemini({
-                title: data.title,
-                price: `${data.price.value} ${data.price.currency}`,
-                category: data.categoryPath,
-                condition: data.condition,
-                url: data.itemWebUrl,
+                title: data.title || "Unknown Title",
+                price: data.price ? `${data.price.value} ${data.price.currency}` : "Price Not Available",
+                category: data.categoryPath || "Other",
+                condition: data.condition || "Used",
+                url: data.itemWebUrl || "",
                 specifics: data.localizedAspects || []
             });
 
