@@ -1645,9 +1645,11 @@ function App() {
                 throw new Error(data.error || `API returned ${response.status}`);
             }
 
-            if (data._debug) console.log('[Bulk] Debug Info:', data._debug);
+            if (data._debug) console.log('[Bulk] Debug Stats:', data._debug);
+            if (data._debugRaw) console.log('[Bulk] RAW Item Pulse (v17):', data._debugRaw);
+
             const itemsToMap = Array.isArray(data) ? data : (data.items || []);
-            console.log(`[Bulk] Found ${itemsToMap.length} listings. Sample:`, itemsToMap[0]);
+            console.log(`[Bulk] Found ${itemsToMap.length} listings. sample:`, itemsToMap[0]);
 
             // Map items for the queue
             const mappedItems = itemsToMap.map((item: any) => {
