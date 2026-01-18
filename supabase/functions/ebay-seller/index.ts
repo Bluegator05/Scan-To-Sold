@@ -12,28 +12,29 @@ serve(async (req) => {
 
     try {
         const url = new URL(req.url);
-        const sellerId = url.pathname.split('/').pop();
-        const page = parseInt(url.searchParams.get('page') || '1');
+        const pathParts = url.pathname.split('/');
+        const sellerId = pathParts[pathParts.length - 1];
+        const pageCount = parseInt(url.searchParams.get('page') || '1');
 
-        if (!sellerId) {
-            return new Response(JSON.stringify({ error: 'Seller ID required' }), { status: 400, headers: corsHeaders });
+        if (!sellerId || sellerId === 'ebay-seller') {
+            return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v3:${sellerId}:p:${page}`;
+        const cacheKey = `seller:v4:${sellerId}:p:${pageCount}`;
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        console.log(`[ebay-seller] Fetching and Enriching for ${sellerId}, Page ${page}`);
+        console.log(`[ebay-seller] V4 - Fetching/Enriching for ${sellerId}, Page ${pageCount}`);
 
         const token = await getEbayToken();
 
-        // 1. Get List via Browse API (Reliable for sellers)
+        // 1. Get List via Browse API
         const browseParams = new URLSearchParams({
-            category_ids: '0', // Global search
+            category_ids: '0',
             filter: `sellers:{${sellerId}}`,
             limit: '10',
-            offset: ((page - 1) * 10).toString(),
-            sort: 'newlyListed' // Focus on sequence
+            offset: ((pageCount - 1) * 10).toString(),
+            sort: 'newlyListed'
         });
 
         const browseResponse = await fetch(
@@ -48,6 +49,7 @@ serve(async (req) => {
 
         if (!browseResponse.ok) {
             const err = await browseResponse.text();
+            console.error('[ebay-seller] Browse Search Failed:', err);
             throw new Error(`Browse API failed: ${err}`);
         }
 
@@ -59,8 +61,7 @@ serve(async (req) => {
         }
 
         // 2. ENRICH: Parallel Fetch Item Details to get listingStartTime
-        // This is necessary because search summaries often omit the original start time
-        console.log(`[ebay-seller] Enriching ${browseItems.length} items with dates...`);
+        console.log(`[ebay-seller] Deep Scanning ${browseItems.length} items for dates...`);
         const enrichedItems = await Promise.all(browseItems.map(async (item: any) => {
             try {
                 const detailResponse = await fetch(
@@ -72,21 +73,28 @@ serve(async (req) => {
                         }
                     }
                 );
+
                 if (detailResponse.ok) {
                     const fullItem = await detailResponse.json();
-                    // listingStartTime is the official field for the Browse API browse/v1/item/{itemId}
-                    return {
-                        ...item,
-                        listedDate: fullItem.listingStartTime || 'Unknown'
-                    };
+
+                    // Check multiple possible fields for the listing date
+                    const startTime = fullItem.listingStartTime || fullItem.startTime || fullItem.startTimeUtc || fullItem.listingInfo?.startTime;
+
+                    if (startTime) {
+                        return { ...item, listedDate: startTime };
+                    } else {
+                        console.warn(`[ebay-seller] No start time found in profile for ${item.itemId}. Available keys:`, Object.keys(fullItem));
+                    }
+                } else {
+                    console.error(`[ebay-seller] Failed to fetch details for ${item.itemId}: ${detailResponse.status}`);
                 }
             } catch (e) {
-                console.error(`Failed to enrich item ${item.itemId}:`, e);
+                console.error(`[ebay-seller] Critical error enriching item ${item.itemId}:`, e);
             }
             return { ...item, listedDate: 'Unknown' };
         }));
 
-        // 3. Format for Frontend
+        // 3. Format result
         const items = enrichedItems.map((item: any) => ({
             itemId: [item.itemId],
             title: [item.title],
@@ -107,7 +115,7 @@ serve(async (req) => {
         });
 
     } catch (error) {
-        console.error('Bulk Fetch Error:', error);
+        console.error('[ebay-seller] Final Handler Catch:', error);
         return new Response(
             JSON.stringify({ error: 'Internal server error', details: error.message }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
