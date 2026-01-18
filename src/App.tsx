@@ -71,6 +71,7 @@ function App() {
     const [bulkSellerId, setBulkSellerId] = useState('');
     const [bulkItems, setBulkItems] = useState<any[]>([]);
     const [isBulkFetching, setIsBulkFetching] = useState(false);
+    const [isBulkOptimizing, setIsBulkOptimizing] = useState(false);
     const [bulkProcessResults, setBulkProcessResults] = useState<any>({});
     const [expandedBulkItem, setExpandedBulkItem] = useState<string | null>(null);
 
@@ -1621,9 +1622,19 @@ function App() {
         if (!bulkSellerId) return;
         setIsBulkFetching(true);
         try {
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}`);
+            console.log(`[Bulk] Fetching listings for seller: ${bulkSellerId}`);
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: HeadersInit = { 'Content-Type': 'application/json' };
+            if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}`, { headers });
             const data = await response.json();
-            if (data.error) throw new Error(data.error);
+
+            if (!response.ok || data.error) {
+                throw new Error(data.error || `API returned ${response.status}`);
+            }
+
+            console.log(`[Bulk] Found ${data.length} listings`);
 
             // Map items for the queue
             const mappedItems = data.map((item: any) => ({
@@ -1644,20 +1655,30 @@ function App() {
     };
 
     const processBulkOptimization = async () => {
-        if (bulkItems.length === 0) return;
+        if (bulkItems.length === 0 || isBulkOptimizing) return;
+        setIsBulkOptimizing(true);
 
-        for (let i = 0; i < bulkItems.length; i++) {
-            if (bulkItems[i].status !== 'pending') continue;
+        console.log(`[Bulk] Starting parallel optimization for ${bulkItems.length} items`);
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            const currentId = bulkItems[i].itemId;
-            setBulkItems(prev => prev.map(item =>
-                item.itemId === currentId ? { ...item, status: 'processing' } : item
-            ));
+        // Process in small batches to avoid hitting rate limits too hard but keep it fast
+        const pendingItems = bulkItems.filter(item => item.status === 'pending');
 
+        // Helper for single item optimization
+        const optimizeSingleItem = async (currentId: string) => {
             try {
-                const response = await fetch(`${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(currentId)}`);
-                const data = await response.json();
+                console.log(`[Bulk] Processing item ${currentId}...`);
+                setBulkItems(prev => prev.map(item =>
+                    item.itemId === currentId ? { ...item, status: 'processing' } : item
+                ));
 
+                const response = await fetch(`${FUNCTIONS_URL}/ebay-item/${encodeURIComponent(currentId)}`, { headers });
+                if (!response.ok) throw new Error(`eBay Item API returned ${response.status}`);
+
+                const data = await response.json();
+                console.log(`[Bulk] Item details fetched for ${currentId}. Running AI analysis...`);
                 const aiResponse = await analyzeListingWithGemini({
                     title: data.title,
                     price: `${data.price.value} ${data.price.currency}`,
@@ -1668,6 +1689,7 @@ function App() {
                 });
 
                 if (aiResponse) {
+                    console.log(`[Bulk] AI Analysis complete for ${currentId}. Score: ${aiResponse.score}`);
                     setBulkProcessResults(prev => ({
                         ...prev,
                         [currentId]: {
@@ -1681,13 +1703,23 @@ function App() {
                 } else {
                     throw new Error("AI analysis failed");
                 }
-            } catch (error) {
-                console.error(`Failed to process item ${currentId}:`, error);
+            } catch (error: any) {
+                console.error(`[Bulk] Failed to process item ${currentId}:`, error);
                 setBulkItems(prev => prev.map(item =>
                     item.itemId === currentId ? { ...item, status: 'error' } : item
                 ));
             }
+        };
+
+        // Execute processing with concurrency of 3
+        const concurrency = 3;
+        for (let i = 0; i < pendingItems.length; i += concurrency) {
+            const batch = pendingItems.slice(i, i + concurrency);
+            await Promise.all(batch.map(item => optimizeSingleItem(item.itemId)));
         }
+
+        console.log("[Bulk] Optimization cycle finished");
+        setIsBulkOptimizing(false);
     };
 
 
@@ -2016,10 +2048,11 @@ function App() {
                                         <div className="flex justify-between items-center px-1">
                                             <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Listing Queue</h4>
                                             <AnimatedButton
+                                                disabled={isBulkOptimizing}
                                                 onClick={processBulkOptimization}
-                                                text="Optimize All"
-                                                icon={Zap}
-                                                className="px-6 py-2 text-[10px] font-black"
+                                                text={isBulkOptimizing ? "Optimizing..." : "Optimize All"}
+                                                icon={isBulkOptimizing ? Loader2 : Zap}
+                                                className={`px-6 py-2 text-[10px] font-black ${isBulkOptimizing ? 'opacity-50' : ''}`}
                                             />
                                         </div>
 
