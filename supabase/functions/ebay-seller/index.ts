@@ -24,14 +24,17 @@ serve(async (req) => {
             );
         }
 
-        // Check cache
-        const cacheKey = `seller:${sellerId}:p${page}`;
+        // Bypassing cache for debugging dates
+        const cacheKey = `seller:${sellerId}:page:${page}:v2`;
         const cached = getCachedData(cacheKey);
         if (cached) {
+            console.log('Returning cached data for:', sellerId);
             return new Response(JSON.stringify(cached), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
+
+        console.log(`[ebay-seller] Fetching for ${sellerId}, Page ${page}`);
 
         // TIER 1: eBay Finding API (Best for Oldest + StartTime)
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
@@ -48,9 +51,11 @@ serve(async (req) => {
                     'paginationInput.entriesPerPage': '10',
                     'paginationInput.pageNumber': page.toString(),
                     'sortOrder': 'StartTimeAscending',
-                    'outputSelector': 'SellerInfo'
+                    'outputSelector': 'SellerInfo',
+                    'keywords': '*' // Often required for valid search response
                 });
 
+                console.log('[ebay-seller] Calling Finding API...');
                 const findingResponse = await fetch(
                     `https://svcs.ebay.com/services/search/FindingService/v1?${findingParams}`,
                     {
@@ -67,9 +72,13 @@ serve(async (req) => {
                 if (findingResponse.ok) {
                     const findingData = await findingResponse.json();
                     const rootResponse = findingData.findItemsAdvancedResponse?.[0];
+                    console.log('[ebay-seller] Finding API Ack:', rootResponse?.ack?.[0]);
 
                     if (rootResponse?.ack?.[0] === 'Success') {
                         const searchResult = rootResponse.searchResult?.[0];
+                        const count = parseInt(searchResult?.['@count'] || '0');
+                        console.log('[ebay-seller] Finding API Results Count:', count);
+
                         const items = (searchResult?.item || []).map((item: any) => ({
                             itemId: item.itemId,
                             title: item.title,
@@ -85,17 +94,26 @@ serve(async (req) => {
                         }));
 
                         if (items.length > 0) {
+                            console.log('[ebay-seller] Found items with dates!');
                             setCachedData(cacheKey, items);
                             return new Response(JSON.stringify(items), {
                                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                             });
                         }
+                    } else {
+                        console.warn('[ebay-seller] Finding API not successful:', JSON.stringify(rootResponse?.errorMessage));
                     }
+                } else {
+                    console.error('[ebay-seller] Finding API HTTP Fail:', findingResponse.status);
                 }
             } catch (err) {
                 console.error('Finding API Tier failed:', err);
             }
+        } else {
+            console.error('[ebay-seller] EBAY_APP_ID is missing in environment!');
         }
+
+        console.log('[ebay-seller] Falling back to Tier 2 (Browse API)');
 
         // TIER 2: eBay Browse API (Fallback)
         try {
@@ -134,7 +152,7 @@ serve(async (req) => {
                         }],
                         viewItemURL: [item.itemWebUrl],
                         galleryURL: [item.image?.imageUrl || ''],
-                        listedDate: 'Active'
+                        listedDate: 'Active' // Browse API summary doesn't give StartTime clearly
                     }));
 
                     setCachedData(cacheKey, items);

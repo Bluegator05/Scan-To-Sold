@@ -1642,21 +1642,26 @@ function App() {
                 throw new Error(data.error || `API returned ${response.status}`);
             }
 
-            console.log(`[Bulk] Found ${data.length} listings`);
+            console.log(`[Bulk] Found ${data.length} listings. Sample:`, data[0]);
 
             // Map items for the queue
-            const mappedItems = data.map((item: any) => ({
-                itemId: item.itemId[0],
-                title: item.title[0],
-                price: {
-                    value: item.sellingStatus[0].currentPrice[0].__value__,
-                    currency: item.sellingStatus[0].currentPrice[0]['@currencyId']
-                },
-                itemWebUrl: item.viewItemURL[0],
-                image: { imageUrl: item.galleryURL?.[0] || '' },
-                listedDate: item.listedDate || 'Active',
-                status: 'pending'
-            }));
+            const mappedItems = data.map((item: any) => {
+                const rawDate = item.listedDate;
+                console.log(`[Bulk] Item ID: ${item.itemId?.[0]} | Raw Date: ${rawDate}`);
+
+                return {
+                    itemId: Array.isArray(item.itemId) ? item.itemId[0] : item.itemId,
+                    title: Array.isArray(item.title) ? item.title[0] : item.title,
+                    price: {
+                        value: item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0",
+                        currency: item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD"
+                    },
+                    itemWebUrl: Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : item.viewItemURL,
+                    image: { imageUrl: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : item.galleryURL) || '' },
+                    listedDate: rawDate || 'Active',
+                    status: 'pending'
+                };
+            });
 
             if (targetPage === 1) {
                 setBulkItems(mappedItems);
