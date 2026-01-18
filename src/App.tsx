@@ -2574,6 +2574,14 @@ function App() {
                                     </div>
                                 </div>
                                 <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
+
+                                {/* Research Buttons Row */}
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">eBay Sold</button>
+                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">eBay Active</button>
+                                    <button onClick={() => handleOpenResearch('GOOGLE', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">Google</button>
+                                    <button onClick={() => handleOpenResearch('FB', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">Facebook</button>
+                                </div>
                             </div>
 
                             {/* Description */}
@@ -2706,11 +2714,7 @@ function App() {
                                         </div>
                                     )}
 
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Sold</button>
-                                        <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Active</button>
-                                    </div>
-                                    <button onClick={() => setIsCompsOpen(true)} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-500 shadow-lg active:scale-95 transition-all">Deep Market Analysis</button>
+
                                 </div>
                             </div>
 
@@ -3087,6 +3091,14 @@ function App() {
                                         </div>
                                     </div>
                                     <textarea value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 text-sm text-slate-900 dark:text-white h-20 resize-none focus:border-emerald-500 outline-none transition-all" />
+
+                                    {/* Research Buttons Row */}
+                                    <div className="flex gap-2 overflow-x-auto no-scrollbar pt-2">
+                                        <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">eBay Sold</button>
+                                        <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">eBay Active</button>
+                                        <button onClick={() => handleOpenResearch('GOOGLE', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">Google</button>
+                                        <button onClick={() => handleOpenResearch('FB', editedTitle || editingItem.title)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">Facebook</button>
+                                    </div>
                                 </div>
 
                                 {/* DESCRIPTION */}
@@ -3232,11 +3244,7 @@ function App() {
                                                     </div>
                                                 )}
 
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || editingItem.title)} className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Sold</button>
-                                                    <button onClick={() => handleOpenResearch('EBAY_ACTIVE', editedTitle || editingItem.title)} className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors">eBay Active</button>
-                                                </div>
-                                                <button onClick={() => setIsCompsOpen(true)} className="w-full py-4 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-500 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">Deep Market Analysis</button>
+
                                             </div>
                                         )}
 
