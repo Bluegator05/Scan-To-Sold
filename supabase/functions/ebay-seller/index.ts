@@ -1,5 +1,5 @@
 // Supabase Edge Function: ebay-seller
-// Hyper-Enrichment Version (v21): Multi-API Sniffing + UI Debug Summary
+// ID Inspector Version (v22): Finding API Resilience + Raw Search Item Pulse
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -11,9 +11,10 @@ serve(async (req) => {
     if (corsResponse) return corsResponse;
 
     const stats: any = {
-        meta: { id: 'unknown', v: '21' },
+        meta: { id: 'unknown', v: '22' },
         tier: 'none',
-        enrich: { total: 0, shoppingHits: 0, browseHits: 0, skuHits: 0, fails: 0 }
+        enrich: { total: 0, shoppingHits: 0, browseHits: 0, skuHits: 0, fails: 0 },
+        rawSearchItem: null
     };
 
     try {
@@ -29,33 +30,49 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v21:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v22:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V21 HYPER: ${rawSellerId} P${page} (Force: ${force})`);
+        console.log(`[ebay-seller] V22 INSPECT: ${rawSellerId} P${page} (Force: ${force})`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
+        let firstRawItem: any = null;
 
-        // TIER 1: FINDING API
+        // TIER 1: FINDING API (Resilient Try)
         if (EBAY_APP_ID) {
-            try {
-                const fParams = new URLSearchParams({
+            const tryFinding = async (keywords: string | null) => {
+                const params: any = {
                     'OPERATION-NAME': 'findItemsAdvanced', 'SERVICE-VERSION': '1.13.0', 'SECURITY-APPNAME': EBAY_APP_ID,
                     'RESPONSE-DATA-FORMAT': 'JSON', 'itemFilter(0).name': 'Seller', 'itemFilter(0).value(0)': rawSellerId,
-                    'keywords': '*', 'paginationInput.entriesPerPage': '10', 'paginationInput.pageNumber': page.toString(),
+                    'paginationInput.entriesPerPage': '10', 'paginationInput.pageNumber': page.toString(),
                     'sortOrder': 'StartTimeAscending'
+                };
+                if (keywords) params['keywords'] = keywords;
+                const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?${new URLSearchParams(params)}`;
+                const res = await fetch(fUrl, {
+                    headers: { 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', 'X-EBAY-SOA-OPERATION-NAME': 'findItemsAdvanced', 'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID }
                 });
-                const res = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${fParams}`, {
-                    headers: { 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', 'X-EBAY-SOA-OPERATION-NAME': 'findItemsAdvanced' }
-                });
-                const data = await res.json();
-                const items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
+                return await res.json();
+            };
+
+            try {
+                // Try 1: No Keywords (Cleanest)
+                let data = await tryFinding(null);
+                let items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
+
+                // Try 2: Wildcard (If Try 1 failed due to keyword requirement)
+                if (!items) {
+                    data = await tryFinding('*');
+                    items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
+                }
+
                 if (items?.length > 0) {
+                    firstRawItem = items[0];
                     finalItems = items.map((item: any) => ({
                         itemId: [String(item.itemId[0])], title: [item.title[0]],
                         sellingStatus: [{ currentPrice: [{ '__value__': item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0", '@currencyId': item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD" }] }],
@@ -77,6 +94,7 @@ serve(async (req) => {
                 });
                 const data = await res.json();
                 if (data.itemSummaries?.length > 0) {
+                    firstRawItem = data.itemSummaries[0];
                     finalItems = data.itemSummaries.map((item: any) => ({
                         itemId: [item.itemId], title: [item.title],
                         sellingStatus: [{ currentPrice: [{ '__value__': item.price.value, '@currencyId': item.price.currency }] }],
@@ -89,7 +107,9 @@ serve(async (req) => {
             } catch (e) { console.warn('Browse fail:', e); }
         }
 
-        // HYPER ENRICHMENT: Multiple Sniffs
+        stats.rawSearchItem = firstRawItem;
+
+        // HYPER ENRICHMENT
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item) => {
@@ -101,30 +121,25 @@ serve(async (req) => {
                 const browseId = cleanId.includes('|') ? cleanId : `v1|${cleanId}|0`;
 
                 try {
-                    // Sniff 1: Shopping API (Legacy Gold Standard)
+                    // Shopping
                     if (EBAY_APP_ID) {
                         const sRes = await fetch(`https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`);
-                        if (sRes.ok) {
-                            const data = await sRes.json();
-                            const date = data.Item?.StartTime || data.Item?.ListingInfo?.StartTime;
-                            if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
-                            // SKU Rescue
-                            if (data.Item?.SellerCustomLabel) {
-                                const match = data.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-                                if (match) { stats.enrich.skuHits++; return { ...item, listedDate: new Date(match[1]).toISOString() }; }
-                            }
+                        const data = await sRes.json();
+                        const date = data.Item?.StartTime || data.Item?.ListingInfo?.StartTime;
+                        if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
+                        if (data.Item?.SellerCustomLabel) {
+                            const match = data.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                            if (match) { stats.enrich.skuHits++; return { ...item, listedDate: new Date(match[1]).toISOString() }; }
                         }
                     }
 
-                    // Sniff 2: Browse API Item Detail (Modern Backup)
+                    // Browse
                     const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
                         headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
                     });
-                    if (bRes.ok) {
-                        const data = await bRes.json();
-                        const date = data.listingStartTime || data.startTimeUtc || data.creationDate;
-                        if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
-                    }
+                    const bData = await bRes.json();
+                    const bDate = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
+                    if (bDate) { stats.enrich.browseHits++; return { ...item, listedDate: bDate }; }
 
                     stats.enrich.fails++;
                 } catch (e) { }
