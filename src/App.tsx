@@ -969,7 +969,7 @@ function App() {
 
 
             // --- STEP 2: IDENTIFICATION (Phase 1) ---
-            setLoadingMessage("Identifying...");
+            setLoadingMessage("Identifying item...");
 
             // Force UI Repaint so "STOP" button is visible and clickable
             await new Promise(r => setTimeout(r, 100));
@@ -1039,6 +1039,7 @@ function App() {
 
                 try {
                     console.log("[SCAN] Starting Phase 2: Deep Analysis");
+                    setLoadingMessage("Extracting item details...");
                     // 1. Deep Analysis (Specs, Price, and Better Title)
                     const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
                     const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 25000));
@@ -1053,6 +1054,7 @@ function App() {
 
                     // 2. Start Comp Search & Market Stats with refined title
                     console.log("[SCAN] Starting Phase 3: Comps & Market Data");
+                    setLoadingMessage("Checking market data...");
                     const [compsResults, marketStats, bestDescription] = await Promise.all([
                         searchEbayComps(refinedSearch, 'SOLD', 'USED'),
                         getSellThroughData(refinedSearch).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 })),
@@ -1363,6 +1365,16 @@ function App() {
 
             alert("Draft Saved to Inventory!");
             setEditingItem(null);
+
+            // If we came from a scan flow (internal editor or modal), transition to inventory
+            if (status === ScoutStatus.COMPLETE || status === ScoutStatus.RESEARCH_REVIEW) {
+                setStatus(ScoutStatus.IDLE);
+                setScoutResult(null);
+                setScannedBarcode(null);
+                setScoutAdditionalImages([]);
+                setView('inventory');
+                setInventoryTab('DRAFT');
+            }
         } catch (e: any) {
             console.error("Save failed", e);
             alert("Failed to save: " + e.message);
@@ -2510,13 +2522,34 @@ function App() {
         return (
             <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
                 <div className="relative w-full h-72 bg-black shrink-0">
-                    {currentImage ? <img src={currentImage} alt="Captured" className="w-full h-full object-contain" /> : <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900"><SearchIcon size={48} className="text-slate-700 mb-2" /><span className="text-slate-500 font-mono text-xs uppercase">Manual Lookup: {manualQuery}</span></div>}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                    {currentImage ? (
+                        <div className="relative w-full h-full overflow-hidden">
+                            <img src={currentImage} alt="Captured" className="w-full h-full object-contain" />
+                            {status === ScoutStatus.ANALYZING && (
+                                <>
+                                    <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-[2px] animate-pulse-slow"></div>
+                                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-scan z-10"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent animate-scan z-10 h-24 opacity-60"></div>
+                                </>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900">
+                            <SearchIcon size={48} className="text-slate-700 mb-2" />
+                            <span className="text-slate-500 font-mono text-xs uppercase">Manual Lookup: {manualQuery}</span>
+                        </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-20">
                         {status === ScoutStatus.ANALYZING ? (
                             <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-2 text-neon-green animate-pulse">
-                                    <Loader2 className="animate-spin" size={16} />
-                                    <span className="font-mono text-sm font-bold">{isBulkMode ? 'ANALYZING BULK LOT...' : loadingMessage || 'AI MARKET RESEARCH...'}</span>
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-neon-green">
+                                        <Loader2 className="animate-spin" size={16} />
+                                        <span className="font-mono text-sm font-bold uppercase tracking-widest">{isBulkMode ? 'ANALYZING BULK LOT' : 'AI MARKET RESEARCH'}</span>
+                                    </div>
+                                    <div className="text-[10px] font-mono text-emerald-400 opacity-80 pl-6 animate-pulse">
+                                        {loadingMessage || "Processing Image..."}
+                                    </div>
                                 </div>
                                 <button
                                     onClick={(e) => {
@@ -2528,7 +2561,7 @@ function App() {
                                 >
                                     STOP
                                 </button>
-                            </div >
+                            </div>
                         ) : (<div className="flex justify-between items-end">{scannedBarcode && (<div className="flex items-center gap-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-xs font-mono text-white border border-white/20"><ScanLine size={12} /> {scannedBarcode}</div>)}
                             <div className="flex items-center gap-2">
                                 {isBackgroundAnalyzing && (
