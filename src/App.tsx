@@ -143,7 +143,7 @@ function App() {
     const [initialCompsTab, setInitialCompsTab] = useState<'ACTIVE' | 'SOLD'>('ACTIVE');
 
     useEffect(() => {
-        console.log("🚀 VERSION: V5_ZINDEX_REFINED");
+        console.log("🚀 VERSION: V6_PREMIUM_LOADER");
     }, []);
 
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
