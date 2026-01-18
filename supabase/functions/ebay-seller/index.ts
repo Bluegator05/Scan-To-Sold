@@ -1,5 +1,5 @@
 // Supabase Edge Function: ebay-seller
-// The Truth Pulse Version (v23): Enrichment Transparency + Tri-Tier Finding
+// The Identity Trace Version (v24): Finding Restoration + Trace Diagnostic
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -11,9 +11,11 @@ serve(async (req) => {
     if (corsResponse) return corsResponse;
 
     const stats: any = {
-        meta: { id: 'unknown', v: '23' },
+        meta: { id: 'unknown', v: '24' },
         tier: 'none',
         enrich: { total: 0, shoppingHits: 0, browseHits: 0, skuHits: 0, fails: 0 },
+        firstEnrichID: null,
+        firstEnrichRaw: null,
         firstEnrichError: null
     };
 
@@ -29,19 +31,19 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v23:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v24:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V23 TRUTH: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V24 TRACE: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
 
-        // TIER 1: FINDING API (Tri-Tier Try)
+        // TIER 1: FINDING API (Restored Headers)
         if (EBAY_APP_ID) {
             const tryFinding = async (op: string, keywords: string | null) => {
                 const params: any = {
@@ -57,16 +59,17 @@ serve(async (req) => {
                     params['storeName'] = rawSellerId;
                 }
                 const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=${op}&${new URLSearchParams(params)}`;
-                const res = await fetch(fUrl);
+                // RESTORE MANDATORY HEADERS
+                const res = await fetch(fUrl, {
+                    headers: { 'X-EBAY-SOA-OPERATION-NAME': op, 'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID, 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US' }
+                });
                 return await res.json();
             };
 
             try {
-                // Try Advanced (No Keywords)
                 let data = await tryFinding('findItemsAdvanced', null);
                 let items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
 
-                // Try Store Lookup
                 if (!items) {
                     data = await tryFinding('findItemsIneBayStores', null);
                     items = data.findItemsIneBayStoresResponse?.[0]?.searchResult?.[0]?.item;
@@ -85,7 +88,7 @@ serve(async (req) => {
             } catch (e) { console.warn('Finding tier failure'); }
         }
 
-        // TIER 2: BROWSE API (Last Resort Search)
+        // TIER 2: BROWSE API Fallback
         if (finalItems.length === 0) {
             try {
                 const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?category_ids=0&filter=sellers:{${rawSellerId}}&limit=10&offset=${((page - 1) * 10)}&sort=newlyListed`, {
@@ -104,7 +107,7 @@ serve(async (req) => {
             } catch (e) { }
         }
 
-        // HYPER ENRICHMENT: The Truth Pulse
+        // HYPER ENRICHMENT: The Identity Trace
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
@@ -115,20 +118,26 @@ serve(async (req) => {
                 const legacyId = cleanId.includes('|') ? cleanId.split('|')[1] : cleanId;
                 const browseId = cleanId.includes('|') ? cleanId : `v1|${cleanId}|0`;
 
+                if (idx === 0) stats.firstEnrichID = legacyId;
+
                 try {
                     // Try Shopping API
                     if (EBAY_APP_ID) {
-                        const sRes = await fetch(`https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`);
+                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`;
+                        const sRes = await fetch(sUrl);
+                        const sData = await sRes.json();
+
+                        if (idx === 0) stats.firstEnrichRaw = sData; // CAPTURE THE RAW PULSE
+
                         if (sRes.ok) {
-                            const data = await sRes.json();
-                            const date = data.Item?.StartTime || data.Item?.ListingInfo?.StartTime;
+                            const date = sData.Item?.StartTime || sData.Item?.ListingInfo?.StartTime;
                             if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
-                            if (data.Item?.SellerCustomLabel) {
-                                const match = data.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                            if (sData.Item?.SellerCustomLabel) {
+                                const match = sData.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
                                 if (match) { stats.enrich.skuHits++; return { ...item, listedDate: new Date(match[1]).toISOString() }; }
                             }
                         } else if (idx === 0) {
-                            stats.firstEnrichError = `Shopping ${sRes.status}: ${await sRes.text()}`.slice(0, 100);
+                            stats.firstEnrichError = `Shopping ${sRes.status}: ${JSON.stringify(sData)}`;
                         }
                     }
 
@@ -136,12 +145,12 @@ serve(async (req) => {
                     const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
                         headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
                     });
+                    const bData = await bRes.json();
                     if (bRes.ok) {
-                        const data = await bRes.json();
-                        const date = data.listingStartTime || data.startTimeUtc || data.creationDate;
+                        const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
                     } else if (idx === 0 && !stats.firstEnrichError) {
-                        stats.firstEnrichError = `Browse ${bRes.status}: ${await bRes.text()}`.slice(0, 100);
+                        stats.firstEnrichError = `Browse ${bRes.status}: ${JSON.stringify(bData)}`;
                     }
                 } catch (e) { if (idx === 0) stats.firstEnrichError = e.message; }
 

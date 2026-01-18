@@ -1636,7 +1636,7 @@ function App() {
             const headers: HeadersInit = { 'Content-Type': 'application/json' };
             if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=23`, { headers });
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=24`, { headers });
             const data = await response.json();
 
             if (!response.ok || data.error) {
@@ -1647,6 +1647,8 @@ function App() {
             if (data._debug) {
                 console.log('[Bulk] Debug Stats:', data._debug);
                 if (data._debug.rawSearchItem) console.log('[Bulk] RAW Search Item (v22+ Inspector):', data._debug.rawSearchItem);
+                if (data._debug.firstEnrichID) console.log('[Bulk] ENRICH ID (v24 Trace):', data._debug.firstEnrichID);
+                if (data._debug.firstEnrichRaw) console.log('[Bulk] ENRICH RAW PULSE (v24 Trace):', data._debug.firstEnrichRaw);
                 if (data._debug.firstEnrichError) console.warn('[Bulk] ENRICHMENT ERROR (The Truth Pulse):', data._debug.firstEnrichError);
                 setBulkFetchDebug(data._debug.summary || "");
             }
