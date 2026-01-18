@@ -179,72 +179,19 @@ export interface AnalysisResult {
 }
 
 export const analyzeListingWithGemini = async (listingData: ListingData): Promise<AnalysisResult | null> => {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
-  const prompt = `
-    Analyze this eBay listing and return a structured JSON object for optimization.
-    Use the provided listing data, including "Item Specifics", and market context to give high-quality, actionable advice.
-    CRITICAL: Acknowledge the "Condition" of the item (New vs Used). Pricing recommendations and market comparisons MUST be based on the same condition.
-    Pay close attention to whether critical item specifics (like Brand, MPN, UPC, Material, etc.) are present and accurate, as these heavily influence eBay search ranking.
-
-    Listing Data:
-    - Title: ${listingData.title}
-    - Current Price: ${listingData.price}
-    - Category: ${listingData.category}
-    - Condition: ${listingData.condition}
-    - Item Specifics: ${JSON.stringify(listingData.specifics)}
-    - URL: ${listingData.url}
-
-    The response MUST be a JSON object with these EXACT keys:
-    1. "title": The original product title.
-    2. "price": The current price.
-    3. "score": A numeric health score (0-100) based on title quality, pricing competitiveness, and metadata.
-    4. "metrics": Array of 4 objects { "label": string, "value": number (0-100), "color": string }
-       - Labels: "Title Quality", "Price Value", "Search Rank", "Market Demand"
-       - Colors: Use "var(--success)" for >70, "var(--warning)" for 40-70, "var(--error)" for <40.
-    5. "market": Object { "median": string, "range": string, "sellThrough": string, "velocity": "High" | "Medium" | "Low" }.
-    6. "issues": Array of objects { "type": "warning" | "info" | "success" | "error", "text": string } explaining specific improvements.
-    7. "improvedTitle": A high-converting, SEO-optimized title. 
-       CRITICAL RULES:
-       - MUST be EXACTLY 80 characters or less (including spaces)
-       - MUST be a COMPLETE title with NO cut-off words (e.g., "Boo" instead of "Book" is WRONG)
-       - ALWAYS aim for 75-80 characters to maximize SEO impact
-       - Include: Brand, Model, Key Features, Condition, Size/Color if applicable
-       - Pack in high-value keywords but ONLY complete words
-       - If a word won't fit completely, use a shorter synonym or omit it
-       - Count characters carefully - getting close to 80 is better than being short
-       Example (77 chars): "Warhammer 40k Codex Adeptus Astartes Blood Angels 7th Edition Hardcover"
-
-    Return ONLY the raw JSON object.
-    `;
-
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    // Improved JSON Extraction: Find first '{' and last '}'
-    const startIndex = text.indexOf('{');
-    const endIndex = text.lastIndexOf('}');
-
-    if (startIndex === -1 || endIndex === -1) {
-      console.warn("Gemini Response contained no JSON block:", text);
-      return null;
-    }
-
-    const cleanedText = text.substring(startIndex, endIndex + 1);
-    const parsed = JSON.parse(cleanedText);
+    const data = await callEdgeFunction('analyze-listing', listingData);
 
     // Ensure critical arrays and defaults exist
     return {
-      ...parsed,
-      metrics: Array.isArray(parsed.metrics) ? parsed.metrics : [],
-      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
-      score: typeof parsed.score === 'number' ? parsed.score : 0,
-      improvedTitle: parsed.improvedTitle || listingData.title
+      ...data,
+      metrics: Array.isArray(data.metrics) ? data.metrics : [],
+      issues: Array.isArray(data.issues) ? data.issues : [],
+      score: typeof data.score === 'number' ? data.score : 0,
+      improvedTitle: data.improvedTitle || listingData.title
     };
   } catch (error) {
-    console.error("Gemini Analysis Error:", error);
+    console.error("Listing Analysis Edge Error:", error);
     return null;
   }
 };

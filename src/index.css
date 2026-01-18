@@ -147,7 +147,7 @@ body {
     pointer-events: none;
 }
 
-.price-card:hover+.price-card-expansion {
+.pricing-card-container:hover .price-card-expansion {
     height: 310px;
     opacity: 1;
     transform: translateY(10px);
@@ -159,7 +159,7 @@ body {
     transition: opacity 0.3s ease;
 }
 
-.price-card:hover+.price-card-expansion .price-card-details {
+.pricing-card-container:hover .price-card-expansion .price-card-details {
     opacity: 1;
 }
 
@@ -182,7 +182,7 @@ body {
     opacity: 0;
 }
 
-.price-card:hover+.price-card-expansion .price-card-footer {
+.pricing-card-container:hover .price-card-expansion .price-card-footer {
     opacity: 1;
     bottom: 0;
 }
@@ -389,10 +389,10 @@ h3 {
     transition: .4s ease-in-out;
     padding: 16px;
     opacity: 0;
-    pointer-events: none;
+    pointer-events: auto;
 }
 
-.price-card:hover+.price-card-expansion {
+.pricing-card-container:hover .price-card-expansion {
     height: 310px;
     opacity: 1;
     transform: translateY(10px);
@@ -441,7 +441,7 @@ h3 {
     opacity: 0;
 }
 
-.price-card:hover+.price-card-expansion .price-card-footer {
+.pricing-card-container:hover .price-card-expansion .price-card-footer {
     opacity: 1;
     bottom: 0;
 }
@@ -455,7 +455,7 @@ h3 {
     transition: opacity 0.3s ease;
 }
 
-.price-card:hover+.price-card-expansion .price-card-details {
+.pricing-card-container:hover .price-card-expansion .price-card-details {
     opacity: 1;
 }
 
