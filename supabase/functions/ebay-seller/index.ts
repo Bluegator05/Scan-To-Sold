@@ -1,5 +1,5 @@
 // Supabase Edge Function: ebay-seller
-// Date Rescue Version (v17): Aggressive extraction + SKU Fallback + Raw Pulse
+// Bulletproof ID Resolution Version (v18): Resolving dates with verified IDs
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -11,9 +11,9 @@ serve(async (req) => {
     if (corsResponse) return corsResponse;
 
     const stats: any = {
-        meta: { id: 'unknown', v: '17' },
-        detection: { finding: false, browse: false, enrichment: 0 },
-        rescue: { skuDateFound: 0 }
+        meta: { id: 'unknown', v: '18' },
+        tier: 'none',
+        enrichment: { attempts: 0, successes: 0, errors: [] }
     };
 
     try {
@@ -28,18 +28,18 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v17:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v18:${rawSellerId}:p:${page}`;
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        console.log(`[ebay-seller] V17 DATE RESCUE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V18 BULLETPROOF: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
         let rawDebugPulse: any = null;
 
-        // TIER 1: FINDING API (Native Date Support)
+        // TIER 1: FINDING API (Legacy) - Returns numeric IDs + startTime
         if (EBAY_APP_ID) {
             try {
                 const fParams = new URLSearchParams({
@@ -56,18 +56,18 @@ serve(async (req) => {
                 const items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
                 if (items?.length > 0) {
                     finalItems = items.map((item: any) => ({
-                        itemId: [item.itemId[0]], title: [item.title[0]],
+                        itemId: [String(item.itemId[0])], title: [item.title[0]],
                         sellingStatus: [{ currentPrice: [{ '__value__': item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0", '@currencyId': item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD" }] }],
                         galleryURL: item.galleryURL || [''], viewItemURL: item.viewItemURL || [''],
                         listedDate: item.listingInfo?.[0]?.startTime?.[0] || 'Active',
                         _source: 'finding'
                     }));
-                    stats.detection.finding = true;
+                    stats.tier = 'finding';
                 }
             } catch (e) { console.warn('Finding fail:', e); }
         }
 
-        // TIER 2: BROWSE API (Fallback)
+        // TIER 2: BROWSE API (RESTful) - Returns v1|... IDs, NO startTime
         if (finalItems.length === 0) {
             try {
                 const bParams = new URLSearchParams({ category_ids: '0', filter: `sellers:{${rawSellerId}}`, limit: '10', offset: ((page - 1) * 10).toString(), sort: 'newlyListed' });
@@ -83,46 +83,53 @@ serve(async (req) => {
                         listedDate: 'Active',
                         _source: 'browse'
                     }));
-                    stats.detection.browse = true;
+                    stats.tier = 'browse';
                 }
             } catch (e) { console.warn('Browse fail:', e); }
         }
 
-        // ENRICHMENT: Aggressive scanning for missing dates
+        // ENRICHMENT: Deep pulsate for dates
         if (finalItems.length > 0) {
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
-                const needsDate = item.listedDate === 'Active' || item.listedDate === 'Unknown' || !item.listedDate.includes('-');
-                if (!needsDate) return item;
+                // Only enrich if date is generic or missing ISO pattern
+                const isGeneric = item.listedDate === 'Active' || item.listedDate === 'Unknown';
+                const isIso = item.listedDate.includes('-') && item.listedDate.includes(':');
+                if (!isGeneric && isIso) return item;
+
+                stats.enrichment.attempts++;
+                const rawId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
+                // For Finding IDs (purely numeric), Browse API needs v1| prefix
+                const browseId = (!rawId.includes('|')) ? `v1|${rawId}|0` : rawId;
 
                 try {
-                    const dRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(item.itemId[0])}`, {
+                    const dRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
                         headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
                     });
 
                     if (dRes.ok) {
                         const f = await dRes.json();
-                        if (idx === 0) rawDebugPulse = f; // Capture raw pulse for first item
+                        if (idx === 0) rawDebugPulse = f;
 
-                        // 1. Extreme Field Pulse (Check ALL fields seen in eBay API versions)
-                        const d = f.listingStartTime || f.startTimeUtc || f.startTime || f.creationDate ||
-                            f.listingInfo?.startTime || f.listingInfo?.startTimeUtc ||
-                            f.metadata?.listingStartTime || null;
+                        const date = f.listingStartTime || f.startTimeUtc || f.startTime || f.creationDate || null;
 
-                        // 2. Rescue: SKU Pattern Match (Many sellers put date in SKU/Custom Label)
+                        // SKU Backup
                         let skuDate = null;
-                        if (!d && f.sellerCustomLabel) {
-                            const datePattern = /(\d{1,2}\/\d{1,2}\/\d{2,4})/; // MM/DD/YY or MM/DD/YYYY
-                            const match = f.sellerCustomLabel.match(datePattern);
-                            if (match) {
-                                skuDate = new Date(match[1]).toISOString();
-                                stats.rescue.skuDateFound++;
-                            }
+                        if (!date && f.sellerCustomLabel) {
+                            const match = f.sellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                            if (match) skuDate = new Date(match[1]).toISOString();
                         }
 
-                        stats.detection.enrichment++;
-                        return { ...item, listedDate: d || skuDate || item.listedDate };
+                        if (date || skuDate) {
+                            stats.enrichment.successes++;
+                            return { ...item, listedDate: date || skuDate };
+                        }
+                    } else {
+                        const err = await dRes.text();
+                        stats.enrichment.errors.push(`ID ${browseId}: HTTP ${dRes.status} - ${err.slice(0, 50)}`);
                     }
-                } catch (e) { console.error('Enrichment error:', e); }
+                } catch (e) {
+                    stats.enrichment.errors.push(`ID ${browseId}: ${e.message}`);
+                }
                 return item;
             }));
         }
@@ -133,7 +140,7 @@ serve(async (req) => {
             return new Response(JSON.stringify(responseData), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        return new Response(JSON.stringify({ error: `Seller ${rawSellerId} not found.`, stats }), { status: 404, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: `Not found: ${rawSellerId}`, stats }), { status: 404, headers: corsHeaders });
 
     } catch (e) {
         return new Response(JSON.stringify({ error: e.message, stats }), { status: 500, headers: corsHeaders });
