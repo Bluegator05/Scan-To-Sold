@@ -70,6 +70,7 @@ function App() {
     const [intelligenceResult, setIntelligenceResult] = useState<any>(null);
     const [bulkSellerId, setBulkSellerId] = useState('');
     const [bulkItems, setBulkItems] = useState<any[]>([]);
+    const [bulkFetchDebug, setBulkFetchDebug] = useState<string>("");
     const [isBulkFetching, setIsBulkFetching] = useState(false);
     const [isBulkOptimizing, setIsBulkOptimizing] = useState(false);
     const [bulkProcessResults, setBulkProcessResults] = useState<any>({});
@@ -1635,19 +1636,20 @@ function App() {
             const headers: HeadersInit = { 'Content-Type': 'application/json' };
             if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}`, { headers });
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=21`, { headers });
             const data = await response.json();
 
             if (!response.ok || data.error) {
-                if (data.diagnostics || data.stats) {
-                    console.error('[Bulk] Fetch Diagnostics:', data.diagnostics || data.stats);
-                }
+                if (data.stats) console.error('[Bulk] Fetch Diagnostics:', data.stats);
                 throw new Error(data.error || `API returned ${response.status}`);
             }
 
-            if (data._debug) console.log('[Bulk] Debug Stats:', data._debug);
-            if (data._debugRawFinding) console.log('[Bulk] RAW Finding Pulse (v20):', data._debugRawFinding);
-            if (data._debugRawShopping) console.log('[Bulk] RAW Shopping Pulse (v20):', data._debugRawShopping);
+            if (data._debug) {
+                console.log('[Bulk] Debug Stats:', data._debug);
+                setBulkFetchDebug(data._debug.summary || "");
+            }
+            if (data._debugRawFinding) console.log('[Bulk] RAW Finding Pulse (v20+):', data._debugRawFinding);
+            if (data._debugRawShopping) console.log('[Bulk] RAW Shopping Pulse (v20+):', data._debugRawShopping);
 
             const itemsToMap = Array.isArray(data) ? data : (data.items || []);
             console.log(`[Bulk] Found ${itemsToMap.length} listings. sample:`, itemsToMap[0]);
@@ -2085,6 +2087,11 @@ function App() {
                                                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Listing Queue</h4>
                                                 <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">
                                                     Showing {bulkItems.length} items • Page {bulkFetchPage}
+                                                    {bulkFetchDebug && (
+                                                        <span className="ml-2 text-[10px] text-slate-500 font-mono opacity-60">
+                                                            [{bulkFetchDebug}]
+                                                        </span>
+                                                    )}
                                                 </p>
                                             </div>
                                             <AnimatedButton
