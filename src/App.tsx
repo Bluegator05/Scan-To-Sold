@@ -1639,6 +1639,9 @@ function App() {
             const data = await response.json();
 
             if (!response.ok || data.error) {
+                if (data.diagnostics) {
+                    console.error('[Bulk] Fetch Diagnostics:', data.diagnostics);
+                }
                 throw new Error(data.error || `API returned ${response.status}`);
             }
 
