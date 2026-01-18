@@ -74,6 +74,8 @@ function App() {
     const [isBulkOptimizing, setIsBulkOptimizing] = useState(false);
     const [bulkProcessResults, setBulkProcessResults] = useState<any>({});
     const [expandedBulkItem, setExpandedBulkItem] = useState<string | null>(null);
+    const [bulkFetchPage, setBulkFetchPage] = useState(1);
+    const [lastBulkSellerId, setLastBulkSellerId] = useState('');
 
     const [inventoryTab, setInventoryTab] = useState<'DRAFT' | 'LISTED' | 'SOLD'>('DRAFT');
     const [inventoryViewMode, setInventoryViewMode] = useState<'FOLDERS' | 'FLAT'>('FOLDERS');
@@ -1621,13 +1623,19 @@ function App() {
     const handleBulkFetch = async () => {
         if (!bulkSellerId) return;
         setIsBulkFetching(true);
+
+        let targetPage = 1;
+        if (bulkSellerId === lastBulkSellerId) {
+            targetPage = bulkFetchPage + 1;
+        }
+
         try {
-            console.log(`[Bulk] Fetching listings for seller: ${bulkSellerId}`);
-            const { data: { session } } = await supabase.auth.getSession();
+            console.log(`[Bulk] Fetching listings for seller: ${bulkSellerId} (Page ${targetPage})`);
+            const { data: { session } = {} } = await supabase.auth.getSession();
             const headers: HeadersInit = { 'Content-Type': 'application/json' };
             if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}`, { headers });
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}`, { headers });
             const data = await response.json();
 
             if (!response.ok || data.error) {
@@ -1640,13 +1648,24 @@ function App() {
             const mappedItems = data.map((item: any) => ({
                 itemId: item.itemId[0],
                 title: item.title[0],
-                price: { value: item.sellingStatus[0].currentPrice[0].__value__, currency: item.sellingStatus[0].currentPrice[0]['@currencyId'] },
+                price: {
+                    value: item.sellingStatus[0].currentPrice[0].__value__,
+                    currency: item.sellingStatus[0].currentPrice[0]['@currencyId']
+                },
                 itemWebUrl: item.viewItemURL[0],
                 image: { imageUrl: item.galleryURL?.[0] || '' },
+                listedDate: item.listedDate || 'Active',
                 status: 'pending'
             }));
 
-            setBulkItems(mappedItems);
+            if (targetPage === 1) {
+                setBulkItems(mappedItems);
+            } else {
+                setBulkItems(prev => [...prev, ...mappedItems]);
+            }
+
+            setLastBulkSellerId(bulkSellerId);
+            setBulkFetchPage(targetPage);
         } catch (e: any) {
             console.error("Bulk Fetch Error:", e);
             alert(`Failed to fetch seller listings: ${e.message}`);
@@ -2078,6 +2097,9 @@ function App() {
                                                             <h4 className="text-[11px] font-bold text-white line-clamp-1">{typeof item.title === 'object' ? JSON.stringify(item.title) : String(item.title || '')}</h4>
                                                             <div className="flex items-center gap-3 mt-1">
                                                                 <span className="text-[11px] font-black text-[#06b6d4]">${typeof item.price?.value === 'object' ? JSON.stringify(item.price.value) : String(item.price?.value || 0)}</span>
+                                                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
+                                                                    Listed: {item.listedDate ? (item.listedDate.includes('T') ? new Date(item.listedDate).toLocaleDateString() : item.listedDate) : 'Active'}
+                                                                </span>
                                                                 {item.score && (
                                                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.score > 80 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'}`}>
                                                                         {String(item.score || 0)}% Score

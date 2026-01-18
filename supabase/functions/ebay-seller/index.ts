@@ -14,6 +14,7 @@ serve(async (req) => {
     try {
         const url = new URL(req.url);
         const sellerId = url.pathname.split('/').pop();
+        const page = parseInt(url.searchParams.get('page') || '1');
 
         if (!sellerId) {
             return new Response(
@@ -23,7 +24,7 @@ serve(async (req) => {
         }
 
         // Check cache
-        const cacheKey = `seller:${sellerId}`;
+        const cacheKey = `seller:${sellerId}:p${page}`;
         const cached = getCachedData(cacheKey);
         if (cached) {
             return new Response(JSON.stringify(cached), {
@@ -41,23 +42,17 @@ serve(async (req) => {
                     _nkw: '*',
                     _ssn: sellerId,
                     api_key: SERPAPI_KEY,
-                    _ipg: '25',
-                    _sop: '10' // Oldest first
+                    _ipg: '10',
+                    _sop: '10', // Oldest first
+                    _pgn: page.toString()
                 });
 
                 const serpResponse = await fetch(`https://serpapi.com/search?${serpParams}`);
                 const serpData = await serpResponse.json();
                 const organicResults = serpData.organic_results || [];
 
-                // Filter to only this seller
-                const filteredResults = organicResults.filter((item: any) =>
-                    item.seller?.username?.toLowerCase() === sellerId.toLowerCase()
-                );
-
-                const limitedResults = filteredResults.slice(0, 10);
-
-                if (limitedResults.length > 0) {
-                    const items = limitedResults.map((item: any) => ({
+                if (organicResults.length > 0) {
+                    const items = organicResults.map((item: any) => ({
                         itemId: [item.listing_id || 'UNKNOWN'],
                         title: [item.title],
                         sellingStatus: [{
@@ -67,7 +62,8 @@ serve(async (req) => {
                             }]
                         }],
                         galleryURL: [item.thumbnail || ''],
-                        viewItemURL: [item.link]
+                        viewItemURL: [item.link],
+                        listedDate: item.extensions?.find((ex: string) => ex.toLowerCase().includes('listed')) || 'Recent'
                     }));
 
                     setCachedData(cacheKey, items);
@@ -88,6 +84,7 @@ serve(async (req) => {
                 category_ids: '0',
                 filter: `sellers:{${sellerId}}`,
                 limit: '10',
+                offset: ((page - 1) * 10).toString(),
                 sort: 'endingSoonest' // Oldest listings
             });
 
@@ -105,15 +102,8 @@ serve(async (req) => {
                 const browseData = await browseResponse.json();
                 const browseItems = browseData.itemSummaries || [];
 
-                // Filter to ensure only this seller
-                const filteredBrowse = browseItems.filter((item: any) =>
-                    item.seller?.username?.toLowerCase() === sellerId.toLowerCase()
-                );
-
-                const limitedBrowse = filteredBrowse.slice(0, 10);
-
-                if (limitedBrowse.length > 0) {
-                    const items = limitedBrowse.map((item: any) => ({
+                if (browseItems.length > 0) {
+                    const items = browseItems.map((item: any) => ({
                         itemId: [item.itemId],
                         title: [item.title],
                         sellingStatus: [{
@@ -123,7 +113,8 @@ serve(async (req) => {
                             }]
                         }],
                         viewItemURL: [item.itemWebUrl],
-                        galleryURL: [item.image?.imageUrl || '']
+                        galleryURL: [item.image?.imageUrl || ''],
+                        listedDate: 'Active' // Browse API summary doesn't give StartTime clearly
                     }));
 
                     setCachedData(cacheKey, items);
@@ -136,7 +127,7 @@ serve(async (req) => {
             console.error('Browse API failed:', browseErr);
         }
 
-        // TIER 3: Finding API fallback
+        // TIER 3: Finding API fallback (Primary source for StartTime)
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const findingParams = new URLSearchParams({
             'OPERATION-NAME': 'findItemsAdvanced',
@@ -147,7 +138,9 @@ serve(async (req) => {
             'itemFilter(0).name': 'Seller',
             'itemFilter(0).value(0)': sellerId,
             'paginationInput.entriesPerPage': '10',
-            'sortOrder': 'StartTimeAscending'
+            'paginationInput.pageNumber': page.toString(),
+            'sortOrder': 'StartTimeAscending',
+            'outputSelector': 'SellerInfo'
         });
 
         const findingResponse = await fetch(
@@ -167,7 +160,10 @@ serve(async (req) => {
         const rootResponse = findingData.findItemsAdvancedResponse?.[0];
 
         if (rootResponse?.ack?.[0] === 'Success') {
-            const items = rootResponse.searchResult?.[0]?.item || [];
+            const items = (rootResponse.searchResult?.[0]?.item || []).map((item: any) => ({
+                ...item,
+                listedDate: item.listingInfo?.[0]?.startTime?.[0] || 'Unknown'
+            }));
             setCachedData(cacheKey, items);
             return new Response(JSON.stringify(items), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
