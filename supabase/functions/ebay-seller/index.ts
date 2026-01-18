@@ -1,5 +1,5 @@
 // Supabase Edge Function: ebay-seller
-// Bulletproof ID Resolution Version (v18): Resolving dates with verified IDs
+// Shopping API Rescue Version (v19): Guaranteed Dates via GetSingleItem
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -11,9 +11,9 @@ serve(async (req) => {
     if (corsResponse) return corsResponse;
 
     const stats: any = {
-        meta: { id: 'unknown', v: '18' },
+        meta: { id: 'unknown', v: '19' },
         tier: 'none',
-        enrichment: { attempts: 0, successes: 0, errors: [] }
+        shopping: { total: 0, hits: 0, fails: 0, errors: [] }
     };
 
     try {
@@ -28,18 +28,18 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v18:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v19:${rawSellerId}:p:${page}`;
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        console.log(`[ebay-seller] V18 BULLETPROOF: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V19 SHOPPING RESCUE: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
         let rawDebugPulse: any = null;
 
-        // TIER 1: FINDING API (Legacy) - Returns numeric IDs + startTime
+        // TIER 1: FINDING API (Oldest First)
         if (EBAY_APP_ID) {
             try {
                 const fParams = new URLSearchParams({
@@ -50,7 +50,7 @@ serve(async (req) => {
                     'sortOrder': 'StartTimeAscending'
                 });
                 const res = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${fParams}`, {
-                    headers: { 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', 'X-EBAY-SOA-OPERATION-NAME': 'findItemsAdvanced' }
+                    headers: { 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', 'X-EBAY-SOA-OPERATION-NAME': 'findItemsAdvanced', 'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID }
                 });
                 const data = await res.json();
                 const items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
@@ -59,7 +59,7 @@ serve(async (req) => {
                         itemId: [String(item.itemId[0])], title: [item.title[0]],
                         sellingStatus: [{ currentPrice: [{ '__value__': item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0", '@currencyId': item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD" }] }],
                         galleryURL: item.galleryURL || [''], viewItemURL: item.viewItemURL || [''],
-                        listedDate: item.listingInfo?.[0]?.startTime?.[0] || 'Active',
+                        listedDate: item.listingInfo?.[0]?.startTime?.[0] || 'Unknown',
                         _source: 'finding'
                     }));
                     stats.tier = 'finding';
@@ -67,7 +67,7 @@ serve(async (req) => {
             } catch (e) { console.warn('Finding fail:', e); }
         }
 
-        // TIER 2: BROWSE API (RESTful) - Returns v1|... IDs, NO startTime
+        // TIER 2: BROWSE API (Fallback)
         if (finalItems.length === 0) {
             try {
                 const bParams = new URLSearchParams({ category_ids: '0', filter: `sellers:{${rawSellerId}}`, limit: '10', offset: ((page - 1) * 10).toString(), sort: 'newlyListed' });
@@ -88,47 +88,53 @@ serve(async (req) => {
             } catch (e) { console.warn('Browse fail:', e); }
         }
 
-        // ENRICHMENT: Deep pulsate for dates
-        if (finalItems.length > 0) {
+        // SHOPPING API ENRICHMENT: The ultimate source for dates
+        if (finalItems.length > 0 && EBAY_APP_ID) {
+            stats.shopping.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
-                // Only enrich if date is generic or missing ISO pattern
-                const isGeneric = item.listedDate === 'Active' || item.listedDate === 'Unknown';
-                const isIso = item.listedDate.includes('-') && item.listedDate.includes(':');
-                if (!isGeneric && isIso) return item;
+                // If finding API ALREADY gave us a valid ISO date, we can skip enrichment to save time
+                const hasDate = item.listedDate && item.listedDate.includes('-') && item.listedDate.includes('T');
+                if (hasDate) {
+                    stats.shopping.hits++;
+                    return item;
+                }
 
-                stats.enrichment.attempts++;
-                const rawId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
-                // For Finding IDs (purely numeric), Browse API needs v1| prefix
-                const browseId = (!rawId.includes('|')) ? `v1|${rawId}|0` : rawId;
+                // Clean the ID (strip v1| prefix if present for Shopping API)
+                let cleanId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
+                if (cleanId.includes('|')) {
+                    const parts = cleanId.split('|');
+                    cleanId = parts[1] || parts[0];
+                }
 
                 try {
-                    const dRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
-                        headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
+                    // Shopping API: GetSingleItem
+                    const sParams = new URLSearchParams({
+                        callname: 'GetSingleItem',
+                        responseencoding: 'JSON',
+                        appid: EBAY_APP_ID,
+                        siteid: '0',
+                        version: '967',
+                        ItemID: cleanId,
+                        IncludeSelector: 'Details'
                     });
+                    const sRes = await fetch(`https://open.api.ebay.com/shopping?${sParams}`);
+                    if (sRes.ok) {
+                        const sData = await sRes.json();
+                        if (idx === 0) rawDebugPulse = sData; // Debug first item
 
-                    if (dRes.ok) {
-                        const f = await dRes.json();
-                        if (idx === 0) rawDebugPulse = f;
-
-                        const date = f.listingStartTime || f.startTimeUtc || f.startTime || f.creationDate || null;
-
-                        // SKU Backup
-                        let skuDate = null;
-                        if (!date && f.sellerCustomLabel) {
-                            const match = f.sellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-                            if (match) skuDate = new Date(match[1]).toISOString();
-                        }
-
-                        if (date || skuDate) {
-                            stats.enrichment.successes++;
-                            return { ...item, listedDate: date || skuDate };
+                        // Shopping API returns 'StartTime' directly
+                        const startTime = sData.Item?.StartTime;
+                        if (startTime) {
+                            stats.shopping.hits++;
+                            return { ...item, listedDate: startTime };
                         }
                     } else {
-                        const err = await dRes.text();
-                        stats.enrichment.errors.push(`ID ${browseId}: HTTP ${dRes.status} - ${err.slice(0, 50)}`);
+                        stats.shopping.fails++;
+                        stats.shopping.errors.push(`${cleanId}: HTTP ${sRes.status}`);
                     }
                 } catch (e) {
-                    stats.enrichment.errors.push(`ID ${browseId}: ${e.message}`);
+                    stats.shopping.fails++;
+                    stats.shopping.errors.push(`${cleanId}: ${e.message}`);
                 }
                 return item;
             }));
