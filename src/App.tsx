@@ -2086,7 +2086,10 @@ function App() {
                                                             {item.status === 'processing' ? (
                                                                 <RotateCcw size={14} className="animate-spin text-[#06b6d4]" />
                                                             ) : item.status === 'complete' ? (
-                                                                <ChevronRight size={14} className={`text-slate-600 transition-transform ${expandedBulkItem === item.itemId ? 'rotate-90' : ''}`} />
+                                                                <div className="flex flex-col items-end">
+                                                                    <div className="text-[8px] font-black text-slate-500 uppercase mb-0.5">Review Fixes</div>
+                                                                    <ChevronRight size={14} className={`text-slate-600 transition-transform ${expandedBulkItem === item.itemId ? 'rotate-90' : ''}`} />
+                                                                </div>
                                                             ) : (
                                                                 <Wand2 size={14} className="text-slate-600 hover:text-[#06b6d4] transition-colors" />
                                                             )}
@@ -2109,14 +2112,43 @@ function App() {
                                                                 </div>
 
                                                                 <div className="grid grid-cols-2 gap-3">
-                                                                    <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
+                                                                    <div className="bg-[#141921] p-3 rounded-lg border border-white/5 h-full">
                                                                         <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Target Price</div>
                                                                         <div className="text-sm font-black text-white">{typeof bulkProcessResults[item.itemId].market?.median === 'object' ? JSON.stringify(bulkProcessResults[item.itemId].market.median) : String(bulkProcessResults[item.itemId].market?.median || '...')}</div>
                                                                     </div>
-                                                                    <div className="bg-[#141921] p-3 rounded-lg border border-white/5">
-                                                                        <div className="text-[9px] font-black uppercase text-slate-500 mb-1">Action</div>
-                                                                        <div className="flex gap-2">
-                                                                            <a href={item.itemWebUrl} target="_blank" rel="noreferrer" className="text-[10px] text-[#06b6d4] font-bold">Edit Listing</a>
+                                                                    <div className="bg-[#141921] p-3 rounded-lg border border-white/5 h-full flex flex-col justify-center">
+                                                                        <a href={item.itemWebUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full py-2 bg-[#06b6d4]/10 border border-[#06b6d4]/20 rounded-lg text-[10px] text-[#06b6d4] font-black uppercase tracking-widest hover:bg-[#06b6d4]/20 transition-all">
+                                                                            <ExternalLink size={12} /> Live Link
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="space-y-3">
+                                                                        <div className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Health Metrics</div>
+                                                                        <div className="space-y-2">
+                                                                            {(bulkProcessResults[item.itemId].metrics || []).map((m: any, i: number) => (
+                                                                                <div key={i}>
+                                                                                    <div className="flex justify-between text-[8px] font-bold uppercase mb-1">
+                                                                                        <span className="text-slate-500">{m.label}</span>
+                                                                                        <span style={{ color: m.color }}>{m.value}%</span>
+                                                                                    </div>
+                                                                                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                                                                        <div className="h-full" style={{ width: `${m.value}%`, background: m.color }} />
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-3">
+                                                                        <div className="text-[9px] font-black uppercase text-[#ef4444] tracking-widest">Actionable Fixes</div>
+                                                                        <div className="space-y-2">
+                                                                            {(bulkProcessResults[item.itemId].issues || []).map((issue: any, i: number) => (
+                                                                                <div key={i} className="flex gap-1.5 items-start">
+                                                                                    <div className={`w-1 h-1 rounded-full mt-1 shrink-0 ${issue.type === 'error' ? 'bg-[#ef4444]' : issue.type === 'warning' ? 'bg-[#f59e0b]' : 'bg-[#10b981]'}`} />
+                                                                                    <p className="text-[9px] text-slate-400 leading-tight">{typeof issue.text === 'object' ? JSON.stringify(issue.text) : issue.text}</p>
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -2132,7 +2164,7 @@ function App() {
                         )}
                     </AnimatePresence>
                 </div>
-            </div>
+            </div >
         );
     };
 
