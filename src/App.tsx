@@ -2145,7 +2145,7 @@ function App() {
                     <LayoutDashboard size={20} className={view === 'command' ? 'scale-110' : ''} />
                     <span className="text-[10px] font-bold">STORE OPTIMIZER</span>
                 </button>
-                <button onClick={() => { setView('scout'); handleStartScan(); }} className={`flex flex-col items-center gap-1 transition-all ${view === 'scout' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                <button onClick={() => setView('scout')} className={`flex flex-col items-center gap-1 transition-all ${view === 'scout' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                     <ScanLine size={20} className={view === 'scout' ? 'scale-110' : ''} />
                     <span className="text-[10px] font-bold">SCOUT</span>
                 </button>
