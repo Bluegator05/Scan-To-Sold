@@ -1,4 +1,4 @@
-// The Identity Pulse (v28): Contextual Location Fix + Finding API Trace
+// The Identity Pulse (v29): Forensic Structural Logging + Shopping Version Fallback
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -20,49 +20,47 @@ serve(async (req) => {
         }
 
         const rawSellerId = decodeURIComponent(sellerId).trim();
-        const cacheKey = `seller:v28:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v29:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V28 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V29 TRACE: ${rawSellerId} P${page}`);
 
         const stats = {
             tier: 'none', tierErr: '',
-            enrich: { total: 0, shoppingHits: 0, browseHits: 0, skuHits: 0, fails: 0 },
-            summary: '', firstEnrichID: '', firstEnrichError: '', firstEnrichRaw: null, secondEnrichRaw: null
+            enrich: { total: 0, shoppingHits: 0, browseHits: 0, fails: 0 },
+            summary: '', firstEnrichID: '', firstEnrichError: '', forensic: {} as any
         };
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
 
-        // Contextual Header to prevent "Problem calculating shipping cost" errors
         const browseHeaders = {
             'Authorization': `Bearer ${token}`,
             'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
             'X-EBAY-C-ENDUSERCTX': 'affiliateCampaignId=5338268676,affiliateReferenceId=sts,contextualLocation=country%3DUS%2Czip%3D90210'
         };
 
-        // TIER 1: FINDING API (Full Trace)
+        // TIER 1: FINDING API (Forensic Trace)
         if (EBAY_APP_ID) {
             const tryFinding = async (op: string) => {
-                const params: any = {
-                    'SERVICE-VERSION': '1.13.0', 'SECURITY-APPNAME': EBAY_APP_ID, 'RESPONSE-DATA-FORMAT': 'JSON',
+                const params = new URLSearchParams({
+                    'OPERATION-NAME': op, 'SERVICE-VERSION': '1.13.0', 'SECURITY-APPNAME': EBAY_APP_ID,
+                    'RESPONSE-DATA-FORMAT': 'JSON', 'REST-PAYLOAD': 'true',
                     'paginationInput.entriesPerPage': '10', 'paginationInput.pageNumber': page.toString(),
                     'GLOBAL-ID': 'EBAY-US'
-                };
-                if (op === 'findItemsAdvanced') {
-                    params['itemFilter(0).name'] = 'Seller';
-                    params['itemFilter(0).value(0)'] = rawSellerId;
-                } else if (op === 'findItemsIneBayStores') {
-                    params['storeName'] = rawSellerId;
-                }
-                const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=${op}&${new URLSearchParams(params)}`;
-                const res = await fetch(fUrl, {
-                    headers: { 'X-EBAY-SOA-SERVICE-NAME': 'FindingService', 'X-EBAY-SOA-OPERATION-NAME': op, 'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID, 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', 'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON' }
                 });
+                if (op === 'findItemsAdvanced') {
+                    params.append('itemFilter(0).name', 'Seller');
+                    params.append('itemFilter(0).value(0)', rawSellerId);
+                } else {
+                    params.append('storeName', rawSellerId);
+                }
+                const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?${params.toString()}`;
+                const res = await fetch(fUrl);
                 const text = await res.text();
                 try { return JSON.parse(text); } catch (e) { return { _raw: text.slice(0, 50) }; }
             };
@@ -72,17 +70,15 @@ serve(async (req) => {
                 let resp = data.findItemsAdvancedResponse?.[0];
                 let items = resp?.searchResult?.[0]?.item;
 
-                if (!items) {
-                    const err = resp?.errorMessage?.[0]?.error?.[0]?.message?.[0] || data._raw || resp?.ack?.[0];
-                    stats.tierErr = `Adv:${err}`;
+                stats.forensic.tier1 = Object.keys(data).join(',');
 
+                if (!items) {
+                    const ack = resp?.ack?.[0] || 'NoAck';
+                    stats.tierErr = `Adv:${ack}`;
                     data = await tryFinding('findItemsIneBayStores');
                     resp = data.findItemsIneBayStoresResponse?.[0];
                     items = resp?.searchResult?.[0]?.item;
-                    if (!items && !stats.tierErr.includes('Success')) {
-                        const err2 = resp?.errorMessage?.[0]?.error?.[0]?.message?.[0] || resp?.ack?.[0];
-                        stats.tierErr += `|St:${err2}`;
-                    }
+                    if (!items) stats.tierErr += `|St:${resp?.ack?.[0] || 'NoAck'}`;
                 }
 
                 if (items?.length > 0) {
@@ -105,6 +101,8 @@ serve(async (req) => {
                     headers: browseHeaders
                 });
                 const bData = await bRes.json();
+                stats.forensic.tier2 = Object.keys(bData).join(',');
+
                 if (bData.itemSummaries?.length > 0) {
                     finalItems = bData.itemSummaries.map((item: any) => ({
                         itemId: [item.itemId], title: [item.title],
@@ -119,7 +117,7 @@ serve(async (req) => {
             } catch (e) { stats.tierErr = `${stats.tierErr}|BE:${e.message}`; }
         }
 
-        // HYPER ENRICHMENT: The Geolocated Pulse (v28)
+        // ENRICHMENT
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
@@ -131,32 +129,34 @@ serve(async (req) => {
                 const browseId = cleanId.includes('|') ? cleanId : `v1|${cleanId}|0`;
 
                 try {
-                    // Try Shopping API
+                    // Shopping API v967 (Often has StartTime even when Browse is restricted)
                     if (EBAY_APP_ID) {
-                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=1119&ItemID=${legacyId}&IncludeSelector=Details`;
+                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`;
                         const sRes = await fetch(sUrl);
                         const sData = await sRes.json();
-                        if (idx === 0) stats.firstEnrichRaw = sData;
+                        if (idx === 0) stats.forensic.enrichS = Object.keys(sData).join(',');
+
                         if (sRes.ok && sData.Item) {
                             const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
                             if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
                         } else if (idx === 0) {
-                            stats.firstEnrichError = `S:${sRes.status}/${sData.Errors?.[0]?.ShortMessage || 'No'}`;
+                            stats.firstEnrichError = `S:${sRes.status}/${sData.Ack || 'NoItem'}`;
                         }
                     }
 
-                    // Try Browse API with Geolocation Fix
+                    // Browse API Get Item
                     const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
                         headers: browseHeaders
                     });
                     const bData = await bRes.json();
-                    if (idx === 0) stats.secondEnrichRaw = bData;
+                    if (idx === 0) stats.forensic.enrichB = Object.keys(bData).join(',');
+
                     if (bRes.ok) {
                         const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
-                        else if (idx === 0) stats.firstEnrichError = `B:NoDate/${(bData.warnings?.[0]?.message || 'NoWarn').slice(0, 30)}`;
+                        else if (idx === 0) stats.firstEnrichError = `B:NoDateKeys:${(Object.keys(bData).slice(0, 3))}`;
                     } else if (idx === 0 && !stats.firstEnrichError) {
-                        stats.firstEnrichError = `B:${bRes.status}/${bData.errors?.[0]?.message || 'Err'}`;
+                        stats.firstEnrichError = `B:${bRes.status}`;
                     }
                 } catch (e) { if (idx === 0) stats.firstEnrichError = `Ex:${e.message}`; }
                 stats.enrich.fails++;
@@ -164,16 +164,14 @@ serve(async (req) => {
             }));
         }
 
-        stats.summary = `[V28] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | Fails:${stats.enrich.fails} | ERR:${stats.firstEnrichError || 'None'}`;
-        if (stats.tierErr && stats.tier !== 'finding') stats.summary += ` | TErr:${stats.tierErr.slice(0, 60)}`;
+        stats.summary = `[V29] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | ERR:${stats.firstEnrichError || 'None'}`;
+        // Show forensics if we have issues
+        if (stats.enrich.fails > 0 && stats.forensic.enrichB) stats.summary += ` | ForensicB:${stats.forensic.enrichB.slice(0, 30)}`;
+        if (stats.tierErr && stats.tier !== 'finding') stats.summary += ` | TErr:${stats.tierErr.slice(0, 40)}`;
 
-        if (finalItems.length > 0) {
-            const responseData = { items: finalItems, _debug: stats };
-            setCachedData(cacheKey, responseData);
-            return new Response(JSON.stringify(responseData), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-
-        return new Response(JSON.stringify({ error: 'No items found', _debug: stats }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        const responseData = { items: finalItems, _debug: stats };
+        setCachedData(cacheKey, responseData);
+        return new Response(JSON.stringify(responseData), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
