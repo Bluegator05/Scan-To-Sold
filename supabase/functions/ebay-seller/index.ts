@@ -1,5 +1,5 @@
 // Supabase Edge Function: ebay-seller
-// The Identity Trace Version (v24): Finding Restoration + Trace Diagnostic
+// The Identity Pulse (v25): Finding Header Fix + Enhanced Enrichment Diagnostics
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -31,13 +31,13 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v24:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v25:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V24 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V25 TRACE: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
@@ -61,7 +61,13 @@ serve(async (req) => {
                 const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=${op}&${new URLSearchParams(params)}`;
                 // RESTORE MANDATORY HEADERS
                 const res = await fetch(fUrl, {
-                    headers: { 'X-EBAY-SOA-OPERATION-NAME': op, 'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID, 'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US' }
+                    headers: {
+                        'X-EBAY-SOA-SERVICE-NAME': 'FindingService',
+                        'X-EBAY-SOA-OPERATION-NAME': op,
+                        'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID,
+                        'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US',
+                        'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON'
+                    }
                 });
                 return await res.json();
             };
@@ -85,7 +91,10 @@ serve(async (req) => {
                     }));
                     stats.tier = 'finding';
                 }
-            } catch (e) { console.warn('Finding tier failure'); }
+            } catch (e) {
+                console.warn('Finding tier failure', e);
+                stats.tierErr = e.message;
+            }
         }
 
         // TIER 2: BROWSE API Fallback
@@ -103,11 +112,13 @@ serve(async (req) => {
                         listedDate: 'Active', _source: 'browse'
                     }));
                     stats.tier = 'browse';
+                } else {
+                    stats.tierErr = bData.errors?.[0]?.message || 'No items found in browse';
                 }
-            } catch (e) { }
+            } catch (e) { stats.tierErr = e.message; }
         }
 
-        // HYPER ENRICHMENT: The Identity Trace
+        // HYPER ENRICHMENT: The Identity Pulse (v25)
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
@@ -127,17 +138,17 @@ serve(async (req) => {
                         const sRes = await fetch(sUrl);
                         const sData = await sRes.json();
 
-                        if (idx === 0) stats.firstEnrichRaw = sData; // CAPTURE THE RAW PULSE
+                        if (idx === 0) stats.firstEnrichRaw = sData;
 
-                        if (sRes.ok) {
-                            const date = sData.Item?.StartTime || sData.Item?.ListingInfo?.StartTime;
+                        if (sRes.ok && sData.Item) {
+                            const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
                             if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
-                            if (sData.Item?.SellerCustomLabel) {
+                            if (sData.Item.SellerCustomLabel) {
                                 const match = sData.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
                                 if (match) { stats.enrich.skuHits++; return { ...item, listedDate: new Date(match[1]).toISOString() }; }
                             }
                         } else if (idx === 0) {
-                            stats.firstEnrichError = `Shopping ${sRes.status}: ${JSON.stringify(sData)}`;
+                            stats.firstEnrichError = `ShopErr ${sRes.status}: ${sData.Errors?.[0]?.ShortMessage || 'Fail'}`;
                         }
                     }
 
@@ -150,7 +161,7 @@ serve(async (req) => {
                         const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
                     } else if (idx === 0 && !stats.firstEnrichError) {
-                        stats.firstEnrichError = `Browse ${bRes.status}: ${JSON.stringify(bData)}`;
+                        stats.firstEnrichError = `BrowseErr ${bRes.status}: ${bData.errors?.[0]?.message || 'Fail'}`;
                     }
                 } catch (e) { if (idx === 0) stats.firstEnrichError = e.message; }
 
@@ -160,6 +171,8 @@ serve(async (req) => {
         }
 
         stats.summary = `Tier: ${stats.tier} | Enrich: ${stats.enrich.shoppingHits}S, ${stats.enrich.browseHits}B, ${stats.enrich.skuHits}SKU | Fails: ${stats.enrich.fails}`;
+        if (stats.firstEnrichError) stats.summary += ` | Err: ${stats.firstEnrichError.slice(0, 40)}`;
+        if (stats.tierErr && stats.tier === 'none') stats.summary += ` | TierErr: ${stats.tierErr.slice(0, 30)}`;
 
         if (finalItems.length > 0) {
             const responseData = { items: finalItems, _debug: stats };
