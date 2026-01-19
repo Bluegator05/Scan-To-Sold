@@ -1,4 +1,4 @@
-// The Identity Pulse (v26): Finding Header Fix + Enhanced Enrichment Diagnostics
+// The Identity Pulse (v27): Warning Extraction + Full Trace
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -30,19 +30,19 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v26:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v27:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V26 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V27 TRACE: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
 
-        // TIER 1: FINDING API (Restored Headers + Diagnostics)
+        // TIER 1: FINDING API (Full Trace)
         if (EBAY_APP_ID) {
             const tryFinding = async (op: string) => {
                 const params: any = {
@@ -66,7 +66,8 @@ serve(async (req) => {
                         'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON'
                     }
                 });
-                return await res.json();
+                const text = await res.text();
+                try { return JSON.parse(text); } catch (e) { return { _raw: text.slice(0, 200) }; }
             };
 
             try {
@@ -75,10 +76,16 @@ serve(async (req) => {
                 let items = resp?.searchResult?.[0]?.item;
 
                 if (!items) {
-                    stats.tierErr = `Adv:${resp?.ack?.[0] || 'NoResp'}`;
+                    const err = resp?.errorMessage?.[0]?.error?.[0]?.message?.[0] || data._raw || resp?.ack?.[0];
+                    stats.tierErr = `Adv:${err}`;
+
                     data = await tryFinding('findItemsIneBayStores');
                     resp = data.findItemsIneBayStoresResponse?.[0];
                     items = resp?.searchResult?.[0]?.item;
+                    if (!items && !stats.tierErr.includes('Adv:Success')) {
+                        const err2 = resp?.errorMessage?.[0]?.error?.[0]?.message?.[0] || resp?.ack?.[0];
+                        stats.tierErr += ` | Store:${err2}`;
+                    }
                 }
 
                 if (items?.length > 0) {
@@ -90,8 +97,6 @@ serve(async (req) => {
                         _source: 'finding'
                     }));
                     stats.tier = 'finding';
-                } else if (!stats.tierErr) {
-                    stats.tierErr = `Store:${resp?.ack?.[0] || 'Empty'}`;
                 }
             } catch (e) { stats.tierErr = `FindErr:${e.message}`; }
         } else {
@@ -114,12 +119,13 @@ serve(async (req) => {
                     }));
                     stats.tier = 'browse';
                 } else {
-                    stats.tierErr = `Browse:${bData.errors?.[0]?.message || 'Empty'}`;
+                    const bErr = bData.errors?.[0]?.message || 'Empty';
+                    stats.tierErr = `${stats.tierErr} | Browse:${bErr}`;
                 }
-            } catch (e) { stats.tierErr = `BrowseErr:${e.message}`; }
+            } catch (e) { stats.tierErr = `${stats.tierErr} | BrowseErr:${e.message}`; }
         }
 
-        // HYPER ENRICHMENT: The Identity Pulse (v26)
+        // HYPER ENRICHMENT: The Warning Pulse (v27)
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
@@ -133,9 +139,9 @@ serve(async (req) => {
                 if (idx === 0) stats.firstEnrichID = legacyId;
 
                 try {
-                    // Try Shopping API
+                    // Try Shopping API (v1119)
                     if (EBAY_APP_ID) {
-                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`;
+                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=1119&ItemID=${legacyId}&IncludeSelector=Details`;
                         const sRes = await fetch(sUrl);
                         const sData = await sRes.json();
                         if (idx === 0) stats.firstEnrichRaw = sData;
@@ -144,11 +150,11 @@ serve(async (req) => {
                             const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
                             if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
                         } else if (idx === 0) {
-                            stats.firstEnrichError = `S:${sRes.status}/${sData.Errors?.[0]?.SeverityCode || 'Err'}`;
+                            stats.firstEnrichError = `S:${sRes.status}/${sData.Errors?.[0]?.ShortMessage || 'NoItem'}`;
                         }
                     }
 
-                    // Try Browse API
+                    // Try Browse API (v27 Diagnostics)
                     const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
                         headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
                     });
@@ -158,9 +164,12 @@ serve(async (req) => {
                     if (bRes.ok) {
                         const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
-                        else if (idx === 0) stats.firstEnrichError = `B:Ok/NoDateKeys:${Object.keys(bData).slice(0, 5)}`;
+                        else if (idx === 0) {
+                            const warn = bData.warnings?.[0]?.message || `Keys:${Object.keys(bData).slice(0, 5)}`;
+                            stats.firstEnrichError = `B:NoDate/${warn.slice(0, 50)}`;
+                        }
                     } else if (idx === 0 && !stats.firstEnrichError) {
-                        stats.firstEnrichError = `B:${bRes.status}/${bData.errors?.[0]?.errorId || 'Err'}`;
+                        stats.firstEnrichError = `B:${bRes.status}/${bData.errors?.[0]?.message || 'Err'}`;
                     }
                 } catch (e) { if (idx === 0) stats.firstEnrichError = `EncErr:${e.message}`; }
 
@@ -169,9 +178,9 @@ serve(async (req) => {
             }));
         }
 
-        stats.summary = `[V26] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | Fails:${stats.enrich.fails}`;
+        stats.summary = `[V27] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | Fails:${stats.enrich.fails}`;
         if (stats.firstEnrichError) stats.summary += ` | Err:${stats.firstEnrichError}`;
-        if (stats.tierErr && stats.tier === 'none') stats.summary += ` | TErr:${stats.tierErr}`;
+        if (stats.tierErr && (stats.tier !== 'finding')) stats.summary += ` | TErr:${stats.tierErr.slice(0, 80)}`;
 
         if (finalItems.length > 0) {
             const responseData = { items: finalItems, _debug: stats };
