@@ -1,5 +1,4 @@
-// Supabase Edge Function: ebay-seller
-// The Identity Pulse (v25): Finding Header Fix + Enhanced Enrichment Diagnostics
+// The Identity Pulse (v26): Finding Header Fix + Enhanced Enrichment Diagnostics
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -31,35 +30,33 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `seller:v25:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v26:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V25 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V26 TRACE: ${rawSellerId} P${page}`);
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const token = await getEbayToken();
         let finalItems: any[] = [];
 
-        // TIER 1: FINDING API (Restored Headers)
+        // TIER 1: FINDING API (Restored Headers + Diagnostics)
         if (EBAY_APP_ID) {
-            const tryFinding = async (op: string, keywords: string | null) => {
+            const tryFinding = async (op: string) => {
                 const params: any = {
                     'SERVICE-VERSION': '1.13.0', 'SECURITY-APPNAME': EBAY_APP_ID, 'RESPONSE-DATA-FORMAT': 'JSON',
                     'paginationInput.entriesPerPage': '10', 'paginationInput.pageNumber': page.toString(),
-                    'sortOrder': 'StartTimeAscending', 'GLOBAL-ID': 'EBAY-US'
+                    'GLOBAL-ID': 'EBAY-US'
                 };
                 if (op === 'findItemsAdvanced') {
                     params['itemFilter(0).name'] = 'Seller';
                     params['itemFilter(0).value(0)'] = rawSellerId;
-                    if (keywords) params['keywords'] = keywords;
                 } else if (op === 'findItemsIneBayStores') {
                     params['storeName'] = rawSellerId;
                 }
                 const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=${op}&${new URLSearchParams(params)}`;
-                // RESTORE MANDATORY HEADERS
                 const res = await fetch(fUrl, {
                     headers: {
                         'X-EBAY-SOA-SERVICE-NAME': 'FindingService',
@@ -73,12 +70,15 @@ serve(async (req) => {
             };
 
             try {
-                let data = await tryFinding('findItemsAdvanced', null);
-                let items = data.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item;
+                let data = await tryFinding('findItemsAdvanced');
+                let resp = data.findItemsAdvancedResponse?.[0];
+                let items = resp?.searchResult?.[0]?.item;
 
                 if (!items) {
-                    data = await tryFinding('findItemsIneBayStores', null);
-                    items = data.findItemsIneBayStoresResponse?.[0]?.searchResult?.[0]?.item;
+                    stats.tierErr = `Adv:${resp?.ack?.[0] || 'NoResp'}`;
+                    data = await tryFinding('findItemsIneBayStores');
+                    resp = data.findItemsIneBayStoresResponse?.[0];
+                    items = resp?.searchResult?.[0]?.item;
                 }
 
                 if (items?.length > 0) {
@@ -90,11 +90,12 @@ serve(async (req) => {
                         _source: 'finding'
                     }));
                     stats.tier = 'finding';
+                } else if (!stats.tierErr) {
+                    stats.tierErr = `Store:${resp?.ack?.[0] || 'Empty'}`;
                 }
-            } catch (e) {
-                console.warn('Finding tier failure', e);
-                stats.tierErr = e.message;
-            }
+            } catch (e) { stats.tierErr = `FindErr:${e.message}`; }
+        } else {
+            stats.tierErr = 'NoAppID';
         }
 
         // TIER 2: BROWSE API Fallback
@@ -113,12 +114,12 @@ serve(async (req) => {
                     }));
                     stats.tier = 'browse';
                 } else {
-                    stats.tierErr = bData.errors?.[0]?.message || 'No items found in browse';
+                    stats.tierErr = `Browse:${bData.errors?.[0]?.message || 'Empty'}`;
                 }
-            } catch (e) { stats.tierErr = e.message; }
+            } catch (e) { stats.tierErr = `BrowseErr:${e.message}`; }
         }
 
-        // HYPER ENRICHMENT: The Identity Pulse (v25)
+        // HYPER ENRICHMENT: The Identity Pulse (v26)
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
@@ -137,18 +138,13 @@ serve(async (req) => {
                         const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`;
                         const sRes = await fetch(sUrl);
                         const sData = await sRes.json();
-
                         if (idx === 0) stats.firstEnrichRaw = sData;
 
                         if (sRes.ok && sData.Item) {
                             const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
                             if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
-                            if (sData.Item.SellerCustomLabel) {
-                                const match = sData.Item.SellerCustomLabel.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-                                if (match) { stats.enrich.skuHits++; return { ...item, listedDate: new Date(match[1]).toISOString() }; }
-                            }
                         } else if (idx === 0) {
-                            stats.firstEnrichError = `ShopErr ${sRes.status}: ${sData.Errors?.[0]?.ShortMessage || 'Fail'}`;
+                            stats.firstEnrichError = `S:${sRes.status}/${sData.Errors?.[0]?.SeverityCode || 'Err'}`;
                         }
                     }
 
@@ -157,22 +153,25 @@ serve(async (req) => {
                         headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
                     });
                     const bData = await bRes.json();
+                    if (idx === 0) stats.secondEnrichRaw = bData;
+
                     if (bRes.ok) {
                         const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
+                        else if (idx === 0) stats.firstEnrichError = `B:Ok/NoDateKeys:${Object.keys(bData).slice(0, 5)}`;
                     } else if (idx === 0 && !stats.firstEnrichError) {
-                        stats.firstEnrichError = `BrowseErr ${bRes.status}: ${bData.errors?.[0]?.message || 'Fail'}`;
+                        stats.firstEnrichError = `B:${bRes.status}/${bData.errors?.[0]?.errorId || 'Err'}`;
                     }
-                } catch (e) { if (idx === 0) stats.firstEnrichError = e.message; }
+                } catch (e) { if (idx === 0) stats.firstEnrichError = `EncErr:${e.message}`; }
 
                 stats.enrich.fails++;
                 return item;
             }));
         }
 
-        stats.summary = `Tier: ${stats.tier} | Enrich: ${stats.enrich.shoppingHits}S, ${stats.enrich.browseHits}B, ${stats.enrich.skuHits}SKU | Fails: ${stats.enrich.fails}`;
-        if (stats.firstEnrichError) stats.summary += ` | Err: ${stats.firstEnrichError.slice(0, 40)}`;
-        if (stats.tierErr && stats.tier === 'none') stats.summary += ` | TierErr: ${stats.tierErr.slice(0, 30)}`;
+        stats.summary = `[V26] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | Fails:${stats.enrich.fails}`;
+        if (stats.firstEnrichError) stats.summary += ` | Err:${stats.firstEnrichError}`;
+        if (stats.tierErr && stats.tier === 'none') stats.summary += ` | TErr:${stats.tierErr}`;
 
         if (finalItems.length > 0) {
             const responseData = { items: finalItems, _debug: stats };
