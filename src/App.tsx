@@ -1636,7 +1636,7 @@ function App() {
             const headers: HeadersInit = { 'Content-Type': 'application/json' };
             if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=29`, { headers });
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=30`, { headers });
             const data = await response.json();
 
             if (!response.ok || data.error) {

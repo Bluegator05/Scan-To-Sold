@@ -1,4 +1,4 @@
-// The Identity Pulse (v29): Forensic Structural Logging + Shopping Version Fallback
+// The Identity Pulse (v30): SOA Header Restoration + Raw Body Forensic logging
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
@@ -20,13 +20,13 @@ serve(async (req) => {
         }
 
         const rawSellerId = decodeURIComponent(sellerId).trim();
-        const cacheKey = `seller:v29:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v30:${rawSellerId}:p:${page}`;
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V29 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V30 TRACE: ${rawSellerId} P${page}`);
 
         const stats = {
             tier: 'none', tierErr: '',
@@ -44,11 +44,11 @@ serve(async (req) => {
             'X-EBAY-C-ENDUSERCTX': 'affiliateCampaignId=5338268676,affiliateReferenceId=sts,contextualLocation=country%3DUS%2Czip%3D90210'
         };
 
-        // TIER 1: FINDING API (Forensic Trace)
+        // TIER 1: FINDING API (Restored SOA Headers)
         if (EBAY_APP_ID) {
             const tryFinding = async (op: string) => {
                 const params = new URLSearchParams({
-                    'OPERATION-NAME': op, 'SERVICE-VERSION': '1.13.0', 'SECURITY-APPNAME': EBAY_APP_ID,
+                    'SERVICE-VERSION': '1.13.0', 'SECURITY-APPNAME': EBAY_APP_ID,
                     'RESPONSE-DATA-FORMAT': 'JSON', 'REST-PAYLOAD': 'true',
                     'paginationInput.entriesPerPage': '10', 'paginationInput.pageNumber': page.toString(),
                     'GLOBAL-ID': 'EBAY-US'
@@ -59,10 +59,18 @@ serve(async (req) => {
                 } else {
                     params.append('storeName', rawSellerId);
                 }
-                const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?${params.toString()}`;
-                const res = await fetch(fUrl);
+                const fUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=${op}&${params.toString()}`;
+                const res = await fetch(fUrl, {
+                    headers: {
+                        'X-EBAY-SOA-SERVICE-NAME': 'FindingService',
+                        'X-EBAY-SOA-OPERATION-NAME': op,
+                        'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID,
+                        'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
+                        'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
+                    }
+                });
                 const text = await res.text();
-                try { return JSON.parse(text); } catch (e) { return { _raw: text.slice(0, 50) }; }
+                try { return JSON.parse(text); } catch (e) { return { _raw: text.slice(0, 50), _status: res.status }; }
             };
 
             try {
@@ -70,10 +78,10 @@ serve(async (req) => {
                 let resp = data.findItemsAdvancedResponse?.[0];
                 let items = resp?.searchResult?.[0]?.item;
 
-                stats.forensic.tier1 = Object.keys(data).join(',');
+                stats.forensic.tier1 = Object.keys(data).join(',').slice(0, 30);
 
                 if (!items) {
-                    const ack = resp?.ack?.[0] || 'NoAck';
+                    const ack = resp?.ack?.[0] || data._status || 'NoAck';
                     stats.tierErr = `Adv:${ack}`;
                     data = await tryFinding('findItemsIneBayStores');
                     resp = data.findItemsIneBayStoresResponse?.[0];
@@ -101,7 +109,7 @@ serve(async (req) => {
                     headers: browseHeaders
                 });
                 const bData = await bRes.json();
-                stats.forensic.tier2 = Object.keys(bData).join(',');
+                stats.forensic.tier2 = Object.keys(bData).join(',').slice(0, 30);
 
                 if (bData.itemSummaries?.length > 0) {
                     finalItems = bData.itemSummaries.map((item: any) => ({
@@ -129,18 +137,18 @@ serve(async (req) => {
                 const browseId = cleanId.includes('|') ? cleanId : `v1|${cleanId}|0`;
 
                 try {
-                    // Shopping API v967 (Often has StartTime even when Browse is restricted)
+                    // Shopping API v1119
                     if (EBAY_APP_ID) {
-                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=967&ItemID=${legacyId}&IncludeSelector=Details`;
+                        const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=1119&ItemID=${legacyId}&IncludeSelector=Details`;
                         const sRes = await fetch(sUrl);
                         const sData = await sRes.json();
-                        if (idx === 0) stats.forensic.enrichS = Object.keys(sData).join(',');
+                        if (idx === 0) stats.forensic.enrichS = Object.keys(sData).join(',').slice(0, 30);
 
                         if (sRes.ok && sData.Item) {
                             const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
                             if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
                         } else if (idx === 0) {
-                            stats.firstEnrichError = `S:${sRes.status}/${sData.Ack || 'NoItem'}`;
+                            stats.firstEnrichError = `S:${sRes.status}/${sData.Ack || 'Fail'}`;
                         }
                     }
 
@@ -149,12 +157,12 @@ serve(async (req) => {
                         headers: browseHeaders
                     });
                     const bData = await bRes.json();
-                    if (idx === 0) stats.forensic.enrichB = Object.keys(bData).join(',');
+                    if (idx === 0) stats.forensic.enrichB = Object.keys(bData).join(',').slice(0, 30);
 
                     if (bRes.ok) {
                         const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
-                        else if (idx === 0) stats.firstEnrichError = `B:NoDateKeys:${(Object.keys(bData).slice(0, 3))}`;
+                        else if (idx === 0) stats.firstEnrichError = `B:NoDate/Keys:${Object.keys(bData).slice(0, 3)}`;
                     } else if (idx === 0 && !stats.firstEnrichError) {
                         stats.firstEnrichError = `B:${bRes.status}`;
                     }
@@ -164,10 +172,9 @@ serve(async (req) => {
             }));
         }
 
-        stats.summary = `[V29] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | ERR:${stats.firstEnrichError || 'None'}`;
-        // Show forensics if we have issues
-        if (stats.enrich.fails > 0 && stats.forensic.enrichB) stats.summary += ` | ForensicB:${stats.forensic.enrichB.slice(0, 30)}`;
+        stats.summary = `[V30] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | ERR:${stats.firstEnrichError || 'None'}`;
         if (stats.tierErr && stats.tier !== 'finding') stats.summary += ` | TErr:${stats.tierErr.slice(0, 40)}`;
+        if (stats.forensic.tier1) stats.summary += ` | T1Key:${stats.forensic.tier1}`;
 
         const responseData = { items: finalItems, _debug: stats };
         setCachedData(cacheKey, responseData);
