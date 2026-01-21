@@ -25,6 +25,9 @@ async function callEdgeFunction(action: string, payload: any) {
 
     if (error) {
       console.error(`[Edge] Invocation Error (${action}):`, error);
+      if (error.message?.includes('Unauthorized') || error.message?.includes('session expired')) {
+        throw new Error("Your session has expired. Please refresh the page and sign in again.");
+      }
       throw new Error(error.message || `Failed to connect to AI service (${action})`);
     }
 

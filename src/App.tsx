@@ -2682,14 +2682,17 @@ function App() {
             <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
                 <div className="relative w-full h-72 bg-black shrink-0">
                     {currentImage ? (
-                        <div className="relative w-full h-full overflow-hidden">
-                            <img src={currentImage} alt="Captured" className="w-full h-full object-contain" />
-                            {scoutAdditionalImages.length > 0 && (
-                                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 text-[10px] font-bold text-white flex items-center gap-1.5 z-20">
-                                    <ImageIcon size={12} strokeWidth={3} />
-                                    <span>+{scoutAdditionalImages.length} MORE</span>
-                                </div>
-                            )}
+                        <div className="relative w-full h-full overflow-hidden bg-slate-900">
+                            <div className="flex w-full h-full overflow-x-auto snap-x no-scrollbar">
+                                {[currentImage, ...scoutAdditionalImages].map((img, idx) => (
+                                    <div key={idx} className="w-full h-full shrink-0 snap-center flex items-center justify-center p-2 relative">
+                                        <img src={img} alt={`Capture ${idx}`} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-mono text-white/60">
+                                            PHOTO {idx + 1} / {1 + scoutAdditionalImages.length}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                             {status === ScoutStatus.ANALYZING && (
                                 <>
                                     <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-[2px] animate-pulse-slow"></div>

@@ -118,6 +118,8 @@ export const fetchMarketData = async (query: string, condition?: string) => {
       const activeData = await activeRes.json();
       activeItems = activeData.itemSummaries || [];
       activeCount = parseInt(activeData.total || activeItems.length);
+    } else if (activeRes.status === 401) {
+      console.error("[STS] Active search unauthorized - session likely expired.");
     }
   } catch (e) {
     console.warn("[STS] Supabase Search failed, falling back to empty active list.");
@@ -136,6 +138,8 @@ export const fetchMarketData = async (query: string, condition?: string) => {
         const state = item.sellingStatus?.[0]?.sellingState?.[0];
         return state === 'EndedWithSales' || state === 'Sold';
       });
+    } else if (soldRes.status === 401) {
+      console.error("[STS] Sold search unauthorized - session likely expired.");
     } else if (soldRes.status === 429 || soldRes.status === 500) {
       isSoldBlocked = true;
     }

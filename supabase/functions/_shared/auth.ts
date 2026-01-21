@@ -8,21 +8,37 @@ export const corsHeaders = {
 export async function verifyUser(req: Request) {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+        console.error('[Auth] No Authorization header found');
         throw new Error('No authorization header')
     }
 
-    const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        {
-            global: { headers: { Authorization: authHeader } },
-        }
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    const { data: { user }, error } = await supabase.auth.getUser()
+    if (!supabaseUrl || !supabaseKey) {
+        console.error('[Auth] Supabase environment variables missing');
+        throw new Error('Server configuration error: Auth env vars missing');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } },
+    })
+
+    // Robust extraction: Split by space and take the last part
+    const token = authHeader.split(' ').pop() || '';
+
+    if (!token) {
+        console.error('[Auth] Token extraction failed from header:', authHeader);
+        throw new Error('Malformed authorization header');
+    }
+
+    console.log(`[Auth] Verifying token (prefix: ${token.substring(0, 10)}...)`);
+
+    const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
-        throw new Error('Invalid token or session expired')
+        console.error('[Auth] User verification failed:', error?.message || 'No user found');
+        throw new Error('Unauthorized: Invalid token or session expired')
     }
 
     return { user, supabase }

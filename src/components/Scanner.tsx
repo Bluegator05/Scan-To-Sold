@@ -344,16 +344,20 @@ const Scanner: React.FC<ScannerProps> = ({ onCapture, onClose, bulkSessionCount 
 
       {/* Thumbnail Strip (Bottom) */}
       {!autoScanEnabled && !singleCapture && capturedImages.length > 0 && (
-        <div className="absolute bottom-32 left-0 right-0 z-20 px-6">
+        <div className="absolute bottom-32 left-0 right-0 z-[100] px-6">
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
             {capturedImages.map((img, idx) => (
               <div key={idx} className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-white/30 snap-start animate-in zoom-in duration-200">
                 <img src={img} className="w-full h-full object-cover" alt={`Capture ${idx}`} />
                 <button
-                  onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                  className="absolute top-0 right-0 bg-black/50 p-1 text-white hover:bg-red-500/80 transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeImage(idx);
+                  }}
+                  className="absolute top-0 right-0 bg-red-600/90 p-1.5 text-white hover:bg-red-500 rounded-bl-lg shadow-lg z-[110] touch-manipulation"
                 >
-                  <X size={12} />
+                  <X size={16} strokeWidth={3} />
                 </button>
                 <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[10px] text-white text-center font-mono">
                   #{idx + 1}
