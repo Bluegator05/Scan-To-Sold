@@ -229,7 +229,7 @@ export const disconnectEbayAccount = async (): Promise<void> => {
   window.location.reload();
 };
 
-export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED', bypassCache = false): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean, marketStats?: any, isRateLimited?: boolean }> => {
+export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED', bypassCache = false): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean, marketStats?: any, isRateLimited?: boolean, debug?: string[], queryUsed?: string }> => {
   const cacheKey = `${query}_${tab}_${condition}`;
 
   if (!bypassCache) {

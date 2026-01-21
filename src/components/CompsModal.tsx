@@ -25,6 +25,7 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SOLD'>(initialTab);
   const [isEstimated, setIsEstimated] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,9 +50,11 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
       setComps(cleanedComps);
       setAvgPrice(data.averagePrice);
       setIsEstimated(!!data.isEstimated);
+      setDebugLogs(data.debug || []);
     } catch (e: any) {
       setError(e.message || "Failed to load comps");
       setComps([]);
+      setDebugLogs([]);
     } finally {
       // Small artificial delay to show search is happening
       setTimeout(() => setLoading(false), 300);
@@ -186,6 +189,18 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
           ) : comps.length === 0 ? (
             <div className="text-center p-8 flex flex-col items-center gap-4">
               <p className="text-slate-600">No results found in API.</p>
+              {debugLogs.length > 0 && (
+                <div className="w-full bg-black/50 p-4 rounded-xl border border-slate-800 text-left overflow-hidden">
+                  <p className="text-xs font-mono text-slate-500 uppercase mb-2">Technical Debug Logs</p>
+                  <div className="max-h-40 overflow-y-auto space-y-1 font-mono text-[10px]">
+                    {debugLogs.map((log, idx) => (
+                      <div key={idx} className="text-slate-400 break-all border-b border-slate-800/50 pb-1">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 onClick={async () => {
                   const url = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=${activeTab === 'SOLD' ? '1' : '0'}&LH_ItemCondition=${condition === 'NEW' ? '1000' : '3000'}`;

@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Buffer } from 'buffer';
 
-const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -repro -reproduction";
+const NEGATIVE_KEYWORDS = "-print -ad";
 
 /**
  * Aggressively relaxes a query to ensure we get results
@@ -14,7 +14,7 @@ function relaxQuery(query: string, level: number): string {
   const positives = query.split(/\s+/).filter(w => !w.startsWith('-')).join(' ');
 
   let q = positives.replace(/[()]/g, '').replace(/[#]/g, '').replace(/[:]/g, '').trim();
-  const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition', 'works', 'edition', 'authentic', 'ver', 'version'].includes(w.toLowerCase()));
+  const words = q.split(/\s+/).filter(w => !['new', 'used', 'excellent', 'condition', 'works', 'authentic', 'ver'].includes(w.toLowerCase()));
 
   let relaxed;
   if (level === 1) {
@@ -85,6 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const appToken = tokenRes.data.access_token;
 
     // 2. SEARCH EBAY
+    let logs: string[] = [];
     let comps = [];
     let avgPrice = 0;
     let finalQueryUsed = query as string;
@@ -135,6 +136,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
             }
           });
+
+          logs.push(`Level ${level} URL: ${urlWithCondition}`);
+          logs.push(`Level ${level} Auth Status: ${findingRes.status}`);
 
           let findResponse = findingRes.data.findCompletedItemsResponse[0];
 
@@ -347,7 +351,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       marketStats: marketStats,
       queryRelaxed: finalQueryUsed !== query,
       isEstimated: isEstimated,
-      queryUsed: finalQueryUsed
+      queryUsed: finalQueryUsed,
+      debug: logs
     });
 
   } catch (error: any) {
