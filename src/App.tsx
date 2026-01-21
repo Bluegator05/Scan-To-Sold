@@ -247,6 +247,7 @@ function App() {
     const unitImageInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recognitionRef = useRef<any>(null);
+    const galleryRef = useRef<HTMLDivElement>(null);
 
     const imageCache = useRef<Map<string, string>>(new Map());
 
@@ -528,15 +529,36 @@ function App() {
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = reader.result as string;
-                handleImageCaptured(base64);
-            };
-            reader.readAsDataURL(file);
+        if (!e.target.files) return;
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        setLoadingMessage(`Reading ${files.length} Photo${files.length > 1 ? 's' : ''}...`);
+
+        const base64Array: string[] = [];
+        for (const file of files) {
+            await new Promise<void>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (reader.result) base64Array.push(reader.result as string);
+                    resolve();
+                };
+                reader.readAsDataURL(file);
+            });
         }
+
+        if (base64Array.length > 0) {
+            handleImageCaptured(base64Array);
+        }
+    };
+
+    const scrollGallery = (direction: 'left' | 'right') => {
+        if (!galleryRef.current) return;
+        const width = galleryRef.current.clientWidth;
+        galleryRef.current.scrollBy({
+            left: direction === 'left' ? -width : width,
+            behavior: 'smooth'
+        });
     };
 
     const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2682,17 +2704,40 @@ function App() {
             <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-slate-950 pb-20 pt-safe">
                 <div className="relative w-full h-72 bg-black shrink-0">
                     {currentImage ? (
-                        <div className="relative w-full h-full overflow-hidden bg-slate-900">
-                            <div className="flex w-full h-full overflow-x-auto snap-x no-scrollbar">
+                        <div className="relative w-full h-full overflow-hidden bg-slate-900 group">
+                            <div
+                                ref={galleryRef}
+                                className="flex w-full h-full overflow-x-auto snap-x no-scrollbar scroll-smooth"
+                            >
                                 {[currentImage, ...scoutAdditionalImages].map((img, idx) => (
                                     <div key={idx} className="w-full h-full shrink-0 snap-center flex items-center justify-center p-2 relative">
                                         <img src={img} alt={`Capture ${idx}`} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-mono text-white/60">
-                                            PHOTO {idx + 1} / {1 + scoutAdditionalImages.length}
-                                        </div>
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Gallery Controls (Only if multiple) */}
+                            {scoutAdditionalImages.length > 0 && (
+                                <>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); scrollGallery('left'); }}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-3 rounded-full text-white/90 shadow-2xl z-30 touch-manipulation active:scale-90 transition-transform"
+                                    >
+                                        <ChevronLeft size={28} strokeWidth={3} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); scrollGallery('right'); }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-3 rounded-full text-white/90 shadow-2xl z-30 touch-manipulation active:scale-90 transition-transform"
+                                    >
+                                        <ChevronRight size={28} strokeWidth={3} />
+                                    </button>
+
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 z-30 pointer-events-none shadow-2xl">
+                                        <ImageIcon size={12} className="text-neon-green" />
+                                        <span className="text-[10px] font-mono font-bold text-white tracking-widest uppercase">Swipe to View</span>
+                                    </div>
+                                </>
+                            )}
                             {status === ScoutStatus.ANALYZING && (
                                 <>
                                     <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-[2px] animate-pulse-slow"></div>
@@ -3569,7 +3614,7 @@ function App() {
                 </div>
             )}
 
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
         </div>
     );
 };
