@@ -142,7 +142,8 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
           Output JSON ONLY:
           {
             "itemTitle": "string",
-            "searchQuery": "string"
+            "searchQuery": "string",
+            "extractedDetails": "string (Self-verify: Mention a specific detail you found in the photo to prove analysis)"
           }
         `;
     } else {
@@ -212,7 +213,7 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
             "description": "string",
             "confidence": number,
             "barcode": "string",
-            "extractedDetails": "string (Self-verify: Mention a specific detail you found in a secondary/tertiary image to prove you used it)"
+            "extractedDetails": "string (Self-verify: Mention a specific detail from any image, especially if multi-image. If single image, mention a detail like 'Detected [Brand] label' or '[X] condition details')"
           }
         `;
     }
@@ -296,7 +297,11 @@ async function handleIdentifyItem({ imageBase64, imagesBase64, barcode }: any) {
        - STRICTLY Brand + Model + MPN + Key Variant (e.g. Color/Edition).
        - Exclude generic words (e.g. "sneakers", "working").
     
-    Output JSON ONLY: { "itemTitle": "string", "searchQuery": "string" }
+    Output JSON ONLY: { 
+      "itemTitle": "string", 
+      "searchQuery": "string",
+      "extractedDetails": "string (Briefly state one specific detail identified from visual inspection)"
+    }
   `;
 
     const model = ai.getGenerativeModel({

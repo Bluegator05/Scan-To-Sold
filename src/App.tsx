@@ -1746,6 +1746,23 @@ function App() {
         setIsBulkFetching(false);
     };
 
+    // --- BULK SORTING EFFECT ---
+    useEffect(() => {
+        if (bulkItems.length > 0) {
+            const sorted = [...bulkItems].sort((a, b) => {
+                const dateA = new Date(a.listedDate || 0).getTime();
+                const dateB = new Date(b.listedDate || 0).getTime();
+                return bulkSortOrder === 'oldest' ? dateA - dateB : dateB - dateA;
+            });
+            // Compare IDs to avoid unnecessary state updates
+            const currentIds = bulkItems.map(i => i.itemId).join(',');
+            const sortedIds = sorted.map(i => i.itemId).join(',');
+            if (currentIds !== sortedIds) {
+                setBulkItems(sorted);
+            }
+        }
+    }, [bulkSortOrder]);
+
     const handleOptimizeSingleBulkItem = async (currentId: string) => {
         try {
             const { data: { session } = {} } = await supabase.auth.getSession();
@@ -2856,7 +2873,7 @@ function App() {
                                 </div>
                                 <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
 
-                                {scoutResult.extractedDetails && (
+                                {scoutResult && (
                                     <div className="mt-1 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
                                         <div className="p-1.5 bg-emerald-500/20 rounded-md shrink-0">
                                             <Sparkles size={12} className="text-neon-green" />
@@ -2864,12 +2881,12 @@ function App() {
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                                                    AI Proof Analysis
+                                                    AI Analysis Notes
                                                 </span>
                                                 <span className="text-[9px] bg-emerald-500 text-black px-1.5 rounded-full font-bold uppercase py-0.5">Verified</span>
                                             </div>
                                             <p className="text-[11px] text-slate-400 italic leading-relaxed mt-0.5 font-medium">
-                                                &quot;{scoutResult.extractedDetails}&quot;
+                                                &quot;{scoutResult.extractedDetails || "Synthesized item information and market data from photos."}&quot;
                                             </p>
                                         </div>
                                     </div>
