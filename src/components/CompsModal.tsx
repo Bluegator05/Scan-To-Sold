@@ -36,12 +36,12 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
     }
   }, [isOpen, initialQuery, initialTab]);
 
-  const handleSearch = async (searchQuery: string, tab: 'ACTIVE' | 'SOLD') => {
+  const handleSearch = async (searchQuery: string, tab: 'ACTIVE' | 'SOLD', bypassCache = false) => {
     if (!searchQuery.trim()) return;
     setLoading(true);
     setError("");
     try {
-      const data = await searchEbayComps(searchQuery, tab, condition);
+      const data = await searchEbayComps(searchQuery, tab, condition, bypassCache);
       const cleanedComps = (data.comps || []).map((c: any) => ({
         ...c,
         title: c.title || ""
@@ -53,13 +53,14 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
       setError(e.message || "Failed to load comps");
       setComps([]);
     } finally {
-      setLoading(false);
+      // Small artificial delay to show search is happening
+      setTimeout(() => setLoading(false), 300);
     }
   };
 
   const handleTabChange = (tab: 'ACTIVE' | 'SOLD') => {
     setActiveTab(tab);
-    handleSearch(query, tab);
+    handleSearch(query, tab, false); // Tab change can use cache
   };
 
   const handleClone = async (comp: Comp) => {
@@ -137,12 +138,12 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch(query, activeTab)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch(query, activeTab, true)}
               className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 text-white focus:outline-none focus:border-neon-green font-mono text-sm"
               placeholder="Search eBay..."
             />
             <button
-              onClick={() => handleSearch(query, activeTab)}
+              onClick={() => handleSearch(query, activeTab, true)}
               disabled={loading}
               className="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-xl font-bold transition-colors disabled:opacity-50"
             >

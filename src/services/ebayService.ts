@@ -3,9 +3,10 @@ import { Comp } from '../types';
 import { Browser } from '@capacitor/browser';
 
 // --- CONFIGURATION ---
-export const API_BASE_URL = "https://www.scantosold.com";
+export const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? "" // Use relative URLs on localhost (proxy or local server)
+  : "https://www.scantosold.com";
 const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL || "https://urnvmiktzkwdlmfeznjj.supabase.co/functions/v1";
-const SERPAPI_KEY_FALLBACK = "e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57";
 // ---------------------
 
 const EBAY_TOKEN_KEY = 'sts_ebay_connected';
@@ -102,6 +103,8 @@ const getSearchCache = (key: string) => {
 
 const setSearchCache = (key: string, data: any) => {
   try {
+    // Only cache if we actually have results
+    if (data?.comps?.length === 0) return;
     localStorage.setItem(`ebay_search_cache_${key}`, JSON.stringify({ data, timestamp: Date.now() }));
   } catch (e) { }
 };
@@ -226,21 +229,25 @@ export const disconnectEbayAccount = async (): Promise<void> => {
   window.location.reload();
 };
 
-export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean, marketStats?: any, isRateLimited?: boolean }> => {
+export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED', bypassCache = false): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean, marketStats?: any, isRateLimited?: boolean }> => {
   const cacheKey = `${query}_${tab}_${condition}`;
-  const cached = getSearchCache(cacheKey);
-  if (cached) return cached;
 
-  const url = getApiUrl(`/api/ebay/search-comps?query=${encodeURIComponent(query)}&tab=${tab}&condition=${condition}`);
-  if (!url) throw new Error("Backend URL not configured");
+  if (!bypassCache) {
+    const cached = getSearchCache(cacheKey);
+    if (cached) return cached;
+  }
 
+  const baseUrl = API_BASE_URL;
+  const url = `${baseUrl}/api/ebay/search-comps?query=${encodeURIComponent(query)}&tab=${tab}&condition=${condition}&t=${Date.now()}`;
+
+  console.log(`[eBay] Searching (${tab}, bypass=${bypassCache}): ${query}`);
   const res = await fetch(url, { headers: await getAuthHeaders() });
 
   if (res.status === 429) {
     return { averagePrice: "0.00", comps: [], isRateLimited: true };
   }
 
-  if (!res.ok) throw new Error("Failed to fetch comps");
+  if (!res.ok) throw new Error(`Search failed (${res.status})`);
   const data = await res.json();
 
   setSearchCache(cacheKey, data);
