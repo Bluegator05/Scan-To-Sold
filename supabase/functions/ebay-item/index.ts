@@ -4,107 +4,57 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
 import { getCachedData, setCachedData } from '../_shared/cache.ts';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, verifyUser, checkUsage } from '../_shared/auth.ts';
 
 serve(async (req) => {
-    const corsResponse = handleCors(req);
-    if (corsResponse) return corsResponse;
+    // 1. Handle CORS
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     try {
+        // 2. STRICT SECURITY GUARD
+        const { user, supabase } = await verifyUser(req);
+
+        // 3. DAILY THROTTLE: 200 item lookups per day
+        await checkUsage(supabase, user.id, 'ebay_item_detail', 200);
+
         const url = new URL(req.url);
         const idOrUrl = decodeURIComponent(url.pathname.split('/').pop() || '');
 
-        console.log('Received request for:', idOrUrl);
-
-        if (!idOrUrl) {
-            return new Response(
-                JSON.stringify({ error: 'Item ID or URL required' }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+        if (!idOrUrl || idOrUrl === 'ebay-item') {
+            return new Response(JSON.stringify({ error: 'Item ID or URL required' }), { status: 400, headers: corsHeaders });
         }
 
-        // Extract item ID from URL or path
         let itemId = idOrUrl;
         if (idOrUrl.includes('ebay.com') || idOrUrl.includes('itm/')) {
             const match = idOrUrl.match(/itm\/(\d+)/);
             itemId = match ? match[1] : idOrUrl;
         }
 
-        console.log('Extracted item ID:', itemId);
-
-        // Normalize itemId for Browse API - prevent double-wrapping v1| IDs
         const browseId = itemId.startsWith('v1|') ? itemId : `v1|${itemId}|0`;
 
-        // Check cache
         const cacheKey = `item:${browseId}`;
         const cached = getCachedData(cacheKey);
-        if (cached) {
-            console.log('Returning cached data for:', browseId);
-            return new Response(JSON.stringify(cached), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-        }
+        if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        console.log('Getting eBay token...');
-        let token;
-        try {
-            token = await getEbayToken();
-            console.log('Got eBay token successfully');
-        } catch (tokenError) {
-            console.error('Failed to get eBay token:', tokenError);
-            return new Response(
-                JSON.stringify({
-                    error: 'Failed to authenticate with eBay',
-                    details: tokenError.message
-                }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
-
-        console.log('Fetching item from eBay API using ID:', browseId);
-        const response = await fetch(
-            `https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
-                }
-            }
-        );
-
-        console.log('eBay API Response Status:', response.status);
+        const token = await getEbayToken();
+        const response = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
+            headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
+        });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('eBay API Error Response:', errorText);
-            return new Response(
-                JSON.stringify({
-                    error: 'eBay API request failed',
-                    status: response.status,
-                    details: errorText,
-                    itemId: itemId
-                }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            throw new Error(`eBay API error: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Successfully fetched item data');
         setCachedData(cacheKey, data);
+        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        return new Response(JSON.stringify(data), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    } catch (error: any) {
+        console.error('Error:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: error.message.includes('authorization') ? 401 : 500,
+            headers: corsHeaders
         });
-
-    } catch (error) {
-        console.error('Unexpected error:', error);
-        return new Response(
-            JSON.stringify({
-                error: 'Internal server error',
-                details: error.message,
-                stack: error.stack
-            }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
     }
 });
