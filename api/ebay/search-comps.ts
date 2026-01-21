@@ -110,20 +110,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fullUrl += `&itemFilter(${filterIndex}).name=SoldItemsOnly&itemFilter(${filterIndex}).value(0)=true`;
         filterIndex++;
 
-        // Optional Condition filter
-        if (condition === 'NEW') {
-          fullUrl += `&itemFilter(${filterIndex}).name=Condition&itemFilter(${filterIndex}).value(0)=1000`;
-          filterIndex++;
-        } else if (condition === 'USED') {
-          fullUrl += `&itemFilter(${filterIndex}).name=Condition&itemFilter(${filterIndex}).value(0)=3000`;
-          filterIndex++;
-        }
+        // Optional Condition filter (Try first with condition, then without if level remains unsuccessful)
+        const addConditionFilter = (url: string, idx: number) => {
+          if (condition === 'NEW') {
+            return { url: url + `&itemFilter(${idx}).name=Condition&itemFilter(${idx}).value(0)=1000`, nextIdx: idx + 1 };
+          } else if (condition === 'USED') {
+            return { url: url + `&itemFilter(${idx}).name=Condition&itemFilter(${idx}).value(0)=3000`, nextIdx: idx + 1 };
+          }
+          return { url, nextIdx: idx };
+        };
+
+        const { url: urlWithCondition } = addConditionFilter(fullUrl, filterIndex);
 
         console.log(`[FINDING API] Level ${level} Attempt: ${currentQuery}`);
 
         try {
-          const findingRes = await axios.get(fullUrl);
-          const findResponse = findingRes.data.findCompletedItemsResponse[0];
+          // IMPORTANT: Modern Finding API calls often require the OAuth token in the header
+          const findingRes = await axios.get(urlWithCondition, {
+            headers: {
+              'Authorization': `Bearer ${appToken}`,
+              'X-EBAY-SOA-SECURITY-APPNAME': appId,
+              'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
+              'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
+              'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
+            }
+          });
+
+          let findResponse = findingRes.data.findCompletedItemsResponse[0];
+
+          // FALLBACK: If no results with condition, try without condition on the same level
+          if (findResponse.ack[0] === 'Success' && (!findResponse.searchResult?.[0]?.item || findResponse.searchResult[0].item.length === 0)) {
+            console.log(`[FINDING API] Level ${level} - No results with condition. Retrying without condition filter.`);
+            const fallbackRes = await axios.get(fullUrl, {
+              headers: {
+                'Authorization': `Bearer ${appToken}`,
+                'X-EBAY-SOA-SECURITY-APPNAME': appId,
+                'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
+                'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
+                'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
+              }
+            });
+            findResponse = fallbackRes.data.findCompletedItemsResponse[0];
+            isEstimated = true; // Mark as estimated since we dropped the specific condition
+          }
 
           if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
             const searchResult = findResponse.searchResult[0];
@@ -187,8 +216,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             num: '20'
           });
 
-          if (condition === 'NEW') serpParams.append('LH_ItemCondition', '1000');
-          else if (condition === 'USED') serpParams.append('LH_ItemCondition', '3000');
+          // SerpApi uses different condition IDs in the URL than the Finding API
+          // LH_ItemCondition: 3 for Used, 10 for New
+          if (condition === 'NEW') serpParams.append('LH_ItemCondition', '10');
+          else if (condition === 'USED') serpParams.append('LH_ItemCondition', '3');
 
           const serpRes = await axios.get(`https://serpapi.com/search?${serpParams}`);
           const results = serpRes.data.organic_results || [];
@@ -279,7 +310,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Sold Count (Finding API)
         if (marketStats.soldCount === 0) {
-          const soldRes = await axios.get(`https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&keywords=${encodeURIComponent(statsQuery)}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true&paginationInput.entriesPerPage=1`);
+          const soldRes = await axios.get(`https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&keywords=${encodeURIComponent(statsQuery)}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true&paginationInput.entriesPerPage=1`, {
+            headers: {
+              'Authorization': `Bearer ${appToken}`,
+              'X-EBAY-SOA-SECURITY-APPNAME': appId,
+              'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
+              'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
+              'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
+            }
+          });
           marketStats.soldCount = parseInt(soldRes.data.findCompletedItemsResponse[0].paginationOutput?.[0]?.totalEntries?.[0] || "0");
         }
 
