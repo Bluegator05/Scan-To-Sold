@@ -99,10 +99,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Try 4 levels of relaxation (0-3)
       for (let level = 0; level <= 3; level++) {
         const currentQuery = relaxQuery(query as string, level);
-        // Simple search with SoldItemsOnly filter
-        const fullUrl = `${findingBase}&OPERATION-NAME=findCompletedItems&keywords=${encodeURIComponent(currentQuery)}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true&itemFilter(1).name=Currency&itemFilter(1).value(0)=USD&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest`;
 
-        console.log(`[FINDING API] Level ${level} Classic Auth Attempt: ${currentQuery}`);
+        // Base Finding API URL
+        let fullUrl = `${findingBase}&OPERATION-NAME=findCompletedItems&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest`;
+
+        // Item Filters
+        let filterIndex = 0;
+
+        // Mandatory SoldItemsOnly filter
+        fullUrl += `&itemFilter(${filterIndex}).name=SoldItemsOnly&itemFilter(${filterIndex}).value(0)=true`;
+        filterIndex++;
+
+        // Optional Condition filter
+        if (condition === 'NEW') {
+          fullUrl += `&itemFilter(${filterIndex}).name=Condition&itemFilter(${filterIndex}).value(0)=1000`;
+          filterIndex++;
+        } else if (condition === 'USED') {
+          fullUrl += `&itemFilter(${filterIndex}).name=Condition&itemFilter(${filterIndex}).value(0)=3000`;
+          filterIndex++;
+        }
+
+        console.log(`[FINDING API] Level ${level} Attempt: ${currentQuery}`);
 
         try {
           const findingRes = await axios.get(fullUrl);
@@ -169,6 +186,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             api_key: process.env.SERPAPI_KEY || 'e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57',
             num: '20'
           });
+
+          if (condition === 'NEW') serpParams.append('LH_ItemCondition', '1000');
+          else if (condition === 'USED') serpParams.append('LH_ItemCondition', '3000');
 
           const serpRes = await axios.get(`https://serpapi.com/search?${serpParams}`);
           const results = serpRes.data.organic_results || [];
