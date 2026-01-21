@@ -42,24 +42,28 @@ const getApiUrl = (endpoint: string) => {
 const cleanQuery = (query: string) => {
   if (!query) return "";
   const fluffWords = [
-    "new", "sealed", "vintage", "rare", "l@@k", "fast shipping",
-    "wow", "must see", "mint", "nib", "nwb", "nwt", "brand new",
-    "nrfb", "htf", "vhtf", "look", "look!", "check out", "free shipping",
-    "authentic", "certified", "guaranteed", "shipped", "shipping",
-    "fast", "priority", "tracked", "delivery", "genuine", "original",
-    "box", "package", "packaging", "with", "and", "the", "for", "from",
-    "pressing", "lp", "vinyl", "record", "vg", "vg+"
+    "l@@k", "fast shipping", "wow", "must see", "look", "look!",
+    "check out", "free shipping", "authentic", "certified",
+    "guaranteed", "shipped", "shipping", "fast", "priority",
+    "tracked", "delivery", "genuine", "100%", "free"
   ];
   let cleaned = query.toLowerCase();
   fluffWords.forEach(word => {
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
     cleaned = cleaned.replace(regex, '');
   });
-  cleaned = cleaned.replace(/[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?\/]|100%|free|fast/gi, ' ');
+
+  // Remove special characters but keep alphanumeric and spaces
+  cleaned = cleaned.replace(/[!@#$%^&*()_+={}\[\]|\\:;"'<>,.?\/]/gi, ' ');
+
   const words = cleaned.replace(/\s+/g, ' ').trim().split(' ').filter(w => {
-    return w.length > 2 || /\d/.test(w);
+    // Keep words longer than 1 char, or single digits if they are numeric (like model numbers)
+    return w.length > 1 || /\d/.test(w);
   });
-  return words.slice(0, 7).join(' ');
+
+  // If the query is already very short (under 5 words), don't slice it further
+  if (words.length <= 5) return words.join(' ');
+  return words.slice(0, 8).join(' ');
 };
 
 const extractCategoryId = (items: any[]) => {

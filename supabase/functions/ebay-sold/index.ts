@@ -42,55 +42,89 @@ serve(async (req) => {
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+        // Helper to broaden search if exact match fails
+        const relaxQuery = (q: string, level: number) => {
+            let words = q.split(/\s+/).filter(w => w.length > 1);
+            if (level === 0) return q;
+            if (level === 1) {
+                const fluff = ['new', 'used', 'sealed', 'nib', 'nwt', 'vintage', 'rare', 'mint', 'look', 'wow', 'item', 'unit'];
+                words = words.filter(w => !fluff.includes(w.toLowerCase()));
+                return words.join(' ');
+            }
+            if (level === 2) {
+                // Return first 3 core words (usually Brand + Model)
+                return words.slice(0, 3).join(' ');
+            }
+            return q;
+        };
+
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');
         const SERPAPI_KEY = Deno.env.get('SERPAPI_KEY');
 
-        // Try Finding API first
-        try {
-            const itemFilters: any[] = [{ name: 'SoldItemsOnly', value: 'true' }];
-            if (conditionId) itemFilters.push({ name: 'Condition', value: conditionId });
+        let actualFindingItems: any[] = [];
 
-            const findingParams = new URLSearchParams({
-                'OPERATION-NAME': 'findCompletedItems',
-                'SERVICE-VERSION': '1.13.0',
-                'SECURITY-APPNAME': EBAY_APP_ID || '',
-                'RESPONSE-DATA-FORMAT': 'JSON',
-                'REST-PAYLOAD': '',
-                'keywords': query,
-                'paginationInput.entriesPerPage': '100',
-                'sortOrder': 'EndTimeSoonest'
-            });
+        // Try Finding API with progressive relaxation
+        for (let level = 0; level <= 2; level++) {
+            const relaxedQuery = relaxQuery(query, level);
+            if (!relaxedQuery) continue;
+            if (level > 0 && relaxedQuery === query) continue; // Skip if relaxation didn't change anything
 
-            itemFilters.forEach((filter, index) => {
-                findingParams.append(`itemFilter(${index}).name`, filter.name);
-                findingParams.append(`itemFilter(${index}).value`, filter.value);
-            });
+            try {
+                const itemFilters: any[] = [{ name: 'SoldItemsOnly', value: 'true' }];
+                if (conditionId) itemFilters.push({ name: 'Condition', value: conditionId });
 
-            if (categoryId && categoryId !== 'null') findingParams.append('categoryId', categoryId);
+                const findingParams = new URLSearchParams({
+                    'OPERATION-NAME': 'findCompletedItems',
+                    'SERVICE-VERSION': '1.13.0',
+                    'SECURITY-APPNAME': EBAY_APP_ID || '',
+                    'RESPONSE-DATA-FORMAT': 'JSON',
+                    'REST-PAYLOAD': '',
+                    'keywords': relaxedQuery,
+                    'paginationInput.entriesPerPage': '100',
+                    'sortOrder': 'EndTimeSoonest'
+                });
 
-            const findingResponse = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${findingParams}`, {
-                headers: {
-                    'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
-                    'X-EBAY-SOA-SERVICE-VERSION': '1.13.0',
-                    'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID || '',
-                    'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
-                    'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
+                itemFilters.forEach((filter, index) => {
+                    findingParams.append(`itemFilter(${index}).name`, filter.name);
+                    findingParams.append(`itemFilter(${index}).value`, filter.value);
+                });
+
+                // Only use categoryId for level 0; remove it for broader searches
+                if (categoryId && categoryId !== 'null' && level === 0) {
+                    findingParams.append('categoryId', categoryId);
                 }
-            });
 
-            const findingData = await findingResponse.json();
-            const rootResponse = findingData.findCompletedItemsResponse?.[0];
+                const findingResponse = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${findingParams}`, {
+                    headers: {
+                        'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
+                        'X-EBAY-SOA-SERVICE-VERSION': '1.13.0',
+                        'X-EBAY-SOA-SECURITY-APPNAME': EBAY_APP_ID || '',
+                        'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
+                        'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
+                    }
+                });
 
-            if (rootResponse?.ack?.[0] === 'Success') {
-                const items = rootResponse.searchResult?.[0]?.item || [];
-                const count = rootResponse.searchResult?.[0]?.['@count'] || '0';
-                if (items.length > 0 && count !== '0') {
-                    setCachedData(cacheKey, items);
-                    return new Response(JSON.stringify(items), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+                if (!findingResponse.ok) continue;
+
+                const findingData = await findingResponse.json();
+                const rootResponse = findingData.findCompletedItemsResponse?.[0];
+
+                if (rootResponse?.ack?.[0] === 'Success' || rootResponse?.ack?.[0] === 'Warning') {
+                    const items = rootResponse.searchResult?.[0]?.item || [];
+                    const count = parseInt(rootResponse.searchResult?.[0]?.['@count'] || '0');
+                    if (items.length > 0 && count > 0) {
+                        actualFindingItems = items;
+                        break; // Exit loop on success
+                    }
                 }
+            } catch (findingErr) {
+                console.error(`[FindingAPI] Level ${level} Exception:`, findingErr.message);
             }
-        } catch (findingErr) {
-            console.error('[FindingAPI] Exception:', findingErr.message);
+        }
+
+        if (actualFindingItems.length > 0) {
+            setCachedData(cacheKey, actualFindingItems);
+            return new Response(JSON.stringify(actualFindingItems), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
         // Fallback to SerpApi

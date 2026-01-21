@@ -136,7 +136,9 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
           TASK:
           1. Identify the item (Brand + Model + Key Variant).
           2. Create a "Comp Search Query" (Max 4-5 words). STRICTLY Brand + Model + MPN. 
-             - DO NOT include colors, adjectives, "vintage", "rare", or generic words like "toy" or "electronics" unless part of the model name.
+             - CRITICAL: This query is for finding SOLD items on eBay.
+             - DO NOT include colors, adjectives ("vintage", "rare"), or generic descriptors ("toy", "electronics", "unit").
+             - If the model name is unique, just Brand + Model is best.
              - Example: "Sony Walkman WM-2" (NOT "Red Sony Walkman WM-2 Cassette Player").
           
           Output JSON ONLY:
@@ -161,10 +163,11 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
              - Use ONLY: Brand + Model + Key Variant/Part Number.
              - DO NOT include filler words like "Rare", "Vintage" (unless needed for ID), "Good Condition", "Look!", or emojis.
              - Example: "Sony Walkman WM-2 Red Cassette Player" (NOT "Vintage Sony Walkman Working Rare Look")
-          3. SEARCH QUERY GENERATION: Create a reduced "Comp Search Query" (Max 4-5 words).
-             - Use strictly the most important keywords for finding sold comps (Brand + Model + MPN). 
-             - Remove colors, adjectives, or generic words.
-             - Example: "Sony Walkman WM-2" (NOT "Red Cassette Player")
+          3. SEARCH QUERY GENERATION: Create a reduced "Comp Search Query" (Max 3-5 words).
+             - Aim for Brand + Model + MPN.
+             - EXCLUDE: colors, condition (New/Used), adjectives (Vintage/Rare), and generic nouns (Camera, Toy, Bag).
+             - EXCEPTION: Include keywords that are PART of the official model name.
+             - Example: "Sony Walkman WM-2" (Correct) vs "Red Sony Walkman WM-2 Cassette Player" (Incorrect).
           4. DETERMINE CONDITION: Look for signs of wear, packaging (Sealed/Boxed vs Loose/Used). Defaults to USED if unsure.
           5. Estimate current sold price (market value) for that SPECIFIC condition.
           6. ESTIMATE SHIPPING WEIGHT:
@@ -293,9 +296,9 @@ async function handleIdentifyItem({ imageBase64, imagesBase64, barcode }: any) {
     ${barcode ? `Barcode: ${barcode}` : ""}
     
     1. Identify the item in the image(s) (Brand + Model + Key Variant).
-    2. Create a "Comp Search Query" (Max 4-5 words) for finding sold listings.
-       - STRICTLY Brand + Model + MPN + Key Variant (e.g. Color/Edition).
-       - Exclude generic words (e.g. "sneakers", "working").
+    2. Create a "Comp Search Query" (Max 3-5 words) for finding SOLD listings.
+       - STRICTLY: Brand + Model + MPN.
+       - EXCLUDE: colors (unless part of model), "vintage", "rare", "new", "used", "l@@k".
     
     Output JSON ONLY: { 
       "itemTitle": "string", 
@@ -384,7 +387,8 @@ async function handleAnalyzeItemDetails({ imageBase64, imagesBase64, identifiedT
     
     Output JSON ONLY:
     {
-      "optimizedTitle": "string",
+      "itemTitle": "string (optimized 80 char title)",
+      "searchQuery": "string (3-5 keywords: Brand + Model + MPN)",
       "condition": "USED",
       "estimatedSoldPrice": number,
       "estimatedShippingCost": number,
@@ -408,7 +412,12 @@ async function handleAnalyzeItemDetails({ imageBase64, imagesBase64, identifiedT
 
     const response = result_ai.response;
     const text = response.text() || "{}";
-    return extractJSON(text);
+    const parsed = extractJSON(text);
+    return {
+        ...parsed,
+        itemTitle: parsed.itemTitle || parsed.optimizedTitle || identifiedTitle,
+        searchQuery: parsed.searchQuery || identifiedTitle
+    };
 }
 
 
@@ -723,7 +732,8 @@ async function handleAnalyzeListing(listingData: any) {
             "metrics": [{ "label": "Title Quality", "value": number, "color": "var(--success)|var(--warning)|var(--error)" }, ...],
                 "market": { "median": "string", "range": "string", "sellThrough": "string", "velocity": "High" | "Medium" | "Low" },
         "issues": [{ "type": "warning" | "info" | "success" | "error", "text": "string" }],
-            "improvedTitle": "string (exactly 80 chars)"
+            "improvedTitle": "string (exactly 80 chars)",
+            "searchQuery": "string (3-5 keywords optimized for eBay sold search)"
     }
     `;
 
@@ -744,7 +754,8 @@ async function handleAnalyzeListing(listingData: any) {
             ],
             market: parsed.market || { median: "---", range: "---", sellThrough: "---", velocity: "Medium" },
             issues: Array.isArray(parsed.issues) ? parsed.issues : [{ type: "info", text: "Optimizing listing data..." }],
-            improvedTitle: parsed.improvedTitle || listingData.title
+            improvedTitle: parsed.improvedTitle || listingData.title,
+            searchQuery: parsed.searchQuery || listingData.title
         };
     } catch (e) {
         console.error("AI Analysis Failed:", e);
