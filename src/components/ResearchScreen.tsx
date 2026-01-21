@@ -267,14 +267,22 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                                         </div>
                                     </div>
 
-                                    {activeTab === 'SOLD' && comp.dateSold && (
-                                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
-                                            <Calendar size={10} /> {formatDate(comp.dateSold)}
-                                        </div>
-                                    )}
-                                    {activeTab === 'SOLD' && marketData?.isEstimated && (
-                                        <div className="text-[9px] font-bold text-yellow-400/60 uppercase">
-                                            Active Fallback
+                                    {activeTab === 'SOLD' && (
+                                        <div className="flex flex-col items-end gap-1">
+                                            {comp.dateSold && (
+                                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                                                    <Calendar size={10} /> {formatDate(comp.dateSold)}
+                                                </div>
+                                            )}
+                                            {!marketData?.isEstimated ? (
+                                                <div className="text-[9px] font-black uppercase tracking-tighter text-neon-green/60 flex items-center gap-1">
+                                                    <CheckCircle2 size={10} /> Confirmed Sold
+                                                </div>
+                                            ) : (
+                                                <div className="text-[9px] font-bold text-yellow-400/60 uppercase">
+                                                    Active Fallback
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -42,20 +42,27 @@ serve(async (req) => {
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+        const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -manual -case -only -label -repro -reproduction -replacement";
+
         // Helper to broaden search if exact match fails
         const relaxQuery = (q: string, level: number) => {
             let words = q.split(/\s+/).filter(w => w.length > 1);
-            if (level === 0) return q;
-            if (level === 1) {
-                const fluff = ['new', 'used', 'sealed', 'nib', 'nwt', 'vintage', 'rare', 'mint', 'look', 'wow', 'item', 'unit'];
-                words = words.filter(w => !fluff.includes(w.toLowerCase()));
-                return words.join(' ');
-            }
-            if (level === 2) {
+            const coreExclusions = ['new', 'used', 'sealed', 'nib', 'nwt', 'vintage', 'rare', 'mint', 'look', 'wow', 'item', 'unit', 'authentic', 'ver', 'version'];
+
+            let relaxed;
+            if (level === 0) {
+                relaxed = words.join(' ');
+            } else if (level === 1) {
+                words = words.filter(w => !coreExclusions.includes(w.toLowerCase()));
+                relaxed = words.join(' ');
+            } else if (level === 2) {
                 // Return first 3 core words (usually Brand + Model)
-                return words.slice(0, 3).join(' ');
+                relaxed = words.slice(0, 3).join(' ');
+            } else {
+                relaxed = q;
             }
-            return q;
+
+            return `${relaxed} ${NEGATIVE_KEYWORDS}`.trim();
         };
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');

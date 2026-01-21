@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Search, ArrowRight, Loader2, Tag, ShoppingCart, List, ExternalLink, Image as ImageIcon, Copy, DollarSign } from 'lucide-react';
+import { X, Search, ArrowRight, Loader2, Tag, ShoppingCart, List, ExternalLink, Image as ImageIcon, Copy, DollarSign, Calendar, CheckCircle2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { Comp } from '../types';
@@ -80,6 +80,14 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
     } finally {
       setCloningId(null);
     }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch { return ''; }
   };
 
   if (!isOpen) return null;
@@ -237,6 +245,16 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
                       <div className={`text-lg font-bold ${activeTab === 'SOLD' ? 'text-neon-green' : 'text-white'}`}>
                         ${comp.price.toFixed(2)}
                       </div>
+                      {activeTab === 'SOLD' && comp.dateSold && (
+                        <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold">
+                          <Calendar size={10} /> {formatDate(comp.dateSold)}
+                        </div>
+                      )}
+                      {activeTab === 'SOLD' && (
+                        <div className="text-[9px] font-black uppercase tracking-tighter text-neon-green/60 flex items-center gap-1">
+                          <CheckCircle2 size={10} /> Confirmed Sold
+                        </div>
+                      )}
                     </div>
                   </div>
 

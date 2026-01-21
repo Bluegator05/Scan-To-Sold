@@ -2,30 +2,32 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Buffer } from 'buffer';
 
+const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -manual -case -only -label -repro -reproduction -replacement";
+
 /**
  * Aggressively relaxes a query to ensure we get results
  */
 function relaxQuery(query: string, level: number): string {
   // Clean special characters
   let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').replace(/[#]/g, '').replace(/[:]/g, '').trim();
-  const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition', 'works', 'edition'].includes(w.toLowerCase()));
+  const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition', 'works', 'edition', 'authentic', 'ver', 'version'].includes(w.toLowerCase()));
 
+  let relaxed;
   if (level === 1) {
     // Level 1: Core spec (first 5 core words)
-    if (words.length > 5) return words.slice(0, 5).join(' ');
-  }
-
-  if (level === 2) {
+    relaxed = words.slice(0, 5).join(' ');
+  } else if (level === 2) {
     // Level 2: Model focus (first 3-4 words)
-    if (words.length > 4) return words.slice(0, 4).join(' ');
+    relaxed = words.slice(0, 4).join(' ');
+  } else if (level === 3) {
+    // Level 3: Extreme relaxation (first 2 words only)
+    relaxed = words.slice(0, 2).join(' ');
+  } else {
+    relaxed = words.join(' ');
   }
 
-  if (level === 3) {
-    // Level 3: Extreme relaxation (first 2-3 words only)
-    if (words.length > 2) return words.slice(0, 3).join(' ');
-  }
-
-  return words.join(' ');
+  // Always append negative keywords to filter ads/cases/manuals
+  return `${relaxed} ${NEGATIVE_KEYWORDS}`.trim();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -144,6 +146,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         isEstimated = true;
         const relaxedForFallback = relaxQuery(query as string, 2);
         finalQueryUsed = relaxedForFallback;
+
+        console.log(`[SOLD COMPS] Fallback to Active with query: ${relaxedForFallback}`);
 
         const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
           headers: {

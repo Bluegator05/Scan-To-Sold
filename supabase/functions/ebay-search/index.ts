@@ -24,12 +24,15 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Search query required' }), { status: 400, headers: corsHeaders });
         }
 
-        const cacheKey = `search:${query}`;
+        const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -manual -case -only -label -repro -reproduction -replacement";
+        const finalQuery = `${query} ${NEGATIVE_KEYWORDS}`.trim();
+
+        const cacheKey = `search:${finalQuery}`;
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
         const token = await getEbayToken();
-        const searchParams = new URLSearchParams({ q: query, limit: '50' });
+        const searchParams = new URLSearchParams({ q: finalQuery, limit: '50' });
 
         const response = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?${searchParams}`, {
             headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
