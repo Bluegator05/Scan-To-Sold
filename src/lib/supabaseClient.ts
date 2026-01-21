@@ -50,9 +50,9 @@ const supabaseAnonKey = rawKey || "placeholder";
 // Helper to check if keys are configured (used by UI)
 export const isSupabaseConfigured = () => {
   return (
-    isValidUrl(rawUrl) && 
-    !rawUrl.includes("PASTE_YOUR") && 
-    rawKey.length > 20 && 
+    isValidUrl(rawUrl) &&
+    !rawUrl.includes("PASTE_YOUR") &&
+    rawKey.length > 20 &&
     !rawKey.includes("PASTE_YOUR")
   );
 };
@@ -62,3 +62,14 @@ if (!isSupabaseConfigured()) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const getAuthHeaders = async (): Promise<HeadersInit> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json'
+    };
+  }
+  return { 'Content-Type': 'application/json' };
+};

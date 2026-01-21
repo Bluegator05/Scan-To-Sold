@@ -1,14 +1,23 @@
-// The Identity Pulse (v30): SOA Header Restoration + Raw Body Forensic logging
+// The Identity Pulse (v31): SECURITY GUARD + Forensic Structural Logging
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getEbayToken } from '../_shared/ebay-auth.ts';
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeaders, verifyUser, checkUsage } from '../_shared/auth.ts';
 import { getCachedData, setCachedData } from '../_shared/cache.ts';
 
 serve(async (req) => {
+    // 1. Handle CORS Preflight
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     try {
+        // 2. STRICT SECURITY GUARD: Reject any call without a valid Supabase session
+        const { user, supabase } = await verifyUser(req);
+
+        // 3. DAILY THROTTLE: Limit to 50 fetches per day
+        await checkUsage(supabase, user.id, 'ebay_seller_fetch', 50);
+
+        console.log(`[ebay-seller] Secured call from User: ${user.id}`);
+
         const url = new URL(req.url);
         const pathParts = url.pathname.split('/');
         const sellerId = pathParts[pathParts.length - 1];
@@ -20,13 +29,18 @@ serve(async (req) => {
         }
 
         const rawSellerId = decodeURIComponent(sellerId).trim();
-        const cacheKey = `seller:v30:${rawSellerId}:p:${page}`;
+
+        // 3. User-Specific Cache (Security + Performance)
+        // We use the User ID in the cache key to prevent one user from seeing another user's cached data
+        // even if they fetch the same seller.
+        const cacheKey = `seller:v31:${user.id}:${rawSellerId}:p:${page}`;
+
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V30 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V31 TRACE: ${rawSellerId} P${page}`);
 
         const stats = {
             tier: 'none', tierErr: '',
@@ -172,7 +186,7 @@ serve(async (req) => {
             }));
         }
 
-        stats.summary = `[V30] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | ERR:${stats.firstEnrichError || 'None'}`;
+        stats.summary = `[V31] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | ERR:${stats.firstEnrichError || 'None'}`;
         if (stats.tierErr && stats.tier !== 'finding') stats.summary += ` | TErr:${stats.tierErr.slice(0, 40)}`;
         if (stats.forensic.tier1) stats.summary += ` | T1Key:${stats.forensic.tier1}`;
 
@@ -181,6 +195,10 @@ serve(async (req) => {
         return new Response(JSON.stringify(responseData), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+        console.error(`[ebay-seller] FATAL: ${e.message}`);
+        return new Response(JSON.stringify({ error: e.message }), {
+            status: e.message.includes('authorization') ? 401 : 500,
+            headers: corsHeaders
+        });
     }
 });

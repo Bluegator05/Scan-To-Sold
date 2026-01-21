@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
-
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders, verifyUser, checkUsage } from '../_shared/auth.ts';
 
 // @ts-ignore
 const API_KEY = Deno.env.get('GEMINI_API_KEY') || "";
@@ -45,6 +41,14 @@ serve(async (req) => {
     }
 
     try {
+        // STRICT SECURITY GUARD
+        const { user, supabase } = await verifyUser(req);
+
+        // DAILY THROTTLE: Limit to 100 uses per day
+        await checkUsage(supabase, user.id, 'ai_analysis', 100);
+
+        console.log(`[analyze-item] Secured call from User: ${user.id}`);
+
         if (!API_KEY) {
             throw new Error("GEMINI_API_KEY is not set in Edge Function secrets.");
         }
@@ -98,14 +102,11 @@ serve(async (req) => {
 
     } catch (error: any) {
         console.error("Edge Function Critical Error:", error);
-        // Better error response: Return 200 but with 'error' field so the client can handle it gracefully 
-        // without the generic "non-2xx" Supabase client error.
         return new Response(JSON.stringify({
             error: error.message || "Unknown error",
-            details: error.toString(),
-            stack: error.stack
+            details: error.toString()
         }), {
-            status: 200, // Changed from 400 to 200 to allow custom error handling on client
+            status: error.message.includes('authorization') ? 401 : 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
     }
@@ -671,6 +672,7 @@ async function handleAnalyzeListing(listingData: any) {
     - Condition: ${listingData.condition}
     - Item Specifics: ${JSON.stringify(listingData.specifics)}
     - URL: ${listingData.url}
+    - Image: ${listingData.imageUrl}
 
     TASK:
     1. Score the Title (0-100) based on keyword usage and character count (Target 80).
@@ -694,7 +696,6 @@ async function handleAnalyzeListing(listingData: any) {
         const text = result_ai.response.text();
         const parsed = extractJSON(text);
 
-        // Final sanity check on structure
         return {
             title: listingData.title,
             price: listingData.price,

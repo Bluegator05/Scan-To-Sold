@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase, getAuthHeaders } from '../lib/supabaseClient';
 import { Comp } from '../types';
 import { Browser } from '@capacitor/browser';
 
@@ -113,7 +113,7 @@ export const fetchMarketData = async (query: string, condition?: string) => {
   // 1. Fetch Active Items
   try {
     const activeUrl = `${FUNCTIONS_URL}/ebay-search/${encodeURIComponent(query)}${condition ? `?condition=${encodeURIComponent(condition)}` : ''}`;
-    const activeRes = await fetch(activeUrl);
+    const activeRes = await fetch(activeUrl, { headers: await getAuthHeaders() });
     if (activeRes.ok) {
       const activeData = await activeRes.json();
       activeItems = activeData.itemSummaries || [];
@@ -128,7 +128,7 @@ export const fetchMarketData = async (query: string, condition?: string) => {
   // 2. Fetch Sold Items (Supabase)
   try {
     const soldUrl = `${FUNCTIONS_URL}/ebay-sold/${encodeURIComponent(query)}?${condition ? `condition=${encodeURIComponent(condition)}` : ''}${categoryId ? `&categoryId=${categoryId}` : ''}`;
-    const soldRes = await fetch(soldUrl);
+    const soldRes = await fetch(soldUrl, { headers: await getAuthHeaders() });
 
     if (soldRes.ok) {
       const soldData = await soldRes.json();
@@ -268,7 +268,7 @@ export const getEbayPolicies = async (userId: string) => {
     const url = getApiUrl(`/api/ebay/get-policies?userId=${userId}`);
     if (!url) return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
 
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: await getAuthHeaders() });
     if (!response.ok) throw new Error("API error");
     const data = await response.json();
     return {
@@ -295,7 +295,7 @@ export const checkEbayConnection = async (): Promise<boolean> => {
   const url = getApiUrl(`/api/ebay/status?userId=${user.id}&t=${Date.now()}`);
   if (!url) return false;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: await getAuthHeaders() });
     if (!response.ok) return false;
     const data = await response.json();
     if (data.connected) localStorage.setItem(EBAY_TOKEN_KEY, 'true');
@@ -317,7 +317,7 @@ export const disconnectEbayAccount = async (): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
   const url = getApiUrl(`/api/ebay/disconnect?userId=${user?.id}`);
   if (user && url) {
-    try { await fetch(url); } catch (e) { }
+    try { await fetch(url, { headers: await getAuthHeaders() }); } catch (e) { }
   }
   localStorage.removeItem(EBAY_TOKEN_KEY);
   window.location.reload();
@@ -326,7 +326,7 @@ export const disconnectEbayAccount = async (): Promise<void> => {
 export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[] }> => {
   const url = getApiUrl(`/api/ebay/search-comps?query=${encodeURIComponent(query)}&tab=${tab}&condition=${condition}`);
   if (!url) throw new Error("Backend URL not configured");
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await getAuthHeaders() });
   if (!res.ok) throw new Error("Failed to fetch comps");
   return await res.json();
 };
@@ -337,7 +337,7 @@ export const searchEbayByImage = async (imageBase64: string): Promise<any[]> => 
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ imageBase64 })
     });
     const data = await res.json();
@@ -348,7 +348,7 @@ export const searchEbayByImage = async (imageBase64: string): Promise<any[]> => 
 export const fetchEbayItemDetails = async (itemId: string): Promise<any> => {
   const url = getApiUrl(`/api/ebay/fetch-item?itemId=${encodeURIComponent(itemId)}&IncludeSelector=ItemSpecifics,Details,TextDescription`);
   if (!url) throw new Error("Backend URL not configured");
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await getAuthHeaders() });
   if (!res.ok) throw new Error("Failed to fetch item details");
   return await res.json();
 };
