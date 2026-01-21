@@ -2824,6 +2824,25 @@ function App() {
                                 </div>
                                 <textarea value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="w-full bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-lg focus:outline-none focus:border-emerald-500 dark:focus:border-neon-green transition-colors resize-none min-h-[80px] shadow-sm" placeholder="Item description..." />
 
+                                {scoutResult.extractedDetails && (
+                                    <div className="mt-1 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start gap-2 shadow-sm animate-in fade-in slide-in-from-top-1 duration-500">
+                                        <div className="p-1.5 bg-emerald-500/20 rounded-md shrink-0">
+                                            <Sparkles size={12} className="text-neon-green" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                                                    AI Proof Analysis
+                                                </span>
+                                                <span className="text-[9px] bg-emerald-500 text-black px-1.5 rounded-full font-bold uppercase py-0.5">Verified</span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 italic leading-relaxed mt-0.5 font-medium">
+                                                &quot;{scoutResult.extractedDetails}&quot;
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Research Buttons Row */}
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                                     <button onClick={() => handleOpenResearch('EBAY_SOLD', editedTitle || scoutResult.itemTitle)} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap">eBay Sold</button>

@@ -147,8 +147,10 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
         `;
     } else {
         prompt = `
-          Act as an expert reseller (eBay/flipper). Analyze the provided image(s).
-          Use ALL provided images to get a complete view of the item (front, back, labels, etc).
+          Act as an expert reseller (eBay/flipper). Analyze ALL provided images (${images.length} photos provided).
+          CRITICAL: Do not just focus on the first image. Synthesize information from ALL images to get a complete view.
+          - CHECK for labels, manufacture dates, serial numbers, and fine print on the back/bottom of the item.
+          - If a manufacture date or year is visible on any image, include it in the title or specifics.
           ${isBulkMode ? "MODE: BULK LOT / DEATH PILE. Identify the group of items." : "Identify the specific item."}
           ${barcode ? `Barcode provided: ${barcode}.` : ""}
           
@@ -209,7 +211,8 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
             },
             "description": "string",
             "confidence": number,
-            "barcode": "string"
+            "barcode": "string",
+            "extractedDetails": "string (Self-verify: Mention a specific detail you found in a secondary/tertiary image to prove you used it)"
           }
         `;
     }
@@ -268,6 +271,8 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
         tokenUsage,
         barcode: result.barcode || barcode,
         isBulkLot: isBulkMode,
+        extractedDetails: result.extractedDetails,
+        totalImagesAnalyzed: images.length
     };
 }
 
@@ -334,60 +339,58 @@ async function handleAnalyzeItemDetails({ imageBase64, imagesBase64, identifiedT
     }));
 
     const prompt = `
-    Analyze the provided image(s) of: "${identifiedTitle}".
+    Analyze the provided ${images.length} image(s) of: "${identifiedTitle}".
     
-    TASK: Create a professional eBay listing.
+    TASK: Create a professional eBay listing by synthesizing data from ALL images.
+    - Labeled details, MPNs, and manufacture dates from secondary images are extremely important.
     
-    1. WRITE AN OPTIMIZED TITLE (Crucial):
-       - Max 80 Characters.
-       - Format: Brand + Model + Key Variant + Key Specs + Condition (if applicable).
-       - NO filler words ("Look", "Wow").
+    1. WRITE AN OPTIMIZED TITLE(Crucial):
+    - Max 80 Characters.
+       - Format: Brand + Model + Key Variant + Key Specs + Condition(if applicable).
+       - NO filler words("Look", "Wow").
        - Example: "Sony Walkman WM-2 Cassette Player Red Vintage Portable working"
-    
+
     2. WRITE A DESCRIPTION:
-       - Format:
-         [Main Title Line]
-         
-         **Features:**
-         - [Key Feature 1 (Material, Style, etc)]
-         - [Key Feature 2]
-         - [Key Feature 3]
-         
-         **Measurements/Size:**
+    - Format:
+    [Main Title Line]
+
+        ** Features:**
+            -[Key Feature 1(Material, Style, etc)]
+            - [Key Feature 2]
+            - [Key Feature 3]
+
+            ** Measurements / Size:**
          - [Approximate Estimated Dimensions/Size]
-         
-         **Condition:**
-         [Condition Note - Be specific about wear/flaws]
-         
-         **Shipping:**
-         Ships via USPS Ground Advantage. Securely packaged.
+
+                ** Condition:**
+                    [Condition Note - Be specific about wear / flaws]
+
+                    ** Shipping:**
+                        Ships via USPS Ground Advantage.Securely packaged.
     
-    3. ESTIMATE DATA (Search Web):
-       - Price: Average Sold Price for this condition.
+    3. ESTIMATE DATA(Search Web):
+    - Price: Average Sold Price for this condition.
        - Shipping: Accurate Weight & Dimensions for this model.
     
-    4. EXTRACT ITEM SPECIFICS (REQUIRED):
-       - You MUST populate the 'itemSpecifics' object.
-       - keys: "Brand", "Model", "MPN" (if found), and other category-specific attributes (e.g. "Size", "Color", "Material", "Platform").
-       - Do NOT leave empty. If unknown, use "Unbranded" or "Unknown".
+    4. EXTRACT ITEM SPECIFICS(REQUIRED):
+    - You MUST populate the 'itemSpecifics' object.
+       - keys: "Brand", "Model", "MPN"(if found), and other category - specific attributes(e.g. "Size", "Color", "Material", "Platform").
+       - Do NOT leave empty.If unknown, use "Unbranded" or "Unknown".
     
     Output JSON ONLY:
     {
-      "optimizedTitle": "string (Max 80 chars)",
+      "optimizedTitle": "string",
       "condition": "USED",
       "estimatedSoldPrice": number,
       "estimatedShippingCost": number,
       "estimatedWeight": "string",
       "estimatedDimensions": "string",
-      "itemSpecifics": {
-          "Brand": "string",
-          "Model": "string",
-          "MPN": "string",
-          "Color": "string"
-      },
-      "description": "string"
+      "itemSpecifics": { "Brand": "string", "Model": "string", "MPN": "string" },
+      "description": "string",
+      "extractedDetails": "string",
+      "totalImagesAnalyzed": number
     }
-  `;
+    `;
 
     const model = ai.getGenerativeModel({
         model: 'gemini-2.0-flash-exp'
@@ -414,48 +417,48 @@ async function handleAnalyzeItemText({ query }: any) {
             TARGET BARCODE: "${query}"
             
             STRICT INSTRUCTIONS:
-            1. Execute Google Search using ONLY these digits: "${query}".
-            2. DO NOT add words like "item", "toy", "electronics", "dvd" to the search query. Search the raw numbers.
+    1. Execute Google Search using ONLY these digits: "${query}".
+    2. DO NOT add words like "item", "toy", "electronics", "dvd" to the search query.Search the raw numbers.
             3. If the number corresponds to a product, Identify it.
-            4. Identify the specific product (Brand + Model + Variant).
+            4. Identify the specific product(Brand + Model + Variant).
             5. Estimate price and weight based on the EXACT match found.
             
-            Return JSON: { 
-                itemTitle,
-                searchQuery, 
-                estimatedSoldPrice, 
-                estimatedShippingCost, 
-                estimatedWeight, 
-                description, 
-                confidence, 
-                marketDemand: "HIGH"|"MEDIUM"|"LOW", 
-                condition: "NEW"|"USED",
-                itemSpecifics: { "Brand": "", "Model": "", "Type": "" }
-            }
-        `;
+            Return JSON: {
+        itemTitle,
+            searchQuery,
+            estimatedSoldPrice,
+            estimatedShippingCost,
+            estimatedWeight,
+            description,
+            confidence,
+            marketDemand: "HIGH" | "MEDIUM" | "LOW",
+                condition: "NEW" | "USED",
+                    itemSpecifics: { "Brand": "", "Model": "", "Type": "" }
+    }
+    `;
     } else {
         prompt = `
-            Identify item from query: "${query}". 
-            
-            TASK:
-            1. Identify product (Brand + Model + Variant). No fluff.
-            2. Create a comp-friendly search query.
+            Identify item from query: "${query}".
+
+        TASK:
+    1. Identify product(Brand + Model + Variant).No fluff.
+            2. Create a comp - friendly search query.
             3. Estimate price and weight.
-            4. Identify Item Specifics (Brand, Model, Type, etc).
+            4. Identify Item Specifics(Brand, Model, Type, etc).
             
-            Return JSON: { 
-                itemTitle, 
-                searchQuery,
-                estimatedSoldPrice, 
-                estimatedShippingCost, 
-                estimatedWeight, 
-                description, 
-                confidence, 
-                marketDemand: "HIGH"|"MEDIUM"|"LOW", 
-                condition: "NEW"|"USED",
-                itemSpecifics: { "Brand": "", "Model": "", "Type": "" }
-            }
-        `;
+            Return JSON: {
+        itemTitle,
+            searchQuery,
+            estimatedSoldPrice,
+            estimatedShippingCost,
+            estimatedWeight,
+            description,
+            confidence,
+            marketDemand: "HIGH" | "MEDIUM" | "LOW",
+                condition: "NEW" | "USED",
+                    itemSpecifics: { "Brand": "", "Model": "", "Type": "" }
+    }
+    `;
     }
 
     const model = ai.getGenerativeModel({
@@ -502,18 +505,18 @@ async function handleAnalyzeItemText({ query }: any) {
 
 async function handleOptimizeTitle({ currentTitle }: any) {
     const prompt = `
-      Act as an expert eBay Copywriter. Rewrite the following title to maximize search visibility (SEO).
+    Act as an expert eBay Copywriter.Rewrite the following title to maximize search visibility(SEO).
       
       Original Title: "${currentTitle}"
       
       CRITICAL RULES:
-      1. **ABSOLUTE LIMIT:** The output MUST be 80 characters or less. Count carefully.
-      2. **STRUCTURE:** Brand + Model + Product Type + Key Specs/Color + Condition (if New).
-      3. **KEYWORDS:** Infer high-value keywords from sold listings of similar items.
-      4. **CLEANUP:** Remove punctuation, "L@@K", "Wow", emojis, or duplicate words.
-      5. **FORMAT:** Title Case.
+    1. ** ABSOLUTE LIMIT:** The output MUST be 80 characters or less.Count carefully.
+      2. ** STRUCTURE:** Brand + Model + Product Type + Key Specs / Color + Condition(if New).
+      3. ** KEYWORDS:** Infer high - value keywords from sold listings of similar items.
+      4. ** CLEANUP:** Remove punctuation, "L@@K", "Wow", emojis, or duplicate words.
+      5. ** FORMAT:** Title Case.
       
-      If the title is too long, remove the least important words (like "Very", "Nice", "The").
+      If the title is too long, remove the least important words(like "Very", "Nice", "The").
       
       Return ONLY the optimized title string.
     `;
@@ -533,15 +536,15 @@ async function handleSuggestItemSpecifics({ title, notes }: any) {
           Based on the item title: "${title}" and condition notes: "${notes}", identify the likely eBay Item Specifics.
           
           Return JSON format only:
-          {
-            "Brand": "string",
+    {
+        "Brand": "string",
             "Model": "string",
-            "MPN": "string (or 'Does not apply')",
-            "Type": "string",
-            "UPC": "string (or 'Does not apply')",
-            "CountryRegionOfManufacture": "string"
-          }
-        `;
+                "MPN": "string (or 'Does not apply')",
+                    "Type": "string",
+                        "UPC": "string (or 'Does not apply')",
+                            "CountryRegionOfManufacture": "string"
+    }
+    `;
 
     const model = ai.getGenerativeModel({
         model: 'gemini-2.0-flash-exp'
@@ -555,10 +558,10 @@ async function handleSuggestItemSpecifics({ title, notes }: any) {
 
 async function handleRefinePriceAnalysis({ title, condition }: any) {
     const prompt = `
-      Re-evaluate the market price for this item: "${title}".
+    Re - evaluate the market price for this item: "${title}".
       CONDITION CHANGED TO: ${condition}.
-      
-      Task:
+
+    Task:
       Find the average sold price for this item specifically in ${condition} condition.
       
       Output JSON: { "estimatedSoldPrice": number }
@@ -579,27 +582,27 @@ async function handleGenerateListingDescription({ title, notes, platform }: any)
     const prompt = platform === 'EBAY'
         ? `TASK: Write a plain text listing description for eBay.
         ITEM: "${title}"
-        CONDITION: "${notes}"
+    CONDITION: "${notes}"
 
         CRITICAL RULES:
-        1. OUTPUT FORMAT: RAW PLAIN TEXT ONLY. DO NOT return JSON. DO NOT use Markdown (no **bold**, no # headers).
-        2. TONE: Strictly factual, dry, and objective. NO marketing fluff (No "Beautiful", "Stunning", "Perfect for").
-        3. FORMATTING: Use simple newlines for spacing and dashes (-) for lists.
+    1. OUTPUT FORMAT: RAW PLAIN TEXT ONLY.DO NOT return JSON.DO NOT use Markdown(no ** bold **, no # headers).
+        2. TONE: Strictly factual, dry, and objective.NO marketing fluff(No "Beautiful", "Stunning", "Perfect for").
+        3. FORMATTING: Use simple newlines for spacing and dashes(-) for lists.
         4. CONTENT:
            ${title}
-           
-           Details:
-           - Brand: [Brand]
-           - Model: [Model]
-           - [Spec 1]
-           - [Spec 2]
-           
-           Condition:
+
+    Details:
+    - Brand: [Brand]
+        - Model: [Model]
+            - [Spec 1]
+            - [Spec 2]
+
+    Condition:
            ${notes ? notes : "Pre-owned. See photos for details."}
-           
-           Shipping:
+
+    Shipping:
            Ships via USPS Ground Advantage.`
-        : `Write a short, factual Facebook Marketplace listing for "${title}". Condition: "${notes}". Price: Firm. No fluff. Plain text only.`;
+        : `Write a short, factual Facebook Marketplace listing for "${title}".Condition: "${notes}".Price: Firm.No fluff.Plain text only.`;
 
     const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     const result_ai = await model.generateContent(prompt);
@@ -616,7 +619,7 @@ async function handleGenerateListingDescription({ title, notes, platform }: any)
         } catch (e) { /* proceed as text */ }
     }
 
-    text = text.replace(/```(?:html|text|json)?/gi, '').replace(/```/g, '');
+    text = text.replace(/```(?: html | text | json) ? /gi, '').replace(/```/g, '');
     text = text.replace(/<[^>]*>/g, '');
     text = text.replace(/\*\*/g, '');
 
@@ -639,19 +642,19 @@ async function handleOptimizeProductImage({ imageUrlOrBase64, itemTitle, backgro
             Target Item: "${itemTitle || "The main central object"}".
             
             ACTION PLAN:
-            1. CUT OUT the target item precisely.
+    1. CUT OUT the target item precisely.
             2. PLACE it on a ${backgroundColor} background.
             3. CENTER the item in the frame with balanced padding.
-            4. LIGHTING: NEUTRAL, FLAT lighting only. Do not add dramatic shadows or highlights.
-            
-            CRITICAL "DO NOT TOUCH" RULES (ZERO TOLERANCE):
-            - **PRESERVE PIXELS:** The item itself must remain 100% IDENTICAL to the original.
-            - **NO REPAIRS:** Do NOT fix scratches, dents, dust, rust, or tears. This is a USED item for sale; flaws MUST be visible.
-            - **NO GENERATIVE FILL:** Do NOT generate new parts of the item. If a part is cut off, leave it cut off.
-            - **NO COLOR GRADING:** Do not change the color temperature or saturation of the item.
-            - **NO TEXTURE SMOOTHING:** Do not apply "beauty filters" to the object.
-            
-            SUMMARY: Change the background to ${backgroundColor}. Move the item to the center. DO NOT TOUCH THE ITEM OTHERWISE.
+            4. LIGHTING: NEUTRAL, FLAT lighting only.Do not add dramatic shadows or highlights.
+
+        CRITICAL "DO NOT TOUCH" RULES(ZERO TOLERANCE):
+            - ** PRESERVE PIXELS:** The item itself must remain 100 % IDENTICAL to the original.
+            - ** NO REPAIRS:** Do NOT fix scratches, dents, dust, rust, or tears.This is a USED item for sale; flaws MUST be visible.
+            - ** NO GENERATIVE FILL:** Do NOT generate new parts of the item.If a part is cut off, leave it cut off.
+            - ** NO COLOR GRADING:** Do not change the color temperature or saturation of the item.
+            - ** NO TEXTURE SMOOTHING:** Do not apply "beauty filters" to the object.
+
+        SUMMARY: Change the background to ${backgroundColor}. Move the item to the center.DO NOT TOUCH THE ITEM OTHERWISE.
             
             Return ONLY the generated image.
         `;
@@ -675,7 +678,7 @@ async function handleOptimizeProductImage({ imageUrlOrBase64, itemTitle, backgro
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData) {
                 return {
-                    image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                    image: `data:${part.inlineData.mimeType}; base64, ${part.inlineData.data} `,
                     tokenUsage
                 };
             }
@@ -694,7 +697,7 @@ async function handleAnalyzeListing(listingData: any) {
     Analyze this eBay listing and return a structured JSON object for optimization.
     
     Listing Data:
-    - Title: ${listingData.title}
+        - Title: ${listingData.title}
     - Current Price: ${listingData.price}
     - Category: ${listingData.category}
     - Condition: ${listingData.condition}
@@ -703,19 +706,19 @@ async function handleAnalyzeListing(listingData: any) {
     - Image: ${listingData.imageUrl}
 
     TASK:
-    1. Score the Title (0-100) based on keyword usage and character count (Target 80).
-    2. Score the Price (0-100) vs expected market value for ${listingData.condition} items.
-    3. Generate 4 key health metrics (Title Quality, Search Rank, Market Demand, Pricing).
-    4. Provide 3-5 Actionable Fixes.
-    5. Suggest an Improved Title (EXACTLY 80 chars, Brand + Model + Specs + Condition).
+    1. Score the Title(0 - 100) based on keyword usage and character count(Target 80).
+    2. Score the Price(0 - 100) vs expected market value for ${listingData.condition} items.
+    3. Generate 4 key health metrics(Title Quality, Search Rank, Market Demand, Pricing).
+    4. Provide 3 - 5 Actionable Fixes.
+    5. Suggest an Improved Title(EXACTLY 80 chars, Brand + Model + Specs + Condition).
 
-    The response MUST be valid JSON (no markdown) with these keys:
+    The response MUST be valid JSON(no markdown) with these keys:
     {
-      "score": number,
-      "metrics": [{ "label": "Title Quality", "value": number, "color": "var(--success)|var(--warning)|var(--error)" }, ...],
-      "market": { "median": "string", "range": "string", "sellThrough": "string", "velocity": "High"|"Medium"|"Low" },
-      "issues": [{ "type": "warning"|"info"|"success"|"error", "text": "string" }],
-      "improvedTitle": "string (exactly 80 chars)"
+        "score": number,
+            "metrics": [{ "label": "Title Quality", "value": number, "color": "var(--success)|var(--warning)|var(--error)" }, ...],
+                "market": { "median": "string", "range": "string", "sellThrough": "string", "velocity": "High" | "Medium" | "Low" },
+        "issues": [{ "type": "warning" | "info" | "success" | "error", "text": "string" }],
+            "improvedTitle": "string (exactly 80 chars)"
     }
     `;
 

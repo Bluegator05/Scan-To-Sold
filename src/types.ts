@@ -44,6 +44,8 @@ export interface ScoutResult {
     output: number;
     total: number;
   };
+  extractedDetails?: string; // New: Proof of cross-image analysis
+  totalImagesAnalyzed?: number; // New: Count of photos used
 }
 
 export interface Comp {
@@ -159,6 +161,14 @@ export interface SubscriptionStatus {
   maxDailyScans: number;
   renewsAt?: string;
   stripeCustomerId?: string;
+}
+
+export interface ProxyUserProfile {
+  id: string;
+  email: string;
+  tier: SubscriptionTier;
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
 }
 
 export interface UserProfile {
