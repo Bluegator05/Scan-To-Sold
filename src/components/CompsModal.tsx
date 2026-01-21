@@ -24,6 +24,7 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
   const [cloningId, setCloningId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SOLD'>(initialTab);
+  const [isEstimated, setIsEstimated] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,10 +44,11 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
       const data = await searchEbayComps(searchQuery, tab, condition);
       const cleanedComps = (data.comps || []).map((c: any) => ({
         ...c,
-        title: (c.title || "").replace(/\s*\(Estimated Sold\)\s*/gi, '').trim()
+        title: c.title || ""
       }));
       setComps(cleanedComps);
       setAvgPrice(data.averagePrice);
+      setIsEstimated(!!data.isEstimated);
     } catch (e: any) {
       setError(e.message || "Failed to load comps");
       setComps([]);
@@ -124,7 +126,7 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
             onClick={() => handleTabChange('SOLD')}
             className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SOLD' ? 'bg-neon-green text-slate-950 shadow-lg shadow-neon-green/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
           >
-            <ShoppingCart size={14} /> SOLD HISTORY
+            <ShoppingCart size={14} /> SOLD HISTORY {isEstimated && <span className="text-[8px] opacity-70 ml-1">(EST.)</span>}
           </button>
         </div>
 
@@ -242,17 +244,22 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
                     </div>
 
                     <div className="flex flex-col items-end gap-1">
-                      <div className={`text-lg font-bold ${activeTab === 'SOLD' ? 'text-neon-green' : 'text-white'}`}>
+                      <div className={`text-lg font-bold ${activeTab === 'SOLD' ? (isEstimated ? 'text-yellow-400' : 'text-neon-green') : 'text-white'}`}>
                         ${comp.price.toFixed(2)}
                       </div>
-                      {activeTab === 'SOLD' && comp.dateSold && (
+                      {activeTab === 'SOLD' && comp.dateSold && !isEstimated && (
                         <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold">
                           <Calendar size={10} /> {formatDate(comp.dateSold)}
                         </div>
                       )}
-                      {activeTab === 'SOLD' && (
+                      {activeTab === 'SOLD' && !isEstimated && (
                         <div className="text-[9px] font-black uppercase tracking-tighter text-neon-green/60 flex items-center gap-1">
                           <CheckCircle2 size={10} /> Confirmed Sold
+                        </div>
+                      )}
+                      {activeTab === 'SOLD' && isEstimated && (
+                        <div className="text-[8px] font-bold text-yellow-400/60 uppercase">
+                          Active Fallback
                         </div>
                       )}
                     </div>

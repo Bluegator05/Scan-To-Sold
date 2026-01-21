@@ -140,34 +140,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // If Finding API still returns 0, use Browse API as fallback
+      // If Finding API still returns 0, try SerpApi as a better Sold fallback
       if (comps.length === 0) {
-        console.log('[SOLD COMPS] All Finding API attempts failed. Using Browse API fallback.');
-        isEstimated = true;
-        const relaxedForFallback = relaxQuery(query as string, 2);
-        finalQueryUsed = relaxedForFallback;
+        console.log('[SOLD COMPS] Finding API failed. Trying SerpApi Sold fallback.');
+        try {
+          const serpParams = new URLSearchParams({
+            engine: 'ebay',
+            _nkw: query as string,
+            show_only: 'Sold',
+            api_key: process.env.SERPAPI_KEY || 'e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57',
+            num: '20'
+          });
 
-        console.log(`[SOLD COMPS] Fallback to Active with query: ${relaxedForFallback}`);
+          const serpRes = await axios.get(`https://serpapi.com/search?${serpParams}`);
+          const results = serpRes.data.organic_results || [];
 
-        const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
-          headers: {
-            'Authorization': `Bearer ${appToken}`,
-            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-          },
-          params: { q: relaxedForFallback, limit: 10 }
-        });
+          if (results.length > 0) {
+            comps = results.map((item: any) => {
+              const extensions = item.extensions || [];
+              const soldDateExt = extensions.find((ext: string) => ext.toLowerCase().includes('sold'));
+              const isSold = !!soldDateExt || item.status === 'Sold';
 
-        comps = (activeRes.data.itemSummaries || []).map((i: any) => ({
-          id: i.itemId,
-          title: i.title + ' (Estimated Sold)',
-          price: parseFloat(i.price?.value || '0') * 0.85,
-          shipping: 0,
-          total: parseFloat(i.price?.value || '0') * 0.85,
-          url: i.itemWebUrl,
-          isEstimated: true,
-          condition: i.condition || 'Used',
-          image: i.image?.imageUrl || null
-        }));
+              const itemPrice = item.price?.extracted || item.price?.raw?.replace(/[^0-9.]/g, '') || 0;
+
+              return {
+                id: item.listing_id || Math.random().toString(),
+                title: item.title,
+                price: parseFloat(itemPrice),
+                shipping: 0,
+                total: parseFloat(itemPrice),
+                url: item.link,
+                dateSold: soldDateExt ? soldDateExt.replace(/Sold /i, '') : '',
+                condition: item.condition || 'Used',
+                image: item.thumbnail,
+                isSerp: true,
+                isSold: isSold
+              };
+            }).filter((c: any) => c.isSold); // STRICT FILTER: ONLY SOLD
+          }
+        } catch (e: any) {
+          console.error('[SOLD COMPS] SerpApi fallback failed:', e.message);
+        }
       }
 
     } else {

@@ -1123,7 +1123,8 @@ function App() {
                             totalActive: marketStats.activeCount,
                             totalSold: marketStats.soldCount,
                             activeComps: (marketStats as any).activeComps || [],
-                            soldComps: (marketStats as any).soldComps || []
+                            soldComps: (marketStats as any).soldComps || [],
+                            isEstimated: (marketStats as any).isEstimated || (compsResults as any).isEstimated || false
                         }
                     };
 

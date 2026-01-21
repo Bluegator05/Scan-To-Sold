@@ -151,48 +151,7 @@ export const fetchMarketData = async (query: string, condition?: string) => {
     console.warn("[STS] Supabase Sold failed, will try SerpApi fallback.");
   }
 
-  // 3. SerpApi Fallback (If Supabase yields nothing)
-  if (actualSoldItems.length === 0) {
-    console.log("[STS] Trying direct SerpApi fallback...");
-    try {
-      const serpParams = new URLSearchParams({
-        engine: 'ebay',
-        _nkw: query,
-        show_only: 'Sold',
-        api_key: SERPAPI_KEY_FALLBACK,
-        num: '15'
-      });
-      const targetUrl = `https://serpapi.com/search?${serpParams}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
-      const res = await fetch(proxyUrl);
-      const json = await res.json();
-      const serpData = typeof json.contents === 'string' ? JSON.parse(json.contents) : json;
-      const results = serpData.organic_results || [];
-
-      if (results.length > 0) {
-        console.log(`[STS] SerpApi found ${results.length} SOLD items.`);
-        actualSoldItems = results.map((item: any) => ({
-          title: [item.title],
-          sellingStatus: [{
-            currentPrice: [{
-              '__value__': item.price?.extracted?.toString() || (item.price?.raw?.replace(/[^0-9.]/g, '') || "0"),
-              '@currencyId': 'USD'
-            }],
-            sellingState: ['EndedWithSales']
-          }],
-          listingInfo: [{
-            endTime: [item.sold_date || item.extensions?.find((ext: string) => ext.toLowerCase().includes('sold'))?.replace(/Sold /i, '') || '']
-          }],
-          viewItemURL: [item.link],
-          galleryURL: [item.thumbnail]
-        }));
-        isSoldBlocked = false;
-      }
-    } catch (e) {
-      console.error("[STS] SerpApi fallback failed:", e);
-    }
-  }
+  const isEstimatedData = actualSoldItems.length === 0 && activeItems.length > 0;
 
   // Final Results Processing
   const soldPrices = actualSoldItems.map((item: any) => parseFloat(item.sellingStatus[0].currentPrice[0].__value__)).filter(p => !isNaN(p));
@@ -262,7 +221,8 @@ export const fetchMarketData = async (query: string, condition?: string) => {
       image: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : (item.galleryURL || '')),
       url: (Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : (item.viewItemURL || '')),
       dateSold: (Array.isArray(item.listingInfo?.[0]?.endTime) ? item.listingInfo[0].endTime[0] : (item.listingInfo?.[0]?.endTime || ''))
-    }))
+    })),
+    isEstimated: isEstimatedData
   };
 
   if (activeCount > 0 || actualSoldCount > 0) {
@@ -331,7 +291,7 @@ export const disconnectEbayAccount = async (): Promise<void> => {
   window.location.reload();
 };
 
-export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[] }> => {
+export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean }> => {
   const url = getApiUrl(`/api/ebay/search-comps?query=${encodeURIComponent(query)}&tab=${tab}&condition=${condition}`);
   if (!url) throw new Error("Backend URL not configured");
   const res = await fetch(url, { headers: await getAuthHeaders() });
