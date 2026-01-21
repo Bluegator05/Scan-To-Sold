@@ -124,11 +124,44 @@ export const checkEbayConnection = async (): Promise<boolean> => {
   } catch (error) { return false; }
 };
 
+export const getEbayPolicies = async (userId: string) => {
+  try {
+    const url = getApiUrl(`/api/ebay/get-policies?userId=${userId}`);
+    if (!url) return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
+    const response = await fetch(url, { headers: await getAuthHeaders() });
+    if (!response.ok) throw new Error("API error");
+    const data = await response.json();
+    return {
+      shippingPolicies: Array.isArray(data?.shippingPolicies) ? data.shippingPolicies : [],
+      returnPolicies: Array.isArray(data?.returnPolicies) ? data.returnPolicies : [],
+      paymentPolicies: Array.isArray(data?.paymentPolicies) ? data.paymentPolicies : []
+    };
+  } catch (e) {
+    console.warn("[eBay] Failed to load policies:", e);
+    return { shippingPolicies: [], returnPolicies: [], paymentPolicies: [] };
+  }
+};
+
+export const getSellThroughData = async (query: string) => {
+  try { return await fetchMarketData(query); }
+  catch (e) { return { activeCount: 0, soldCount: 0, sellThroughRate: 0 }; }
+};
+
 export const connectEbayAccount = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   const authUrl = getApiUrl(`/api/ebay/auth?userId=${user.id}&platform=native`);
   if (authUrl) await Browser.open({ url: authUrl });
+};
+
+export const disconnectEbayAccount = async (): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  const url = getApiUrl(`/api/ebay/disconnect?userId=${user?.id}`);
+  if (user && url) {
+    try { await fetch(url, { headers: await getAuthHeaders() }); } catch (e) { }
+  }
+  localStorage.removeItem(EBAY_TOKEN_KEY);
+  window.location.reload();
 };
 
 export const logoutEbay = () => { localStorage.removeItem(EBAY_TOKEN_KEY); window.location.reload(); };
