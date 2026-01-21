@@ -91,31 +91,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         logs.push(`Level ${level} URL: ${fullUrl}`);
 
         try {
-          const findingRes = await axios.get(fullUrl, {
-            headers: {
-              'Authorization': `Bearer ${appToken}`,
-              'X-EBAY-SOA-SECURITY-APPNAME': appId,
-              'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
-              'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
-              'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
-            }
-          });
+          // PURE REST CALL: No Authorization header, all params in URL
+          const findingRes = await axios.get(fullUrl);
 
           logs.push(`Level ${level} Status: ${findingRes.status}`);
           let findResponse = findingRes.data.findCompletedItemsResponse[0];
 
           if (findResponse.ack[0] === 'Success' && (!findResponse.searchResult?.[0]?.item || findResponse.searchResult[0].item.length === 0)) {
-            const fallbackUrl = `${findingBase}&OPERATION-NAME=findCompletedItems&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true`;
+            const fallbackUrl = `${fullUrl}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true`.replace(/&itemFilter\(\d+\).name=Condition&itemFilter\(\d+\).value\(0\)=\d+/g, '');
             logs.push(`Level ${level} (Relax Condition) URL: ${fallbackUrl}`);
-            const fallbackRes = await axios.get(fallbackUrl, {
-              headers: {
-                'Authorization': `Bearer ${appToken}`,
-                'X-EBAY-SOA-SECURITY-APPNAME': appId,
-                'X-EBAY-SOA-OPERATION-NAME': 'findCompletedItems',
-                'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON',
-                'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US'
-              }
-            });
+            const fallbackRes = await axios.get(fallbackUrl);
             findResponse = fallbackRes.data.findCompletedItemsResponse[0];
             isEstimated = true;
           }
@@ -141,7 +126,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           }
         } catch (e: any) {
-          logs.push(`Level ${level} FAILED: ${e.message}`);
+          const errorData = e.response?.data;
+          const errorMsg = errorData ? JSON.stringify(errorData).substring(0, 200) : e.message;
+          logs.push(`Level ${level} FAILED: ${errorMsg}`);
         }
       }
 
