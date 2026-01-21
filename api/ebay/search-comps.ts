@@ -71,124 +71,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let marketStats = { activeCount: 0, soldCount: 0, sellThroughRate: 0 };
 
     if (tab === 'SOLD') {
-      logs.push(`Attempting SOLD search via BROWSE API (Modern Quota)`);
+      const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
 
       for (let level = 0; level <= 3; level++) {
         const currentQuery = relaxQuery(query as string, level);
-        const url = 'https://api.ebay.com/buy/browse/v1/item_summary/search';
+        let fullUrl = `${findingBase}&OPERATION-NAME=findCompletedItems&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true`;
 
-        // Construct filter string for SOLD items
-        let filterParts = ['buyingOptions:{SOLD_ITEMS}'];
-        if (condition === 'NEW') filterParts.push('conditionIds:{1000|1500}');
-        else if (condition === 'USED') filterParts.push('conditionIds:{3000}');
-        const filterStr = filterParts.join(',');
+        if (condition === 'NEW') fullUrl += `&itemFilter(1).name=Condition&itemFilter(1).value(0)=1000`;
+        else if (condition === 'USED') fullUrl += `&itemFilter(1).name=Condition&itemFilter(1).value(0)=3000`;
 
-        logs.push(`Browse SOLD Level ${level} Query: ${currentQuery}`);
+        logs.push(`Finding API Level ${level} URL: ${fullUrl}`);
         try {
-          const response = await axios.get(url, {
-            headers: {
-              'Authorization': `Bearer ${appToken}`,
-              'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
-              'X-EBAY-C-ENDUSERCTX': 'contextualLocation=country=US,zip=10001'
-            },
-            params: {
-              q: currentQuery,
-              limit: 50,
-              filter: filterStr,
-              sort: 'newlyListed'
+          // PURE REST CALL: Historically most stable for Finding API
+          const findingRes = await axios.get(fullUrl);
+          logs.push(`Finding API Status: ${findingRes.status}`);
+          const findResponse = findingRes.data.findCompletedItemsResponse[0];
+
+          if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
+            const items = findResponse.searchResult[0]?.item || [];
+            if (items.length > 0) {
+              finalQueryUsed = currentQuery;
+              marketStats.soldCount = parseInt(findResponse.paginationOutput?.[0]?.totalEntries?.[0] || "0");
+              comps = items.map((i: any) => ({
+                id: i.itemId[0],
+                title: i.title[0],
+                price: parseFloat(i.sellingStatus[0].currentPrice[0].__value__),
+                shipping: parseFloat(i.shippingInfo?.[0]?.shippingServiceCost?.[0]?.__value__ || "0"),
+                total: parseFloat(i.sellingStatus[0].currentPrice[0].__value__) + parseFloat(i.shippingInfo?.[0]?.shippingServiceCost?.[0]?.__value__ || "0"),
+                url: i.viewItemURL[0],
+                dateSold: i.listingInfo[0].endTime[0],
+                condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
+                image: i.galleryURL ? i.galleryURL[0] : null
+              }));
+              break;
             }
-          });
-
-          logs.push(`Browse SOLD Status: ${response.status} (Items: ${response.data.itemSummaries?.length || 0})`);
-          const items = response.data.itemSummaries || [];
-
-          if (items.length > 0) {
-            finalQueryUsed = currentQuery;
-            marketStats.soldCount = parseInt(response.data.total || "0");
-
-            comps = items.map((i: any) => {
-              const itemPrice = parseFloat(i.price?.value || '0');
-              let shippingCost = 0;
-              if (i.shippingOptions && i.shippingOptions.length > 0) {
-                const costObj = i.shippingOptions[0].shippingCost;
-                if (costObj) shippingCost = parseFloat(costObj.value);
-              }
-
-              return {
-                id: i.legacyItemId || i.itemId,
-                title: i.title,
-                price: itemPrice,
-                shipping: shippingCost,
-                total: itemPrice + shippingCost,
-                url: i.itemWebUrl,
-                condition: i.condition || 'Used',
-                image: i.image?.imageUrl || null,
-                dateSold: i.itemEndDate // Use itemEndDate for sold items
-              };
-            });
-            break;
+          } else {
+            const error = findResponse.errorMessage?.[0]?.error?.[0];
+            if (error?.errorId?.[0] === '10001') {
+              logs.push(`RATE LIMIT EXCEEDED (10001).`);
+              break;
+            }
           }
         } catch (e: any) {
-          const errMsg = e.response?.data?.errors?.[0]?.message || e.message;
-          logs.push(`Browse SOLD Level ${level} FAILED: ${errMsg}`);
-          // If 403, we might need Finding API fallback (permission issue)
-          if (e.response?.status === 403) {
-            logs.push(`Permission denied for SOLD_ITEMS filter. Will try legacy fallback.`);
-            break;
-          }
+          const errorData = e.response?.data;
+          const errorMsg = errorData ? JSON.stringify(errorData).substring(0, 200) : e.message;
+          logs.push(`Level ${level} FAILED: ${errorMsg}`);
+          if (errorMsg.includes('10001')) break;
         }
       }
 
-      // LEGACY FALLBACK: If Browse API didn't return items (permission or other), use Finding API
-      if (comps.length === 0) {
-        logs.push(`Falling back to LEGACY FINDING API`);
-        const findingBase = `https://svcs.ebay.com/services/search/FindingService/v1?SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&GLOBAL-ID=EBAY-US`;
-
-        for (let level = 0; level <= 3; level++) {
-          const currentQuery = relaxQuery(query as string, level);
-          let fullUrl = `${findingBase}&OPERATION-NAME=findCompletedItems&keywords=${encodeURIComponent(currentQuery)}&paginationInput.entriesPerPage=20&sortOrder=EndTimeSoonest&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true`;
-
-          if (condition === 'NEW') fullUrl += `&itemFilter(1).name=Condition&itemFilter(1).value(0)=1000`;
-          else if (condition === 'USED') fullUrl += `&itemFilter(1).name=Condition&itemFilter(1).value(0)=3000`;
-
-          logs.push(`Finding API Level ${level} URL: ${fullUrl}`);
-          try {
-            const findingRes = await axios.get(fullUrl);
-            logs.push(`Finding API Status: ${findingRes.status}`);
-            const findResponse = findingRes.data.findCompletedItemsResponse[0];
-
-            if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
-              const items = findResponse.searchResult[0]?.item || [];
-              if (items.length > 0) {
-                finalQueryUsed = currentQuery;
-                marketStats.soldCount = parseInt(findResponse.paginationOutput?.[0]?.totalEntries?.[0] || "0");
-                comps = items.map((i: any) => ({
-                  id: i.itemId[0],
-                  title: i.title[0],
-                  price: parseFloat(i.sellingStatus[0].currentPrice[0].__value__),
-                  shipping: parseFloat(i.shippingInfo?.[0]?.shippingServiceCost?.[0]?.__value__ || "0"),
-                  total: parseFloat(i.sellingStatus[0].currentPrice[0].__value__) + parseFloat(i.shippingInfo?.[0]?.shippingServiceCost?.[0]?.__value__ || "0"),
-                  url: i.viewItemURL[0],
-                  dateSold: i.listingInfo[0].endTime[0],
-                  condition: i.condition ? i.condition[0].conditionDisplayName[0] : 'Used',
-                  image: i.galleryURL ? i.galleryURL[0] : null
-                }));
-                break;
-              }
-            }
-          } catch (e: any) {
-            const errorData = e.response?.data;
-            const errorMsg = errorData ? JSON.stringify(errorData).substring(0, 200) : e.message;
-            logs.push(`Finding API Level ${level} FAILED: ${errorMsg}`);
-            if (errorMsg.includes('10001')) { logs.push(`Finding API Rate Limited.`); break; }
-          }
-        }
-      }
-
-      // SERPAPI FALLBACK: Final attempt
+      // SERPAPI FALLBACK
       if (comps.length === 0) {
         try {
-          logs.push(`Final fallback: Trying SerpApi`);
+          logs.push(`Trying SerpApi fallback`);
           const serpParams = new URLSearchParams({
             engine: 'ebay',
             _nkw: query as string,
@@ -200,8 +135,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           else if (condition === 'USED') serpParams.append('LH_ItemCondition', '3');
 
           const serpRes = await axios.get(`https://serpapi.com/search?${serpParams}`);
-          logs.push(`SerpApi Status: ${serpRes.status} (Results: ${serpRes.data.organic_results?.length || 0})`);
-          const results = serpRes.organic_results || [];
+          logs.push(`SerpApi Results: ${serpRes.data.organic_results?.length || 0}`);
+          const results = serpRes.data.organic_results || [];
           if (results.length > 0) {
             comps = results.map((item: any) => ({
               id: item.listing_id || Math.random().toString(),
@@ -218,24 +153,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch (e: any) { logs.push(`SerpApi FAILED: ${e.message}`); }
       }
     } else {
-      // ACTIVE listings (already uses Browse API)
+      // ACTIVE listings (uses Browse API)
       for (let level = 0; level <= 3; level++) {
         const currentQuery = relaxQuery(query as string, level);
         const url = 'https://api.ebay.com/buy/browse/v1/item_summary/search';
         logs.push(`Browse ACTIVE Level ${level} Query: ${currentQuery}`);
         try {
           const response = await axios.get(url, {
-            headers: {
-              'Authorization': `Bearer ${appToken}`,
-              'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
-            },
+            headers: { 'Authorization': `Bearer ${appToken}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
             params: {
               q: currentQuery,
               limit: 20,
               filter: condition === 'NEW' ? 'conditionIds:{1000|1500}' : condition === 'USED' ? 'conditionIds:{3000}' : undefined
             }
           });
-          logs.push(`Browse ACTIVE Status: ${response.status} (Items: ${response.data.itemSummaries?.length || 0})`);
           const items = response.data.itemSummaries || [];
           if (items.length > 0) {
             finalQueryUsed = currentQuery;
@@ -244,8 +175,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               id: i.legacyItemId || i.itemId,
               title: i.title,
               price: parseFloat(i.price?.value || '0'),
-              shipping: parseFloat(i.shippingOptions?.[0]?.shippingCost?.value || "0"),
               total: parseFloat(i.price?.value || '0') + parseFloat(i.shippingOptions?.[0]?.shippingCost?.value || "0"),
+              shipping: parseFloat(i.shippingOptions?.[0]?.shippingCost?.value || "0"),
               url: i.itemWebUrl,
               condition: i.condition || 'Used',
               image: i.image?.imageUrl || null
@@ -256,16 +187,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    if (marketStats.soldCount === 0 || marketStats.activeCount === 0) {
+    // Always fetch Active count for Market Stats if not already fetched
+    if (marketStats.activeCount === 0) {
       try {
-        const statsQuery = relaxQuery(query as string, 0);
-        if (marketStats.activeCount === 0) {
-          const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
-            headers: { 'Authorization': `Bearer ${appToken}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
-            params: { q: statsQuery, limit: 1 }
-          });
-          marketStats.activeCount = parseInt(activeRes.data.total || "0");
-        }
+        const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+          headers: { 'Authorization': `Bearer ${appToken}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
+          params: { q: relaxQuery(query as string, 0), limit: 1 }
+        });
+        marketStats.activeCount = parseInt(activeRes.data.total || "0");
       } catch (e) { }
     }
 
@@ -277,19 +206,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       averagePrice: avgPrice.toFixed(2),
       comps: comps,
       marketStats: marketStats,
-      queryRelaxed: finalQueryUsed !== query,
-      isEstimated: isEstimated,
       queryUsed: finalQueryUsed,
       debug: logs
     });
 
   } catch (error: any) {
-    const errorBody = error.response?.data;
-    const msg = error.response?.data?.error_description || error.message;
-    res.status(500).json({
-      error: `eBay API Error: ${msg}`,
-      debug: logs,
-      rawBody: errorBody
-    });
+    res.status(500).json({ error: error.message, debug: logs });
   }
 }
