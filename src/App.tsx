@@ -69,6 +69,7 @@ function App() {
     const [isIntelligenceAnalyzing, setIsIntelligenceAnalyzing] = useState(false);
     const [intelligenceResult, setIntelligenceResult] = useState<any>(null);
     const [bulkSellerId, setBulkSellerId] = useState('');
+    const [bulkSortOrder, setBulkSortOrder] = useState<'newest' | 'oldest'>('newest');
     const [bulkItems, setBulkItems] = useState<any[]>([]);
     const [bulkFetchDebug, setBulkFetchDebug] = useState<string>("");
     const [isBulkFetching, setIsBulkFetching] = useState(false);
@@ -1669,7 +1670,7 @@ function App() {
             const headers: HeadersInit = { 'Content-Type': 'application/json' };
             if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=30`, { headers });
+            const response = await fetch(`${FUNCTIONS_URL}/ebay-seller/${encodeURIComponent(bulkSellerId)}?page=${targetPage}&v=30&sort=${bulkSortOrder}`, { headers });
             const data = await response.json();
 
             if (!response.ok || data.error) {
@@ -1710,10 +1711,30 @@ function App() {
                 };
             });
 
+            const finalMapped = mappedItems;
+
+            if (bulkSortOrder === 'oldest') {
+                finalMapped.sort((a: any, b: any) => {
+                    const dateA = new Date(a.listedDate || 0).getTime();
+                    const dateB = new Date(b.listedDate || 0).getTime();
+                    return dateA - dateB;
+                });
+            }
+
             if (targetPage === 1) {
-                setBulkItems(mappedItems);
+                setBulkItems(finalMapped);
             } else {
-                setBulkItems(prev => [...prev, ...mappedItems]);
+                setBulkItems(prev => {
+                    const combined = [...prev, ...finalMapped];
+                    if (bulkSortOrder === 'oldest') {
+                        combined.sort((a: any, b: any) => {
+                            const dateA = new Date(a.listedDate || 0).getTime();
+                            const dateB = new Date(b.listedDate || 0).getTime();
+                            return dateA - dateB;
+                        });
+                    }
+                    return combined;
+                });
             }
 
             setLastBulkSellerId(bulkSellerId);
@@ -2088,9 +2109,19 @@ function App() {
                                 className="space-y-6"
                             >
                                 <div className="glass-panel p-6">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <Layers size={18} className="text-[#a855f7]" />
-                                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Bulk Optimization</h3>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <Layers size={18} className="text-[#a855f7]" />
+                                            <h3 className="font-black text-xs uppercase tracking-widest text-slate-400">Bulk Optimization</h3>
+                                        </div>
+                                        <select
+                                            value={bulkSortOrder}
+                                            onChange={(e) => setBulkSortOrder(e.target.value as 'newest' | 'oldest')}
+                                            className="bg-[#1e2530] border border-[#a855f7]/20 rounded-lg py-1 px-3 text-[10px] text-white uppercase font-black focus:outline-none focus:border-[#a855f7]/50 transition-all cursor-pointer shadow-lg"
+                                        >
+                                            <option value="newest">Newest First</option>
+                                            <option value="oldest">Oldest First</option>
+                                        </select>
                                     </div>
                                     <div className="flex gap-3">
                                         <input
@@ -2109,7 +2140,7 @@ function App() {
                                         />
                                     </div>
                                     <p className="mt-3 text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                        Fetching oldest active listings for performance review
+                                        Fetching {bulkSortOrder} active listings for performance review
                                     </p>
                                 </div>
 
@@ -2162,7 +2193,8 @@ function App() {
                                                                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
                                                                     Listed: {(() => {
                                                                         const d = item.listedDate;
-                                                                        if (!d || d === 'Unknown' || d === 'Active') return 'Recently';
+                                                                        if (!d || d === 'Unknown') return 'Recently';
+                                                                        if (d === 'Active') return 'Active';
                                                                         const dateObj = new Date(d);
                                                                         const formatted = isNaN(dateObj.getTime()) ? d : dateObj.toLocaleDateString();
                                                                         // If formatted date is still 'Invalid Date' and d has content, show raw d

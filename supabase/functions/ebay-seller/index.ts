@@ -24,6 +24,8 @@ serve(async (req) => {
         const page = parseInt(url.searchParams.get('page') || '1');
         const force = url.searchParams.get('force') === 'true';
 
+        const sort = url.searchParams.get('sort') || 'newest';
+
         if (!sellerId || sellerId === 'ebay-seller') {
             return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
         }
@@ -31,16 +33,14 @@ serve(async (req) => {
         const rawSellerId = decodeURIComponent(sellerId).trim();
 
         // 3. User-Specific Cache (Security + Performance)
-        // We use the User ID in the cache key to prevent one user from seeing another user's cached data
-        // even if they fetch the same seller.
-        const cacheKey = `seller:v31:${user.id}:${rawSellerId}:p:${page}`;
+        const cacheKey = `seller:v31:${user.id}:${rawSellerId}:p:${page}:s:${sort}`;
 
         if (!force) {
             const cached = getCachedData(cacheKey);
             if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        console.log(`[ebay-seller] V31 TRACE: ${rawSellerId} P${page}`);
+        console.log(`[ebay-seller] V31 TRACE: ${rawSellerId} P${page} S${sort}`);
 
         const stats = {
             tier: 'none', tierErr: '',
@@ -58,7 +58,7 @@ serve(async (req) => {
             'X-EBAY-C-ENDUSERCTX': 'affiliateCampaignId=5338268676,affiliateReferenceId=sts,contextualLocation=country%3DUS%2Czip%3D90210'
         };
 
-        // TIER 1: FINDING API (Restored SOA Headers)
+        // TIER 1: FINDING API
         if (EBAY_APP_ID) {
             const tryFinding = async (op: string) => {
                 const params = new URLSearchParams({
@@ -67,6 +67,10 @@ serve(async (req) => {
                     'paginationInput.entriesPerPage': '10', 'paginationInput.pageNumber': page.toString(),
                     'GLOBAL-ID': 'EBAY-US'
                 });
+
+                if (sort === 'newest') params.append('sortOrder', 'StartTimeNewest');
+                // Note: StartTimeOldest is not supported by Finding API, but we support newest.
+
                 if (op === 'findItemsAdvanced') {
                     params.append('itemFilter(0).name', 'Seller');
                     params.append('itemFilter(0).value(0)', rawSellerId);
@@ -119,9 +123,10 @@ serve(async (req) => {
         // TIER 2: BROWSE API Fallback
         if (finalItems.length === 0) {
             try {
-                const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item_summary/search?category_ids=0&filter=sellers:{${rawSellerId}}&limit=10&offset=${((page - 1) * 10)}&sort=newlyListed`, {
-                    headers: browseHeaders
-                });
+                const bSort = sort === 'newest' ? 'newlyListed' : ''; // Browse only supports newlyListed
+                const bUrl = `https://api.ebay.com/buy/browse/v1/item_summary/search?category_ids=0&filter=sellers:{${rawSellerId}}&limit=10&offset=${((page - 1) * 10)}${bSort ? `&sort=${bSort}` : ''}`;
+
+                const bRes = await fetch(bUrl, { headers: browseHeaders });
                 const bData = await bRes.json();
                 stats.forensic.tier2 = Object.keys(bData).join(',').slice(0, 30);
 
@@ -143,7 +148,7 @@ serve(async (req) => {
         if (finalItems.length > 0) {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
-                const hasDate = item.listedDate && item.listedDate.includes('-') && item.listedDate.includes('T');
+                const hasDate = item.listedDate && item.listedDate.includes('-') && item.listedDate.includes('T') && item.listedDate !== 'Unknown' && item.listedDate !== 'Active';
                 if (hasDate) return item;
 
                 const cleanId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
@@ -156,7 +161,6 @@ serve(async (req) => {
                         const sUrl = `https://open.api.ebay.com/shopping?callname=GetSingleItem&responseencoding=JSON&appid=${EBAY_APP_ID}&siteid=0&version=1119&ItemID=${legacyId}&IncludeSelector=Details`;
                         const sRes = await fetch(sUrl);
                         const sData = await sRes.json();
-                        if (idx === 0) stats.forensic.enrichS = Object.keys(sData).join(',').slice(0, 30);
 
                         if (sRes.ok && sData.Item) {
                             const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
@@ -167,18 +171,17 @@ serve(async (req) => {
                     }
 
                     // Browse API Get Item
-                    const bRes = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
+                    const bResEnrich = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(browseId)}`, {
                         headers: browseHeaders
                     });
-                    const bData = await bRes.json();
-                    if (idx === 0) stats.forensic.enrichB = Object.keys(bData).join(',').slice(0, 30);
+                    const bDataEnrich = await bResEnrich.json();
 
-                    if (bRes.ok) {
-                        const date = bData.listingStartTime || bData.startTimeUtc || bData.creationDate;
+                    if (bResEnrich.ok) {
+                        const date = bDataEnrich.listingStartTime || bDataEnrich.startTimeUtc || bDataEnrich.creationDate || bDataEnrich.itemCreationDate;
                         if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
-                        else if (idx === 0) stats.firstEnrichError = `B:NoDate/Keys:${Object.keys(bData).slice(0, 3)}`;
+                        else if (idx === 0) stats.firstEnrichError = `B:NoDate/Keys:${Object.keys(bDataEnrich).slice(0, 5)}`;
                     } else if (idx === 0 && !stats.firstEnrichError) {
-                        stats.firstEnrichError = `B:${bRes.status}`;
+                        stats.firstEnrichError = `B:${bResEnrich.status} / ${bDataEnrich.errors?.[0]?.message || 'Unknown'}`;
                     }
                 } catch (e) { if (idx === 0) stats.firstEnrichError = `Ex:${e.message}`; }
                 stats.enrich.fails++;
