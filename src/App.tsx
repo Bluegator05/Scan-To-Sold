@@ -1100,12 +1100,19 @@ function App() {
                     // 2. Start Comp Search & Market Stats with refined title
                     console.log("[SCAN] Starting Phase 3: Comps & Market Data");
                     setLoadingMessage("Checking market data...");
-                    const [compsResults, marketStats, bestDescription] = await Promise.all([
-                        searchEbayComps(refinedSearch, 'SOLD', 'USED'),
-                        getSellThroughData(refinedSearch).catch(() => ({ activeCount: 0, soldCount: 0, sellThroughRate: 0 })),
+                    const [marketStats, bestDescription] = await Promise.all([
+                        fetchMarketData(refinedSearch, 'USED').catch(() => ({
+                            totalActive: 0,
+                            totalSold: 0,
+                            sellThroughRate: 0,
+                            activeComps: [],
+                            soldComps: [],
+                            isEstimated: false,
+                            isRateLimited: false
+                        })),
                         generateListingDescription(refinedTitle, 'USED', 'EBAY')
                     ]);
-                    console.log("[SCAN] Comps Results:", compsResults, "Market Stats:", marketStats);
+                    console.log("[SCAN] Consolidated Market Stats:", marketStats);
 
                     if (marketStats && (marketStats.activeComps || marketStats.soldComps)) {
                         setVisualSearchResults(marketStats.activeComps || marketStats.soldComps);
@@ -1120,11 +1127,12 @@ function App() {
                         itemSpecifics: ensureDefaultSpecifics(details.itemSpecifics || {}),
                         marketData: {
                             sellThroughRate: marketStats.sellThroughRate,
-                            totalActive: marketStats.activeCount,
-                            totalSold: marketStats.soldCount,
-                            activeComps: (marketStats as any).activeComps || [],
-                            soldComps: (marketStats as any).soldComps || [],
-                            isEstimated: (marketStats as any).isEstimated || (compsResults as any).isEstimated || false
+                            totalActive: marketStats.totalActive,
+                            totalSold: marketStats.totalSold,
+                            activeComps: Array.isArray(marketStats.activeComps) ? marketStats.activeComps : [],
+                            soldComps: Array.isArray(marketStats.soldComps) ? marketStats.soldComps : [],
+                            isEstimated: !!marketStats.isEstimated,
+                            isRateLimited: !!marketStats.isRateLimited
                         }
                     };
 
@@ -3513,7 +3521,25 @@ function App() {
                                                 setIsResearching(true);
                                                 try {
                                                     const market = await fetchMarketData(editedTitle || editingItem.title, itemCondition);
-                                                    setScoutResult(prev => prev ? { ...prev, marketData: market } : { itemTitle: editingItem.title, estimatedSoldPrice: market.isEstimated ? 0 : market.totalSold, marketData: market, description: "", confidence: 80 });
+                                                    const cleanMarketData = {
+                                                        sellThroughRate: market.sellThroughRate,
+                                                        totalSold: market.totalSold,
+                                                        totalActive: market.totalActive,
+                                                        activeComps: market.activeComps,
+                                                        soldComps: market.soldComps,
+                                                        isEstimated: market.isEstimated,
+                                                        isRateLimited: market.isRateLimited
+                                                    };
+                                                    setScoutResult(prev => {
+                                                        if (prev) return { ...prev, marketData: cleanMarketData };
+                                                        return {
+                                                            itemTitle: editingItem.title,
+                                                            estimatedSoldPrice: market.isEstimated ? 0 : market.totalSold,
+                                                            marketData: cleanMarketData,
+                                                            description: "",
+                                                            confidence: 80
+                                                        } as ScoutResult;
+                                                    });
                                                     const data = await searchEbayComps(editedTitle || editingItem.title, 'ACTIVE', itemCondition);
                                                     setVisualSearchResults(data.comps || []);
                                                 } catch (e) { } finally { setIsResearching(false); }

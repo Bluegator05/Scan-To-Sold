@@ -46,25 +46,24 @@ serve(async (req) => {
 
         // Helper to broaden search if exact match fails
         const relaxQuery = (q: string, level: number) => {
-            let words = q.split(/\s+/).filter(w => w.length > 1);
+            const words = q.split(/\s+/).filter(w => w.length > 0);
+            const negatives = words.filter(w => w.startsWith('-'));
+            const positives = words.filter(w => !w.startsWith('-'));
+
             const coreExclusions = ['new', 'used', 'sealed', 'nib', 'nwt', 'vintage', 'rare', 'mint', 'look', 'wow', 'item', 'unit', 'authentic', 'ver', 'version'];
 
-            let relaxed;
+            let relaxedPositives;
             if (level === 0) {
-                relaxed = words.join(' ');
+                relaxedPositives = positives.join(' ');
             } else if (level === 1) {
-                words = words.filter(w => !coreExclusions.includes(w.toLowerCase()));
-                relaxed = words.join(' ');
-            } else if (level === 2) {
-                // Return first 3 core words (usually Brand + Model)
-                relaxed = words.slice(0, 3).join(' ');
+                relaxedPositives = positives.filter(w => !coreExclusions.includes(w.toLowerCase())).join(' ');
             } else {
-                relaxed = q;
+                relaxedPositives = positives.slice(0, 3).join(' ');
             }
 
-            if (!relaxed || relaxed.trim() === "") return "";
-
-            return `${relaxed} ${NEGATIVE_KEYWORDS}`.trim();
+            if (!relaxedPositives && negatives.length === 0) return ""; // If no positives and no negatives, return empty
+            if (!relaxedPositives && negatives.length > 0) return negatives.join(' '); // If only negatives, return them
+            return `${relaxedPositives} ${negatives.join(' ')}`.trim();
         };
 
         const EBAY_APP_ID = Deno.env.get('EBAY_APP_ID');

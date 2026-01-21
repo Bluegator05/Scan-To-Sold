@@ -8,8 +8,12 @@ const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -repro -reproduction
  * Aggressively relaxes a query to ensure we get results
  */
 function relaxQuery(query: string, level: number): string {
-  // Clean special characters
-  let q = query.replace(/[()]/g, '').replace(/[-]/g, ' ').replace(/[#]/g, '').replace(/[:]/g, '').trim();
+  // Clean special characters but preserve '-' if it's a negative keyword indicator
+  // First, extract negative keywords to keep them safe
+  const negs = query.split(/\s+/).filter(w => w.startsWith('-'));
+  const positives = query.split(/\s+/).filter(w => !w.startsWith('-')).join(' ');
+
+  let q = positives.replace(/[()]/g, '').replace(/[#]/g, '').replace(/[:]/g, '').trim();
   const words = q.split(/\s+/).filter(w => !['new', 'used', 'black', 'white', 'excellent', 'condition', 'works', 'edition', 'authentic', 'ver', 'version'].includes(w.toLowerCase()));
 
   let relaxed;
@@ -29,7 +33,8 @@ function relaxQuery(query: string, level: number): string {
   if (!relaxed) return "";
 
   // Always append negative keywords to filter ads/cases/manuals
-  return `${relaxed} ${NEGATIVE_KEYWORDS}`.trim();
+  const finalNegs = [...new Set([...negs, ...NEGATIVE_KEYWORDS.split(' ')])].join(' ');
+  return `${relaxed} ${finalNegs}`.trim();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -84,6 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let avgPrice = 0;
     let finalQueryUsed = query as string;
     let isEstimated = false;
+    let marketStats = { activeCount: 0, soldCount: 0, sellThroughRate: 0 };
 
     if (tab === 'SOLD') {
       // Use CLASSIC Finding API Auth (More compatible with basic developer accounts)
@@ -105,6 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (findResponse.ack[0] === 'Success' || findResponse.ack[0] === 'Warning') {
             const searchResult = findResponse.searchResult[0];
             const items = (searchResult && searchResult.item) ? searchResult.item : [];
+            const totalSolds = parseInt(findResponse.paginationOutput?.[0]?.totalEntries?.[0] || "0");
+            marketStats.soldCount = totalSolds;
 
             if (items.length > 0) {
               console.log(`[FINDING API] SUCCESS: Found ${items.length} REAL solds at level ${level}`);
@@ -134,8 +142,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               console.log(`[FINDING API] No results at level ${level}`);
             }
           } else {
-            const error = findResponse.errorMessage?.[0]?.error?.[0]?.message?.[0];
-            console.error(`[FINDING API] Level ${level} Rejected:`, error);
+            const error = findResponse.errorMessage?.[0]?.error?.[0];
+            const errorId = error?.errorId?.[0];
+            console.error(`[FINDING API] Level ${level} Rejected:`, error?.message?.[0]);
+
+            if (errorId === '10001') {
+              return res.status(429).json({
+                error: 'eBay rate limit reached (10001). Please try again in 24 hours.',
+                isRateLimited: true
+              });
+            }
           }
         } catch (e: any) {
           console.error(`[FINDING API] Level ${level} request failed:`, e.message);
@@ -199,12 +215,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
             params: {
               q: currentQuery,
-              limit: 15,
+              limit: 20,
               sort: 'price',
               filter: condition === 'NEW' ? 'conditionIds:{1000|1500}' : condition === 'USED' ? 'conditionIds:{3000}' : undefined
             }
           });
 
+          marketStats.activeCount = parseInt(response.data.total || "0");
           const items = response.data.itemSummaries || [];
           if (items.length > 0) {
             finalQueryUsed = currentQuery;
@@ -216,16 +233,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (costObj) shippingCost = parseFloat(costObj.value);
               }
 
-              let cleanId = i.legacyItemId || i.itemId;
-              // The original code had a complex split logic for cleanId,
-              // but legacyItemId or itemId should be sufficient and cleaner.
-              // if (cleanId && cleanId.includes('|')) {
-              //   const parts = cleanId.split('|');
-              //   if (parts.length >= 2) cleanId = parts[1];
-              // }
-
               return {
-                id: cleanId,
+                id: i.legacyItemId || i.itemId,
                 title: i.title,
                 price: itemPrice,
                 shipping: shippingCost,
@@ -243,6 +252,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // 2.5 Fetch Sold/Active counts for stats if not already fetched (tab agnostic)
+    if (marketStats.soldCount === 0 || marketStats.activeCount === 0) {
+      try {
+        const statsQuery = relaxQuery(query as string, 0); // Core query for stats
+
+        // Sold Count (Finding API)
+        if (marketStats.soldCount === 0) {
+          const soldRes = await axios.get(`https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&keywords=${encodeURIComponent(statsQuery)}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value(0)=true&paginationInput.entriesPerPage=1`);
+          marketStats.soldCount = parseInt(soldRes.data.findCompletedItemsResponse[0].paginationOutput?.[0]?.totalEntries?.[0] || "0");
+        }
+
+        // Active Count (Browse API)
+        if (marketStats.activeCount === 0) {
+          const activeRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+            headers: { 'Authorization': `Bearer ${appToken}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
+            params: { q: statsQuery, limit: 1 }
+          });
+          marketStats.activeCount = parseInt(activeRes.data.total || "0");
+        }
+      } catch (e) {
+        console.warn("[STATS] Non-critical stats fetch failed:", e.message);
+      }
+    }
+
+    marketStats.sellThroughRate = marketStats.activeCount > 0 ? (marketStats.soldCount / marketStats.activeCount) * 100 : 0;
+
     // 4. CALCULATE STATS
     const totalSum = comps.reduce((acc: number, item: any) => acc + item.total, 0);
     avgPrice = comps.length > 0 ? totalSum / comps.length : 0;
@@ -250,6 +285,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({
       averagePrice: avgPrice.toFixed(2),
       comps: comps,
+      marketStats: marketStats,
       queryRelaxed: finalQueryUsed !== query,
       isEstimated: isEstimated,
       queryUsed: finalQueryUsed

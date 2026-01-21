@@ -30,6 +30,7 @@ export interface ScoutResult {
     activeComps?: Comp[]; // New: Full list for detailed view
     soldComps?: Comp[]; // New: Full list for detailed view
     isEstimated?: boolean;
+    isRateLimited?: boolean;
     queryUsed?: string;
   };
   condition?: 'NEW' | 'USED'; // New: Condition detected by AI

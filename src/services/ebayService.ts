@@ -90,145 +90,80 @@ const getStoredData = (key: string) => {
   return null;
 };
 
-const setStoredData = (key: string, data: any) => {
+const getSearchCache = (key: string) => {
   try {
-    localStorage.setItem(`ebay_cache_${key}`, JSON.stringify({
-      data,
-      timestamp: Date.now(),
-      version: "v3"
-    }));
+    const item = localStorage.getItem(`ebay_search_cache_${key}`);
+    if (!item) return null;
+    const { data, timestamp } = JSON.parse(item);
+    if (timestamp && (Date.now() - timestamp < 1000 * 60 * 30)) return data; // 30 min cache
+  } catch (e) { return null; }
+  return null;
+};
+
+const setSearchCache = (key: string, data: any) => {
+  try {
+    localStorage.setItem(`ebay_search_cache_${key}`, JSON.stringify({ data, timestamp: Date.now() }));
   } catch (e) { }
 };
 
 // --- Core API Functions ---
 
-export const fetchMarketData = async (query: string, condition?: string) => {
-  const cacheKey = `${query}_${condition || 'any'}`;
-  const cached = getStoredData(cacheKey);
-  if (cached) return cached;
+// This function is now a high-level wrapper around the consolidated API
+export const fetchMarketData = async (query: string, condition: 'NEW' | 'USED' = 'USED') => {
+  console.log(`[STS] Fetching consolidated market data for: ${query}`);
 
-  console.log(`[STS] Fetching market data for: ${query}`);
+  // Always fetch SOLD view for market analysis as it now includes stats
+  const data = await searchEbayComps(query, 'SOLD', condition);
 
-  let activeItems: any[] = [];
-  let actualSoldItems: any[] = [];
-  let isSoldBlocked = false;
-  let activeCount = 0;
-
-  // 1. Fetch Active Items
-  try {
-    const activeUrl = `${FUNCTIONS_URL}/ebay-search/${encodeURIComponent(query)}${condition ? `?condition=${encodeURIComponent(condition)}` : ''}`;
-    const activeRes = await fetch(activeUrl, { headers: await getAuthHeaders() });
-    if (activeRes.ok) {
-      const activeData = await activeRes.json();
-      activeItems = activeData.itemSummaries || [];
-      activeCount = parseInt(activeData.total || activeItems.length);
-    } else if (activeRes.status === 401) {
-      console.error("[STS] Active search unauthorized - session likely expired.");
-    }
-  } catch (e) {
-    console.warn("[STS] Supabase Search failed, falling back to empty active list.");
+  if (data.isRateLimited) {
+    return {
+      medianSoldPrice: 0,
+      priceRange: { min: 0, max: 0 },
+      totalActive: 0,
+      totalSold: 0,
+      sellThroughRate: 0,
+      isSoldBlocked: true,
+      activeComps: [],
+      soldComps: [],
+      isRateLimited: true
+    };
   }
 
-  const categoryId = extractCategoryId(activeItems);
-
-  // 2. Fetch Sold Items (Supabase)
-  try {
-    const soldUrl = `${FUNCTIONS_URL}/ebay-sold/${encodeURIComponent(query)}?${condition ? `condition=${encodeURIComponent(condition)}` : ''}${categoryId ? `&categoryId=${categoryId}` : ''}`;
-    const soldRes = await fetch(soldUrl, { headers: await getAuthHeaders() });
-
-    if (soldRes.ok) {
-      const soldData = await soldRes.json();
-      actualSoldItems = (soldData || []).filter((item: any) => {
-        const state = item.sellingStatus?.[0]?.sellingState?.[0];
-        return state === 'EndedWithSales' || state === 'Sold';
-      });
-    } else if (soldRes.status === 401) {
-      console.error("[STS] Sold search unauthorized - session likely expired.");
-    } else if (soldRes.status === 429 || soldRes.status === 500) {
-      isSoldBlocked = true;
-    }
-  } catch (e) {
-    console.warn("[STS] Supabase Sold failed, will try SerpApi fallback.");
-  }
-
-  const isEstimatedData = actualSoldItems.length === 0 && activeItems.length > 0;
-
-  // Final Results Processing
-  const soldPrices = actualSoldItems.map((item: any) => parseFloat(item.sellingStatus[0].currentPrice[0].__value__)).filter(p => !isNaN(p));
-  const activePrices = activeItems.map((item: any) => parseFloat(item.price?.value || 0)).filter(p => !isNaN(p));
-
-  const medianSoldPrice = soldPrices.length > 0 ? [...soldPrices].sort((a, b) => a - b)[Math.floor(soldPrices.length / 2)] : 0;
-  const medianActive = activePrices.length > 0 ? [...activePrices].sort((a, b) => a - b)[Math.floor(activePrices.length / 2)] : 0;
-
-  const actualSoldCount = actualSoldItems.length;
-  const sellThroughRate = activeCount > 0 ? (actualSoldCount / activeCount) * 100 : (actualSoldCount > 0 ? 100 : 0);
+  const marketStats = data.marketStats || { activeCount: 0, soldCount: 0, sellThroughRate: 0 };
+  const soldPrices = data.comps.map(c => c.price);
+  const medianSoldPrice = parseFloat(data.averagePrice);
 
   const calculatePricingRecommendations = (prices: number[], median: number) => {
-    if (prices.length === 0 && activePrices.length === 0) return null;
-    const refPrices = prices.length > 0 ? prices : activePrices;
-    const refMedian = prices.length > 0 ? median : medianActive;
-
-    const sorted = [...refPrices].sort((a, b) => a - b);
+    if (prices.length === 0) return null;
+    const sorted = [...prices].sort((a, b) => a - b);
     const p25 = sorted[Math.floor(sorted.length * 0.25)] || sorted[0];
-    const p50 = refMedian;
+    const p50 = median;
     const p75 = sorted[Math.floor(sorted.length * 0.75)] || sorted[sorted.length - 1];
 
     return {
-      quickSale: {
-        price: Math.round(p25 * 100) / 100,
-        strategy: "Aggressive Pricing",
-        description: "Set below the market 25th percentile to attract quick buyers and clear inventory within 48 hours.",
-        expectedSellTime: "1-3 days"
-      },
-      competitive: {
-        price: Math.round(p50 * 100) / 100,
-        strategy: "Market Balanced",
-        description: "Aligned with current sold median. Best balance of profit margin and reasonable turnaround time.",
-        expectedSellTime: "3-7 days"
-      },
-      premium: {
-        price: Math.round(p75 * 100) / 100,
-        strategy: "Maximum Value",
-        description: "Positioned at the higher end of the market. Best for high-demand items where buyers value quality.",
-        expectedSellTime: "7-14 days"
-      },
-      shippingEstimate: Math.max(5, Math.min(15, Math.round(p50 * 0.12 * 100) / 100))
+      quickSale: { price: Math.round(p25 * 100) / 100, strategy: "Aggressive Pricing", description: "Set below market median.", expectedSellTime: "1-3 days" },
+      competitive: { price: Math.round(p50 * 100) / 100, strategy: "Market Balanced", description: "Aligned with median.", expectedSellTime: "3-7 days" },
+      premium: { price: Math.round(p75 * 100) / 100, strategy: "Maximum Value", description: "Higher end.", expectedSellTime: "7-14 days" },
+      shippingEstimate: 7.99
     };
   };
 
-  const result = {
-    medianSoldPrice: medianSoldPrice || medianActive,
+  return {
+    medianSoldPrice,
     priceRange: {
-      min: soldPrices.length > 0 ? Math.min(...soldPrices) : (activePrices.length > 0 ? Math.min(...activePrices) : 0),
-      max: soldPrices.length > 0 ? Math.max(...soldPrices) : (activePrices.length > 0 ? Math.max(...activePrices) : 0)
+      min: Math.min(...soldPrices),
+      max: Math.max(...soldPrices)
     },
-    activeCount,
-    soldCount: actualSoldCount,
-    sellThroughRate: isSoldBlocked ? 0 : sellThroughRate, // Return as number
-    isSoldBlocked: isSoldBlocked && actualSoldCount === 0,
-    activeComps: activeItems.slice(0, 10).map((item: any) => ({
-      id: item.itemId || Math.random().toString(36).substr(2, 9),
-      title: item.title,
-      price: parseFloat(item.price?.value || 0),
-      image: item.image?.imageUrl || item.galleryURL?.[0] || '',
-      url: item.itemWebUrl || item.itemHref || item.viewItemURL?.[0]
-    })),
+    totalActive: marketStats.activeCount,
+    totalSold: marketStats.soldCount,
+    sellThroughRate: marketStats.sellThroughRate,
+    isSoldBlocked: false,
+    activeComps: [], // We don't need these immediately for the review screen summary
+    soldComps: data.comps.slice(0, 10),
     pricingRecommendations: calculatePricingRecommendations(soldPrices, medianSoldPrice),
-    soldComps: actualSoldItems.slice(0, 10).map((item: any) => ({
-      id: (Array.isArray(item.itemId) ? item.itemId[0] : item.itemId) || Math.random().toString(36).substr(2, 9),
-      title: (Array.isArray(item.title) ? item.title[0] : item.title) || '',
-      price: parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0"),
-      image: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : (item.galleryURL || '')),
-      url: (Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : (item.viewItemURL || '')),
-      dateSold: (Array.isArray(item.listingInfo?.[0]?.endTime) ? item.listingInfo[0].endTime[0] : (item.listingInfo?.[0]?.endTime || ''))
-    })),
-    isEstimated: isEstimatedData
+    isEstimated: !!data.isEstimated,
+    isRateLimited: false
   };
-
-  if (activeCount > 0 || actualSoldCount > 0) {
-    setStoredData(cacheKey, result);
-  }
-  return result;
 };
 
 export const getEbayPolicies = async (userId: string) => {
@@ -291,12 +226,25 @@ export const disconnectEbayAccount = async (): Promise<void> => {
   window.location.reload();
 };
 
-export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean }> => {
+export const searchEbayComps = async (query: string, tab: 'ACTIVE' | 'SOLD' = 'ACTIVE', condition: 'NEW' | 'USED' = 'USED'): Promise<{ averagePrice: string, comps: Comp[], isEstimated?: boolean, marketStats?: any, isRateLimited?: boolean }> => {
+  const cacheKey = `${query}_${tab}_${condition}`;
+  const cached = getSearchCache(cacheKey);
+  if (cached) return cached;
+
   const url = getApiUrl(`/api/ebay/search-comps?query=${encodeURIComponent(query)}&tab=${tab}&condition=${condition}`);
   if (!url) throw new Error("Backend URL not configured");
+
   const res = await fetch(url, { headers: await getAuthHeaders() });
+
+  if (res.status === 429) {
+    return { averagePrice: "0.00", comps: [], isRateLimited: true };
+  }
+
   if (!res.ok) throw new Error("Failed to fetch comps");
-  return await res.json();
+  const data = await res.json();
+
+  setSearchCache(cacheKey, data);
+  return data;
 };
 
 export const searchEbayByImage = async (imageBase64: string): Promise<any[]> => {

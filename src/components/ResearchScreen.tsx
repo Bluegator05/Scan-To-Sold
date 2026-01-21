@@ -186,6 +186,25 @@ const ResearchScreen: React.FC<ResearchScreenProps> = ({ result, onDiscard, onCr
                             </div>
                         </div>
                     )}
+
+                    {/* Rate Limit Warning */}
+                    {marketData?.isRateLimited && (
+                        <div className="mt-4 flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                            <RefreshCw size={18} className="text-yellow-500 shrink-0 mt-0.5 animate-spin-slow" />
+                            <div className="flex-1">
+                                <p className="text-xs font-bold text-yellow-500">eBay API Busy (Rate Limited)</p>
+                                <p className="text-[10px] text-yellow-500/80 leading-tight mt-1">
+                                    eBay is temporarily blocking automated requests for this item. You can still check manually:
+                                </p>
+                                <button
+                                    onClick={() => handleOpenLink(soldUrl)}
+                                    className="mt-2 flex items-center gap-1.5 text-[10px] font-black uppercase text-yellow-500 hover:underline"
+                                >
+                                    Open eBay Directly <ExternalLink size={10} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
 
