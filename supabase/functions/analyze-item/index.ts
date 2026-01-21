@@ -114,13 +114,23 @@ serve(async (req) => {
 
 // --- HANDLERS ---
 
-async function handleAnalyzeItemImage({ imageBase64, barcode, isBulkMode, isLiteMode }: any) {
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+// --- HANDLERS ---
+
+async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBulkMode, isLiteMode }: any) {
+    const images = imagesBase64 || (imageBase64 ? [imageBase64] : []);
+    if (images.length === 0) throw new Error("No images provided for analysis.");
+
+    const imageParts = images.map((img: string) => ({
+        inlineData: {
+            mimeType: 'image/jpeg',
+            data: img.replace(/^data:image\/[a-z]+;base64,/, "")
+        }
+    }));
 
     let prompt;
     if (isLiteMode) {
         prompt = `
-          Act as an expert reseller. Analyze this image.
+          Act as an expert reseller. Analyze the provided image(s).
           ${barcode ? `Barcode: ${barcode}.` : ""}
           
           TASK:
@@ -137,7 +147,8 @@ async function handleAnalyzeItemImage({ imageBase64, barcode, isBulkMode, isLite
         `;
     } else {
         prompt = `
-          Act as an expert reseller (eBay/flipper). Analyze this image.
+          Act as an expert reseller (eBay/flipper). Analyze the provided image(s).
+          Use ALL provided images to get a complete view of the item (front, back, labels, etc).
           ${isBulkMode ? "MODE: BULK LOT / DEATH PILE. Identify the group of items." : "Identify the specific item."}
           ${barcode ? `Barcode provided: ${barcode}.` : ""}
           
@@ -208,7 +219,7 @@ async function handleAnalyzeItemImage({ imageBase64, barcode, isBulkMode, isLite
     });
 
     const result_ai = await model.generateContent([
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ...imageParts,
         { text: prompt }
     ]);
 
@@ -260,14 +271,22 @@ async function handleAnalyzeItemImage({ imageBase64, barcode, isBulkMode, isLite
     };
 }
 
-async function handleIdentifyItem({ imageBase64, barcode }: any) {
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+async function handleIdentifyItem({ imageBase64, imagesBase64, barcode }: any) {
+    const images = imagesBase64 || (imageBase64 ? [imageBase64] : []);
+    if (images.length === 0) throw new Error("No images provided for identification.");
+
+    const imageParts = images.map((img: string) => ({
+        inlineData: {
+            mimeType: 'image/jpeg',
+            data: img.replace(/^data:image\/[a-z]+;base64,/, "")
+        }
+    }));
 
     const prompt = `
-    Act as an expert reseller. FAST ID.
+    Act as an expert reseller. FAST ID. Analyze the provided image(s).
     ${barcode ? `Barcode: ${barcode}` : ""}
     
-    1. Identify the item in the image (Brand + Model + Key Variant).
+    1. Identify the item in the image(s) (Brand + Model + Key Variant).
     2. Create a "Comp Search Query" (Max 4-5 words) for finding sold listings.
        - STRICTLY Brand + Model + MPN + Key Variant (e.g. Color/Edition).
        - Exclude generic words (e.g. "sneakers", "working").
@@ -280,7 +299,7 @@ async function handleIdentifyItem({ imageBase64, barcode }: any) {
     });
 
     const result_ai = await model.generateContent([
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ...imageParts,
         { text: prompt }
     ]);
 
@@ -303,11 +322,19 @@ async function handleIdentifyItem({ imageBase64, barcode }: any) {
     };
 }
 
-async function handleAnalyzeItemDetails({ imageBase64, identifiedTitle }: any) {
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+async function handleAnalyzeItemDetails({ imageBase64, imagesBase64, identifiedTitle }: any) {
+    const images = imagesBase64 || (imageBase64 ? [imageBase64] : []);
+    if (images.length === 0) throw new Error("No images provided for deep analysis.");
+
+    const imageParts = images.map((img: string) => ({
+        inlineData: {
+            mimeType: 'image/jpeg',
+            data: img.replace(/^data:image\/[a-z]+;base64,/, "")
+        }
+    }));
 
     const prompt = `
-    Analyze this image of: "${identifiedTitle}".
+    Analyze the provided image(s) of: "${identifiedTitle}".
     
     TASK: Create a professional eBay listing.
     
@@ -367,7 +394,7 @@ async function handleAnalyzeItemDetails({ imageBase64, identifiedTitle }: any) {
     });
 
     const result_ai = await model.generateContent([
-        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        ...imageParts,
         { text: prompt }
     ]);
 
@@ -375,6 +402,7 @@ async function handleAnalyzeItemDetails({ imageBase64, identifiedTitle }: any) {
     const text = response.text() || "{}";
     return extractJSON(text);
 }
+
 
 async function handleAnalyzeItemText({ query }: any) {
     const isBarcode = /^\d{8,14}$/.test(query.trim());

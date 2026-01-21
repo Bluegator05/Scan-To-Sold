@@ -42,10 +42,11 @@ async function callEdgeFunction(action: string, payload: any) {
   }
 }
 
-export const analyzeItemImage = async (imageBase64: string, barcode?: string, isBulkMode: boolean = false, isLiteMode: boolean = false): Promise<ScoutResult> => {
+export const analyzeItemImage = async (imageData: string | string[], barcode?: string, isBulkMode: boolean = false, isLiteMode: boolean = false): Promise<ScoutResult> => {
   try {
+    const imagesBase64 = Array.isArray(imageData) ? imageData : [imageData];
     const result = await callEdgeFunction('analyze-image', {
-      imageBase64, barcode, isBulkMode, isLiteMode
+      imagesBase64, barcode, isBulkMode, isLiteMode
     });
     return result as ScoutResult;
   } catch (error: any) {
@@ -56,9 +57,10 @@ export const analyzeItemImage = async (imageBase64: string, barcode?: string, is
 
 // --- NEW FAST PIPELINE ---
 
-export const identifyItem = async (imageBase64: string, barcode?: string): Promise<{ itemTitle: string, searchQuery: string, listingSources: any[] }> => {
+export const identifyItem = async (imageData: string | string[], barcode?: string): Promise<{ itemTitle: string, searchQuery: string, listingSources: any[] }> => {
   try {
-    const result = await callEdgeFunction('identify-item', { imageBase64, barcode });
+    const imagesBase64 = Array.isArray(imageData) ? imageData : [imageData];
+    const result = await callEdgeFunction('identify-item', { imagesBase64, barcode });
     return result;
   } catch (e: any) {
     console.error("Fast ID Catch Block:", e);
@@ -66,9 +68,10 @@ export const identifyItem = async (imageBase64: string, barcode?: string): Promi
   }
 };
 
-export const analyzeItemDetails = async (imageBase64: string, identifiedTitle: string): Promise<Partial<ScoutResult>> => {
+export const analyzeItemDetails = async (imageData: string | string[], identifiedTitle: string): Promise<Partial<ScoutResult>> => {
   try {
-    const result = await callEdgeFunction('analyze-details', { imageBase64, identifiedTitle });
+    const imagesBase64 = Array.isArray(imageData) ? imageData : [imageData];
+    const result = await callEdgeFunction('analyze-details', { imagesBase64, identifiedTitle });
     return result;
   } catch (e) {
     return {};

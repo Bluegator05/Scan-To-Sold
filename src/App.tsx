@@ -998,8 +998,11 @@ function App() {
                 if (barcode) {
                     initialResult = await analyzeItemText(barcode);
                 } else {
+                    // Combine all images for best identification
+                    const allImagesForAI = [compressedMain, ...compressedAdditional];
+
                     // Explicit 15s Timeout for Identification
-                    const idPromise = identifyItem(compressedMain, barcode);
+                    const idPromise = identifyItem(allImagesForAI, barcode);
                     const idTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("ID_TIMEOUT")), 15000));
                     // @ts-ignore
                     const fastId = await Promise.race([idPromise, idTimeout]) as any;
@@ -1057,9 +1060,10 @@ function App() {
 
                 try {
                     console.log("[SCAN] Starting Phase 2: Deep Analysis");
-                    setLoadingMessage("Extracting item details...");
+                    const allImagesForAI = [compressedMain, ...compressedAdditional];
+                    setLoadingMessage(`Extracting details from ${allImagesForAI.length} photo${allImagesForAI.length > 1 ? 's' : ''}...`);
                     // 1. Deep Analysis (Specs, Price, and Better Title)
-                    const detailsPromise = analyzeItemDetails(compressedMain, initialResult.searchQuery || initialResult.itemTitle);
+                    const detailsPromise = analyzeItemDetails(allImagesForAI, initialResult.searchQuery || initialResult.itemTitle);
                     const detailsTimeout = new Promise((resolve) => setTimeout(() => resolve({}), 25000));
 
                     const details = await Promise.race([detailsPromise, detailsTimeout]) as Partial<ScoutResult>;
@@ -1420,31 +1424,38 @@ function App() {
         setLoadingMessage("Analyzing Draft...");
 
         try {
-            let base64Image = editingItem.imageUrl;
+            const allImages = [editingItem.imageUrl, ...(editingItem.additionalImages || [])].filter(img => !!img);
+            const base64Images: string[] = [];
 
-            // If it's a remote URL, fetch and convert to Base64
-            if (editingItem.imageUrl.startsWith('http')) {
-                try {
-                    // Use a proxy or ensure CORS is handled. For now, try direct fetch.
-                    const response = await fetch(editingItem.imageUrl, { mode: 'cors' });
-                    if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
-                    const blob = await response.blob();
-                    base64Image = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result as string);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(blob);
-                    });
-                } catch (fetchErr) {
-                    console.error("Failed to fetch image for analysis", fetchErr);
-                    // Fallback: If fetch fails (CORS), we can't analyze.
-                    alert("Could not access image. Please upload a local photo for analysis.");
-                    setLoadingMessage("");
-                    return;
+            for (const imgUrl of allImages) {
+                if (imgUrl.startsWith('http')) {
+                    try {
+                        const response = await fetch(imgUrl, { mode: 'cors' });
+                        if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
+                        const blob = await response.blob();
+                        const b64 = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        base64Images.push(b64);
+                    } catch (fetchErr) {
+                        console.error("Failed to fetch image for analysis", imgUrl, fetchErr);
+                    }
+                } else {
+                    base64Images.push(imgUrl);
                 }
             }
 
-            const result = await analyzeItemImage(base64Image);
+            if (base64Images.length === 0) {
+                alert("Could not access any images for analysis.");
+                setLoadingMessage("");
+                return;
+            }
+
+            setLoadingMessage(`Analyzing Draft (${base64Images.length} photo${base64Images.length > 1 ? 's' : ''})...`);
+            const result = await analyzeItemImage(base64Images);
 
             setEditingItem(prev => {
                 if (!prev) return null;
@@ -2673,6 +2684,12 @@ function App() {
                     {currentImage ? (
                         <div className="relative w-full h-full overflow-hidden">
                             <img src={currentImage} alt="Captured" className="w-full h-full object-contain" />
+                            {scoutAdditionalImages.length > 0 && (
+                                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 text-[10px] font-bold text-white flex items-center gap-1.5 z-20">
+                                    <ImageIcon size={12} strokeWidth={3} />
+                                    <span>+{scoutAdditionalImages.length} MORE</span>
+                                </div>
+                            )}
                             {status === ScoutStatus.ANALYZING && (
                                 <>
                                     <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-[2px] animate-pulse-slow"></div>
@@ -3530,7 +3547,7 @@ function App() {
 
             <main className="flex-1 relative overflow-hidden flex flex-col">
                 {status === ScoutStatus.SCANNING ? (
-                    <Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={cameraMode !== 'EDIT'} />
+                    <Scanner onCapture={handleImageCaptured} onClose={() => { setStatus(ScoutStatus.IDLE); setBulkSessionCount(0); }} bulkSessionCount={bulkSessionCount} feedbackMessage={loadingMessage} singleCapture={false} />
                 ) : view === 'command' ? renderCommandView() : view === 'scout' ? (status === ScoutStatus.IDLE ? renderScoutView() : renderAnalysis()) : view === 'inventory' ? renderInventoryView() : view === 'stats' ? <StatsView inventory={inventory} onSettings={() => setIsSettingsOpen(true)} /> : null}
             </main>
 
