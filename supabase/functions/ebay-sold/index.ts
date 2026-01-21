@@ -42,7 +42,7 @@ serve(async (req) => {
         const cached = getCachedData(cacheKey);
         if (cached) return new Response(JSON.stringify(cached), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-        const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -manual -case -only -label -repro -reproduction -replacement";
+        const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -repro -reproduction";
 
         // Helper to broaden search if exact match fails
         const relaxQuery = (q: string, level: number) => {
@@ -61,6 +61,8 @@ serve(async (req) => {
             } else {
                 relaxed = q;
             }
+
+            if (!relaxed || relaxed.trim() === "") return "";
 
             return `${relaxed} ${NEGATIVE_KEYWORDS}`.trim();
         };

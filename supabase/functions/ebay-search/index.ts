@@ -24,7 +24,7 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Search query required' }), { status: 400, headers: corsHeaders });
         }
 
-        const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -manual -case -only -label -repro -reproduction -replacement";
+        const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -repro -reproduction";
         const finalQuery = `${query} ${NEGATIVE_KEYWORDS}`.trim();
 
         const cacheKey = `search:${finalQuery}`;

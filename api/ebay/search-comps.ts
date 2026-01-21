@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Buffer } from 'buffer';
 
-const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -manual -case -only -label -repro -reproduction -replacement";
+const NEGATIVE_KEYWORDS = "-print -ad -promo -advertisement -repro -reproduction";
 
 /**
  * Aggressively relaxes a query to ensure we get results
@@ -25,6 +25,8 @@ function relaxQuery(query: string, level: number): string {
   } else {
     relaxed = words.join(' ');
   }
+
+  if (!relaxed) return "";
 
   // Always append negative keywords to filter ads/cases/manuals
   return `${relaxed} ${NEGATIVE_KEYWORDS}`.trim();
