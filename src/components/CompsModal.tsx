@@ -105,7 +105,7 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
         {/* Header */}
         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 rounded-t-2xl">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Tag className="text-neon-green" size={20} /> Market Research
+            <Tag className="text-neon-green" size={20} /> Market Research <span className="text-[10px] font-mono text-slate-500 font-normal">v1.3-DEBUG</span>
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X size={24} />
@@ -189,18 +189,20 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
           ) : comps.length === 0 ? (
             <div className="text-center p-8 flex flex-col items-center gap-4">
               <p className="text-slate-600">No results found in API.</p>
-              {debugLogs.length > 0 && (
-                <div className="w-full bg-black/50 p-4 rounded-xl border border-slate-800 text-left overflow-hidden">
-                  <p className="text-xs font-mono text-slate-500 uppercase mb-2">Technical Debug Logs</p>
-                  <div className="max-h-40 overflow-y-auto space-y-1 font-mono text-[10px]">
-                    {debugLogs.map((log, idx) => (
+              <div className="w-full bg-black/50 p-4 rounded-xl border border-slate-800 text-left overflow-hidden">
+                <p className="text-xs font-mono text-slate-500 uppercase mb-2">Technical Debug Logs</p>
+                <div className="max-h-40 overflow-y-auto space-y-1 font-mono text-[10px]">
+                  {debugLogs.length > 0 ? (
+                    debugLogs.map((log, idx) => (
                       <div key={idx} className="text-slate-400 break-all border-b border-slate-800/50 pb-1">
                         {log}
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-600 italic">No technical logs received from API. Waiting for fresh search...</div>
+                  )}
                 </div>
-              )}
+              </div>
               <button
                 onClick={async () => {
                   const url = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=${activeTab === 'SOLD' ? '1' : '0'}&LH_ItemCondition=${condition === 'NEW' ? '1000' : '3000'}`;

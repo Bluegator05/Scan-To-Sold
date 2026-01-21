@@ -49,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let logs: string[] = [];
 
   try {
+    logs.push(`Search started: ${query} (${tab} / ${condition})`);
     if (!appId || !certId) {
       throw new Error("Missing EBAY_APP_ID or EBAY_CERT_ID environment variables.");
     }
