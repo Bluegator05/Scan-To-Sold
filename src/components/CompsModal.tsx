@@ -54,7 +54,7 @@ const CompsModal: React.FC<CompsModalProps> = ({ isOpen, onClose, initialQuery, 
     } catch (e: any) {
       setError(e.message || "Failed to load comps");
       setComps([]);
-      setDebugLogs([]);
+      setDebugLogs(e.debug || []);
     } finally {
       // Small artificial delay to show search is happening
       setTimeout(() => setLoading(false), 300);
