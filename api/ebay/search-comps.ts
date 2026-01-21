@@ -129,6 +129,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const errorData = e.response?.data;
           const errorMsg = errorData ? JSON.stringify(errorData).substring(0, 200) : e.message;
           logs.push(`Level ${level} FAILED: ${errorMsg}`);
+
+          if (errorMsg.includes('10001')) {
+            logs.push(`RATE LIMIT DETECTED (10001). Stopping retries.`);
+            break;
+          }
         }
       }
 
