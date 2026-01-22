@@ -68,8 +68,16 @@ serve(async (req) => {
                     'GLOBAL-ID': 'EBAY-US'
                 });
 
-                if (sort === 'newest') params.append('sortOrder', 'StartTimeNewest');
-                // Note: StartTimeOldest is not supported by Finding API, but we support newest.
+                if (sort === 'newest') {
+                    params.append('sortOrder', 'StartTimeNewest');
+                } else if (sort === 'oldest') {
+                    // For oldest first, we set a TimeTo in the past to filter for aged items
+                    const ninetyDaysAgo = new Date();
+                    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+                    params.append('itemFilter(1).name', 'StartTimeTo');
+                    params.append('itemFilter(1).value(0)', ninetyDaysAgo.toISOString());
+                    params.append('sortOrder', 'StartTimeNewest'); // We sort newest within that aged bucket
+                }
 
                 if (op === 'findItemsAdvanced') {
                     params.append('itemFilter(0).name', 'Seller');

@@ -20,6 +20,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
 import ResearchScreen from './components/ResearchScreen';
+import StoreOptimizer from './components/StoreOptimizer';
 import { incrementDailyUsage } from './services/paymentService';
 import { checkEbayConnection, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, fetchMarketData, getEbayPolicies, getSellThroughData, API_BASE_URL } from './services/ebayService';
 
@@ -64,7 +65,7 @@ function App() {
 
     const [isLiteMode, setIsLiteMode] = useState(false);
     const [view, setView] = useState<'command' | 'scout' | 'inventory' | 'stats'>('scout');
-    const [commandTab, setCommandTab] = useState<'analyze' | 'bulk'>('analyze');
+    const [commandTab, setCommandTab] = useState<'analyze' | 'bulk' | 'optimizer'>('analyze');
     const [searchQuery, setSearchQuery] = useState('');
     const [isIntelligenceAnalyzing, setIsIntelligenceAnalyzing] = useState(false);
     const [intelligenceResult, setIntelligenceResult] = useState<any>(null);
@@ -1879,6 +1880,12 @@ function App() {
                         >
                             <Layers size={14} /> BULK
                         </button>
+                        <button
+                            onClick={() => setCommandTab('optimizer')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-black tracking-widest transition-all duration-300 ${commandTab === 'optimizer' ? 'bg-[#06b6d4] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            <TrendingDown size={14} /> OPTIMIZER
+                        </button>
                     </div>
                 </div>
 
@@ -2326,6 +2333,17 @@ function App() {
                                         </div>
                                     </motion.div>
                                 )}
+                            </motion.div>
+                        )}
+                        {commandTab === 'optimizer' && (
+                            <motion.div
+                                key="optimizer"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="h-full"
+                            >
+                                <StoreOptimizer />
                             </motion.div>
                         )}
                     </AnimatePresence>

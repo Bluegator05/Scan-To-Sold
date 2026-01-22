@@ -181,3 +181,21 @@ export const fetchEbayItemDetails = async (itemId: string): Promise<any> => {
   if (!res.ok) throw new Error("Failed to fetch item details");
   return await res.json();
 };
+
+export const fetchSellerItems = async (page = 1, limit = 20, sort = 'newest') => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const url = `${FUNCTIONS_URL}/ebay-seller?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: await getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to fetch seller items (${response.status})`);
+  }
+
+  return await response.json();
+};
