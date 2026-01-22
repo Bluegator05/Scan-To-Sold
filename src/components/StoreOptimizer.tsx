@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ArrowLeft, Eye, Users, Calendar, ExternalLink, 
-  TrendingDown, AlertTriangle, RefreshCw, Filter, 
+import {
+  ArrowLeft, Eye, Users, Calendar, ExternalLink,
+  TrendingDown, AlertTriangle, RefreshCw, Filter,
   ChevronRight, Box, Tag, Clock, ArrowUpDown
 } from 'lucide-react';
 import { fetchSellerItems } from '../services/ebayService';
@@ -78,13 +78,12 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setSort(sort === 'oldest' ? 'newest' : 'oldest')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
-              sort === 'oldest' 
-                ? 'bg-red-500/20 border-red-500/40 text-red-500' 
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${sort === 'oldest'
+                ? 'bg-red-500/20 border-red-500/40 text-red-500'
                 : 'bg-slate-800 border-slate-700 text-slate-400'
-            }`}
+              }`}
           >
             <ArrowUpDown size={12} />
             {sort === 'oldest' ? 'OLDEST FIRST' : 'NEWEST FIRST'}
@@ -118,17 +117,17 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
             {items.map((item) => {
               const days = getDaysActive(item.startTime);
               const aged = getAgedLabel(days);
-              
+
               return (
-                <div 
+                <div
                   key={item.itemId}
                   className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex gap-4 transition-all hover:bg-slate-800 group"
                 >
                   {/* Image */}
                   <div className="w-20 h-20 bg-slate-950 rounded-xl shrink-0 overflow-hidden relative border border-slate-800">
-                    <img 
-                      src={item.imageUrl || item.galleryURL} 
-                      alt="" 
+                    <img
+                      src={item.imageUrl || item.galleryURL}
+                      alt=""
                       className="w-full h-full object-cover"
                       onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/80?text=No+Image')}
                     />
@@ -164,13 +163,13 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
                         ${parseFloat(item.price || "0").toFixed(2)}
                       </div>
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenLink(item.viewItemURL)}
                           className="p-2 text-slate-500 hover:text-white transition-colors"
                         >
                           <ExternalLink size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleRevise(item.itemId)}
                           className="bg-neon-green text-slate-950 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tight hover:scale-105 transition-all shadow-[0_0_10px_rgba(57,255,20,0.2)]"
                         >
@@ -186,7 +185,7 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
         )}
 
         {items.length > 0 && (
-          <button 
+          <button
             onClick={() => setPage(p => p + 1)}
             disabled={loading}
             className="w-full py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-colors disabled:opacity-50"
@@ -200,4 +199,3 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
 };
 
 export default StoreOptimizer;
-旋
