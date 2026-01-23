@@ -20,17 +20,43 @@ serve(async (req) => {
 
         const url = new URL(req.url);
         const pathParts = url.pathname.split('/');
-        const sellerId = pathParts[pathParts.length - 1];
+        const pathSellerId = pathParts[pathParts.length - 1];
         const page = parseInt(url.searchParams.get('page') || '1');
         const force = url.searchParams.get('force') === 'true';
-
         const sort = url.searchParams.get('sort') || 'newest';
 
-        if (!sellerId || sellerId === 'ebay-seller') {
-            return new Response(JSON.stringify({ error: 'Valid Seller ID required' }), { status: 400, headers: corsHeaders });
+        let rawSellerId = '';
+
+        // AUTO-RESOLVE SELLER ID
+        if (!pathSellerId || pathSellerId === 'ebay-seller') {
+            const { data: tokenData } = await supabase
+                .from('integration_tokens')
+                .select('access_token')
+                .eq('user_id', user.id)
+                .eq('platform', 'ebay')
+                .limit(1)
+                .maybeSingle();
+
+            if (tokenData?.access_token) {
+                try {
+                    const idRes = await fetch('https://api.ebay.com/commerce/identity/v1/user', {
+                        headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+                    });
+                    if (idRes.ok) {
+                        const idData = await idRes.json();
+                        rawSellerId = idData.username || idData.userId;
+                    }
+                } catch (e: any) {
+                    console.error('[ebay-seller] Identity fetch failed:', e.message);
+                }
+            }
+        } else {
+            rawSellerId = decodeURIComponent(pathSellerId).trim();
         }
 
-        const rawSellerId = decodeURIComponent(sellerId).trim();
+        if (!rawSellerId || rawSellerId === 'ebay-seller') {
+            return new Response(JSON.stringify({ error: 'Valid Seller ID required. Ensure eBay is connected in Settings.' }), { status: 400, headers: corsHeaders });
+        }
 
         // 3. User-Specific Cache (Security + Performance)
         const cacheKey = `seller:v31:${user.id}:${rawSellerId}:p:${page}:s:${sort}`;
