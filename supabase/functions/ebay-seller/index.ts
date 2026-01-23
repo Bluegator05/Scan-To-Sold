@@ -56,7 +56,16 @@ serve(async (req) => {
         }
 
         if (!rawSellerId || rawSellerId === 'ebay-seller') {
-            return new Response(JSON.stringify({ error: 'Valid Seller ID required. Ensure eBay is connected in Settings.' }), { status: 400, headers: corsHeaders });
+            const diags = {
+                pathId: pathSellerId,
+                queryId: querySellerId,
+                usingAuto: (!querySellerId && (!pathSellerId || pathSellerId === 'ebay-seller')),
+                hint: "Ensure eBay is connected in Settings or enter your ID in the Bulk tab."
+            };
+            return new Response(JSON.stringify({
+                error: 'Valid Seller ID required',
+                _debug: diags
+            }), { status: 400, headers: corsHeaders });
         }
 
         // 3. User-Specific Cache (Security + Performance)

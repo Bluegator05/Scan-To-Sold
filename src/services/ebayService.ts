@@ -186,13 +186,9 @@ export const fetchSellerItems = async (page = 1, limit = 20, sort = 'newest', se
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  let url = `${FUNCTIONS_URL}/ebay-seller?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
-  if (sellerId) {
-    url += `&sellerId=${encodeURIComponent(sellerId)}`;
-  } else {
-    // Fallback to path style if no sellerId param (legacy support for the function's internal path split)
-    url = `${FUNCTIONS_URL}/ebay-seller/ebay-seller?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
-  }
+  // Use path parameter style as it's proven to work in the Bulk tab
+  const idToUse = sellerId && sellerId.trim() !== '' ? encodeURIComponent(sellerId.trim()) : 'ebay-seller';
+  const url = `${FUNCTIONS_URL}/ebay-seller/${idToUse}?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
 
   const response = await fetch(url, {
     method: 'GET',
