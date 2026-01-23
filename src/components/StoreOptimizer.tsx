@@ -9,9 +9,10 @@ import { Browser } from '@capacitor/browser';
 
 interface StoreOptimizerProps {
   onBack?: () => void;
+  sellerId?: string;
 }
 
-const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
+const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack, sellerId }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,13 +21,13 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
 
   useEffect(() => {
     loadItems();
-  }, [sort, page]);
+  }, [sort, page, sellerId]);
 
   const loadItems = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchSellerItems(page, 20, sort);
+      const data = await fetchSellerItems(page, 20, sort, sellerId);
       setItems(data.items || []);
     } catch (e: any) {
       setError(e.message || "Failed to load store items");
@@ -81,8 +82,8 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack }) => {
           <button
             onClick={() => setSort(sort === 'oldest' ? 'newest' : 'oldest')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${sort === 'oldest'
-                ? 'bg-red-500/20 border-red-500/40 text-red-500'
-                : 'bg-slate-800 border-slate-700 text-slate-400'
+              ? 'bg-red-500/20 border-red-500/40 text-red-500'
+              : 'bg-slate-800 border-slate-700 text-slate-400'
               }`}
           >
             <ArrowUpDown size={12} />

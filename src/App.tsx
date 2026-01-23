@@ -2343,7 +2343,7 @@ function App() {
                                 exit={{ opacity: 0 }}
                                 className="h-full"
                             >
-                                <StoreOptimizer />
+                                <StoreOptimizer sellerId={bulkSellerId} />
                             </motion.div>
                         )}
                     </AnimatePresence>

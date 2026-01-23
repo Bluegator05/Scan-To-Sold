@@ -182,11 +182,18 @@ export const fetchEbayItemDetails = async (itemId: string): Promise<any> => {
   return await res.json();
 };
 
-export const fetchSellerItems = async (page = 1, limit = 20, sort = 'newest') => {
+export const fetchSellerItems = async (page = 1, limit = 20, sort = 'newest', sellerId?: string) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const url = `${FUNCTIONS_URL}/ebay-seller?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
+  let url = `${FUNCTIONS_URL}/ebay-seller?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
+  if (sellerId) {
+    url += `&sellerId=${encodeURIComponent(sellerId)}`;
+  } else {
+    // Fallback to path style if no sellerId param (legacy support for the function's internal path split)
+    url = `${FUNCTIONS_URL}/ebay-seller/ebay-seller?userId=${user.id}&page=${page}&limit=${limit}&sort=${sort}`;
+  }
+
   const response = await fetch(url, {
     method: 'GET',
     headers: await getAuthHeaders()

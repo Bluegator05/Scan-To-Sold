@@ -24,11 +24,12 @@ serve(async (req) => {
         const page = parseInt(url.searchParams.get('page') || '1');
         const force = url.searchParams.get('force') === 'true';
         const sort = url.searchParams.get('sort') || 'newest';
+        const querySellerId = url.searchParams.get('sellerId');
 
-        let rawSellerId = '';
+        let rawSellerId = querySellerId || '';
 
-        // AUTO-RESOLVE SELLER ID
-        if (!pathSellerId || pathSellerId === 'ebay-seller') {
+        // AUTO-RESOLVE SELLER ID if not provided
+        if (!rawSellerId && (!pathSellerId || pathSellerId === 'ebay-seller')) {
             const { data: tokenData } = await supabase
                 .from('integration_tokens')
                 .select('access_token')
@@ -50,7 +51,7 @@ serve(async (req) => {
                     console.error('[ebay-seller] Identity fetch failed:', e.message);
                 }
             }
-        } else {
+        } else if (!rawSellerId) {
             rawSellerId = decodeURIComponent(pathSellerId).trim();
         }
 
