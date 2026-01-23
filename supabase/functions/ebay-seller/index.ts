@@ -193,8 +193,8 @@ serve(async (req) => {
             stats.enrich.total = finalItems.length;
             finalItems = await Promise.all(finalItems.map(async (item, idx) => {
                 const hasDate = item.listedDate && item.listedDate.includes('-') && item.listedDate.includes('T') && item.listedDate !== 'Unknown' && item.listedDate !== 'Active';
-                if (hasDate) return item;
 
+                let enrichedItem = { ...item };
                 const cleanId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
                 const legacyId = cleanId.includes('|') ? cleanId.split('|')[1] : cleanId;
                 const browseId = cleanId.includes('|') ? cleanId : `v1|${cleanId}|0`;
@@ -208,7 +208,8 @@ serve(async (req) => {
 
                         if (sRes.ok && sData.Item) {
                             const date = sData.Item.StartTime || sData.Item.ListingInfo?.StartTime;
-                            if (date) { stats.enrich.shoppingHits++; return { ...item, listedDate: date }; }
+                            if (date) { stats.enrich.shoppingHits++; enrichedItem.listedDate = date; }
+                            if (sData.Item.WatchCount) enrichedItem.watchCount = sData.Item.WatchCount;
                         } else if (idx === 0) {
                             stats.firstEnrichError = `S:${sRes.status}/${sData.Ack || 'Fail'}`;
                         }
@@ -222,22 +223,48 @@ serve(async (req) => {
 
                     if (bResEnrich.ok) {
                         const date = bDataEnrich.listingStartTime || bDataEnrich.startTimeUtc || bDataEnrich.creationDate || bDataEnrich.itemCreationDate;
-                        if (date) { stats.enrich.browseHits++; return { ...item, listedDate: date }; }
-                        else if (idx === 0) stats.firstEnrichError = `B:NoDate/Keys:${Object.keys(bDataEnrich).slice(0, 5)}`;
+                        if (date) { stats.enrich.browseHits++; enrichedItem.listedDate = date; }
+                        if (bDataEnrich.watchCount) enrichedItem.watchCount = bDataEnrich.watchCount;
+                        // Browse API doesn't usually give viewCount, but we keep the key for stability
+                        if (idx === 0 && !date) stats.firstEnrichError = `B:NoDate/Keys:${Object.keys(bDataEnrich).slice(0, 5)}`;
                     } else if (idx === 0 && !stats.firstEnrichError) {
                         stats.firstEnrichError = `B:${bResEnrich.status} / ${bDataEnrich.errors?.[0]?.message || 'Unknown'}`;
                     }
                 } catch (e) { if (idx === 0) stats.firstEnrichError = `Ex:${e.message}`; }
-                stats.enrich.fails++;
-                return item;
+
+                if (enrichedItem.listedDate === item.listedDate && !hasDate) stats.enrich.fails++;
+                return enrichedItem;
             }));
         }
+
+        // Tier 1 and 2 normalization for Store Optimizer
+        const normalizedItems = finalItems.map(item => {
+            const cleanId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
+            let price = "0.00";
+
+            if (item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__) {
+                price = item.sellingStatus[0].currentPrice[0].__value__;
+            } else if (item.price?.value) {
+                price = item.price.value;
+            }
+
+            return {
+                itemId: cleanId,
+                title: Array.isArray(item.title) ? item.title[0] : item.title,
+                price: price,
+                startTime: item.listedDate || item.startTime || item.listingInfo?.startTime || 'Unknown',
+                viewCount: item.viewCount || 0,
+                watchCount: item.watchCount || 0,
+                imageUrl: Array.isArray(item.galleryURL) ? item.galleryURL[0] : item.galleryURL,
+                viewItemURL: Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : item.viewItemURL
+            };
+        });
 
         stats.summary = `[V31] Tier:${stats.tier} | Enr:${stats.enrich.shoppingHits}S,${stats.enrich.browseHits}B | ERR:${stats.firstEnrichError || 'None'}`;
         if (stats.tierErr && stats.tier !== 'finding') stats.summary += ` | TErr:${stats.tierErr.slice(0, 40)}`;
         if (stats.forensic.tier1) stats.summary += ` | T1Key:${stats.forensic.tier1}`;
 
-        const responseData = { items: finalItems, _debug: stats };
+        const responseData = { items: normalizedItems, _debug: stats };
         setCachedData(cacheKey, responseData);
         return new Response(JSON.stringify(responseData), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

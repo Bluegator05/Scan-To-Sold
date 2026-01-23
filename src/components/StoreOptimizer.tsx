@@ -48,7 +48,9 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack, sellerId }) => 
 
   const getDaysActive = (startTime: string) => {
     try {
+      if (!startTime || startTime === 'Unknown' || startTime === 'Active') return 0;
       const start = new Date(startTime).getTime();
+      if (isNaN(start)) return 0;
       const now = Date.now();
       return Math.floor((now - start) / (1000 * 60 * 60 * 24));
     } catch {
