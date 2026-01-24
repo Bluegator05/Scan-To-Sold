@@ -238,25 +238,36 @@ serve(async (req) => {
         }
 
         // Tier 1 and 2 normalization for Store Optimizer
+        // Tier 1 and 2 normalization for Store Optimizer AND App.tsx (Bulk)
         const normalizedItems = finalItems.map(item => {
             const cleanId = Array.isArray(item.itemId) ? item.itemId[0] : item.itemId;
-            let price = "0.00";
+            let priceValue = "0.00";
 
             if (item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__) {
-                price = item.sellingStatus[0].currentPrice[0].__value__;
+                priceValue = item.sellingStatus[0].currentPrice[0].__value__;
             } else if (item.price?.value) {
-                price = item.price.value;
+                priceValue = item.price.value;
             }
+
+            const img = Array.isArray(item.galleryURL) ? item.galleryURL[0] : item.galleryURL;
+            const webUrl = Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : item.viewItemURL;
+            const lDate = item.listedDate || item.startTime || item.listingInfo?.startTime || 'Unknown';
 
             return {
                 itemId: cleanId,
                 title: Array.isArray(item.title) ? item.title[0] : item.title,
-                price: price,
-                startTime: item.listedDate || item.startTime || item.listingInfo?.startTime || 'Unknown',
+                // Nested structure for App.tsx (Bulk)
+                price: { value: priceValue },
+                image: { imageUrl: img },
+                listedDate: lDate,
+                itemWebUrl: webUrl,
+                // Flattened structure for StoreOptimizer
+                rawPrice: priceValue,
+                startTime: lDate,
+                imageUrl: img,
+                viewItemURL: webUrl,
                 viewCount: item.viewCount || 0,
-                watchCount: item.watchCount || 0,
-                imageUrl: Array.isArray(item.galleryURL) ? item.galleryURL[0] : item.galleryURL,
-                viewItemURL: Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : item.viewItemURL
+                watchCount: item.watchCount || 0
             };
         });
 
