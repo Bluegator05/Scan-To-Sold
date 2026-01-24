@@ -163,7 +163,7 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack, sellerId }) => 
 
                     <div className="flex items-center justify-between mt-3">
                       <div className="text-sm font-black text-white">
-                        ${parseFloat(item.price || "0").toFixed(2)}
+                        ${parseFloat(item.price?.value || item.price || "0").toFixed(2)}
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -197,7 +197,7 @@ const StoreOptimizer: React.FC<StoreOptimizerProps> = ({ onBack, sellerId }) => 
           </button>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
