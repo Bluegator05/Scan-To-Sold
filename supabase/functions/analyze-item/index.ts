@@ -222,7 +222,7 @@ async function handleAnalyzeItemImage({ imageBase64, imagesBase64, barcode, isBu
     }
 
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const result_ai = await model.generateContent([
@@ -308,7 +308,7 @@ async function handleIdentifyItem({ imageBase64, imagesBase64, barcode }: any) {
   `;
 
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const result_ai = await model.generateContent([
@@ -402,7 +402,7 @@ async function handleAnalyzeItemDetails({ imageBase64, imagesBase64, identifiedT
     `;
 
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const result_ai = await model.generateContent([
@@ -476,7 +476,7 @@ async function handleAnalyzeItemText({ query }: any) {
     }
 
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const result_ai = await model.generateContent(prompt);
@@ -534,7 +534,7 @@ async function handleOptimizeTitle({ currentTitle }: any) {
       
       Return ONLY the optimized title string.
     `;
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result_ai = await model.generateContent(prompt);
     const response = result_ai.response;
     const text = response.text() || currentTitle;
@@ -561,7 +561,7 @@ async function handleSuggestItemSpecifics({ title, notes }: any) {
     `;
 
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const result_ai = await model.generateContent(prompt);
@@ -582,7 +582,7 @@ async function handleRefinePriceAnalysis({ title, condition }: any) {
     `;
 
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const result_ai = await model.generateContent(prompt);
@@ -618,7 +618,7 @@ async function handleGenerateListingDescription({ title, notes, platform }: any)
            Ships via USPS Ground Advantage.`
         : `Write a short, factual Facebook Marketplace listing for "${title}".Condition: "${notes}".Price: Firm.No fluff.Plain text only.`;
 
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result_ai = await model.generateContent(prompt);
     const response = result_ai.response;
     const text_raw = response.text() || "";
@@ -673,7 +673,7 @@ async function handleOptimizeProductImage({ imageUrlOrBase64, itemTitle, backgro
             Return ONLY the generated image.
         `;
 
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result_ai = await model.generateContent([
         { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
         { text: prompt }
@@ -704,7 +704,7 @@ async function handleOptimizeProductImage({ imageUrlOrBase64, itemTitle, backgro
 
 async function handleAnalyzeListing(listingData: any) {
     const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp'
+        model: 'gemini-2.0-flash'
     });
 
     const prompt = `

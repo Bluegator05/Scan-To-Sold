@@ -128,9 +128,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             engine: 'ebay',
             _nkw: query as string,
             show_only: 'Sold',
-            api_key: process.env.SERPAPI_KEY || 'e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57',
+            api_key: process.env.SERPAPI_KEY || '',
             num: '20'
           });
+          if (!process.env.SERPAPI_KEY) {
+            logs.push("Warning: Missing SERPAPI_KEY environment variable.");
+          }
           if (condition === 'NEW') serpParams.append('LH_ItemCondition', '10');
           else if (condition === 'USED') serpParams.append('LH_ItemCondition', '3');
 

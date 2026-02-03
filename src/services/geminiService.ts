@@ -142,10 +142,8 @@ export const optimizeProductImage = async (imageUrlOrBase64: string, itemTitle?:
   }
 };
 
-// eBay Listing Optimization (for Command Tab)
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || '');
+// --- LEGACY CLIENT-SIDE AI REMOVED FOR SECURITY ---
+// All AI logic now flows through Supabase Edge Functions to protect API keys.
 
 interface ListingData {
   title: string;

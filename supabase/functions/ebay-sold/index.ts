@@ -136,7 +136,7 @@ serve(async (req) => {
         }
 
         // Fallback to SerpApi
-        const ACTUAL_SERPAPI_KEY = SERPAPI_KEY || 'e0f6ca870f11e20e9210ec572228272ede9b839e1cbe79ff7f47de23a7a80a57';
+        const ACTUAL_SERPAPI_KEY = SERPAPI_KEY;
         if (ACTUAL_SERPAPI_KEY) {
             const serpParams = new URLSearchParams({ engine: 'ebay', _nkw: query, show_only: 'Sold', api_key: ACTUAL_SERPAPI_KEY, num: '100' });
             if (condition) {
