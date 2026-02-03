@@ -1705,17 +1705,17 @@ function App() {
             // Map items for the queue
             const mappedItems = itemsToMap.map((item: any) => {
                 const rawDate = item.listedDate;
-                console.log(`[Bulk] Item ID: ${item.itemId?.[0]} | Raw Date: ${rawDate} | Source: ${item._source}`);
+                console.log(`[Bulk] Item ID: ${item.itemId} | Raw Date: ${rawDate}`);
 
                 return {
-                    itemId: Array.isArray(item.itemId) ? item.itemId[0] : item.itemId,
-                    title: Array.isArray(item.title) ? item.title[0] : item.title,
+                    itemId: item.itemId,
+                    title: item.title,
                     price: {
-                        value: item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0",
-                        currency: item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || "USD"
+                        value: item.price?.value || item.rawPrice || "0",
+                        currency: "USD" // Edge function normalizes to USD or includes it in price object
                     },
-                    itemWebUrl: Array.isArray(item.viewItemURL) ? item.viewItemURL[0] : item.viewItemURL,
-                    image: { imageUrl: (Array.isArray(item.galleryURL) ? item.galleryURL[0] : item.galleryURL) || '' },
+                    itemWebUrl: item.itemWebUrl || item.viewItemURL,
+                    image: { imageUrl: item.image?.imageUrl || item.imageUrl || '' },
                     listedDate: rawDate || 'Active',
                     status: 'pending'
                 };
