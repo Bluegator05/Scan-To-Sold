@@ -63,38 +63,9 @@ export const dataURLtoFile = (dataurl: string, filename: string): File => {
 };
 
 export const uploadScanImage = async (userId: string, imageBase64: string): Promise<string | null> => {
-  try {
-    // Use optimized compression settings
-    const compressed = await compressImage(imageBase64, 720, 0.5);
-    const file = dataURLtoFile(compressed, `scan-${Date.now()}.jpg`);
-
-    // Upload to 'scans' bucket
-    const fileName = `${userId}/${Date.now()}.jpg`;
-
-    // Add 30s Timeout to Upload
-    const uploadPromise = supabase.storage
-      .from('scans')
-      .upload(fileName, file, { upsert: true });
-
-    const timeoutPromise = new Promise<{ data: any, error: any }>((_, reject) =>
-      setTimeout(() => reject(new Error("Upload Timed Out")), 30000)
-    );
-
-    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
-
-    if (error) throw error;
-
-    // Get Public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('scans')
-      .getPublicUrl(fileName);
-
-    return publicUrl;
-  } catch (e) {
-    // Log explicitly so we know why it failed (RLS, Network, etc)
-    console.warn("Supabase Storage Upload Failed (Likely Permissions/RLS or Network). App will fallback to direct compressed upload.", e);
-    return null; // Return null to trigger Base64 fallback in the app
-  }
+  // Skip storage upload - use base64 directly to avoid storage costs
+  console.log('[imageService] Skipping storage upload, using base64 directly');
+  return null; // Return null to trigger Base64 fallback in the app
 };
 
 export const uploadMultipleImages = async (userId: string, images: string[]): Promise<string[]> => {
