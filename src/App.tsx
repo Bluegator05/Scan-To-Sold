@@ -1185,6 +1185,22 @@ function App() {
                     setLoadingMessage("");
                     setStatus(ScoutStatus.COMPLETE);
 
+                    // Increment usage counter (non-blocking)
+                    if (user) {
+                        console.log('[DEBUG] Scan complete, incrementing usage for user:', user.id);
+                        incrementUsage('scan').then(result => {
+                            console.log('[DEBUG] incrementUsage result:', result);
+                            if (result.success) {
+                                console.log('[DEBUG] Usage incremented successfully, refreshing subscription');
+                                refreshSubscription();
+                            } else {
+                                console.warn('[DEBUG] Failed to increment usage:', result.error);
+                            }
+                        }).catch(err => {
+                            console.error('Failed to increment usage:', err);
+                        });
+                    }
+
                     // Update Comps with Clean Titles
                     if (marketStats && (marketStats.activeComps || marketStats.soldComps)) {
                         const rawComps = marketStats.activeComps || marketStats.soldComps;
