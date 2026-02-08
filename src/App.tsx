@@ -2751,7 +2751,19 @@ function App() {
                 {/* Large START SCAN Button */}
                 <div className="flex-1 flex items-center justify-center mb-8 relative">
                     <button
-                        onClick={() => { setCameraMode('SCOUT'); setStatus(ScoutStatus.SCANNING); }}
+                        onClick={() => {
+                            // Check paywall BEFORE opening camera
+                            if (!canAccess('AI_SCAN')) {
+                                setIsPaywallOpen(true);
+                                return;
+                            }
+                            // Show soft warning if approaching limit
+                            if (subscription.showSoftWarning && !isSoftWarningOpen) {
+                                setIsSoftWarningOpen(true);
+                            }
+                            setCameraMode('SCOUT');
+                            setStatus(ScoutStatus.SCANNING);
+                        }}
                         className="relative group w-64 h-64 flex items-center justify-center bg-transparent border-none rounded-full outline-none focus:outline-none transition-transform active:scale-95 overflow-visible"
                     >
                         {/* Seamless Radial Glow */}
