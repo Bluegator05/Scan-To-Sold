@@ -4,7 +4,7 @@ import { corsHeaders, verifyUser } from '../_shared/auth.ts';
 // Tier limits configuration
 const TIER_LIMITS = {
     FREE: {
-        totalScans: 15,
+        totalScans: 10,
         dailyScans: Infinity,
         dailyOptimizations: 3
     },
@@ -69,7 +69,7 @@ serve(async (req) => {
                 maxDailyOptimizations: limits.dailyOptimizations,
                 canScan: (profile.total_scans || 0) < limits.totalScans && dailyScans < limits.dailyScans,
                 canOptimize: dailyOptimizations < limits.dailyOptimizations,
-                showSoftWarning: tier === 'FREE' && (profile.total_scans || 0) >= 10 && (profile.total_scans || 0) < 15
+                showSoftWarning: tier === 'FREE' && (profile.total_scans || 0) >= 7 && (profile.total_scans || 0) < 10
             }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
@@ -156,7 +156,7 @@ serve(async (req) => {
                 maxDailyScans: limits.dailyScans,
                 dailyOptimizations: newDailyOptimizations,
                 maxDailyOptimizations: limits.dailyOptimizations,
-                showSoftWarning: tier === 'FREE' && newTotalScans >= 10 && newTotalScans < 15
+                showSoftWarning: tier === 'FREE' && newTotalScans >= 7 && newTotalScans < 10
             }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });

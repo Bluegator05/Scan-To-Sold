@@ -80,13 +80,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                                 <p className="text-xs text-slate-500">For hobbyists.</p>
                                 {subscription.tier === 'FREE' && (
                                     <div className="mt-2 text-xs text-yellow-500 font-mono">
-                                        {subscription.totalScans || 0} / {subscription.maxTotalScans || 15} scans used
+                                        {subscription.totalScans || 0} / {subscription.maxTotalScans || 10} scans used
                                     </div>
                                 )}
                             </div>
                             <div className="w-full h-px bg-slate-800 mb-6"></div>
                             <ul className="space-y-3 flex-1">
-                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 15 Lifetime Scans</li>
+                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 10 Lifetime Scans</li>
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 3 Image Optimizations / Day</li>
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Basic Inventory</li>
                                 <li className="text-xs text-slate-600 flex items-center gap-2"><X size={14} /> No AI Magic Description</li>

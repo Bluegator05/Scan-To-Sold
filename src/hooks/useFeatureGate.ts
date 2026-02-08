@@ -17,7 +17,7 @@ export const useFeatureGate = () => {
                 // Check lifetime scan limit for FREE tier
                 if (tier === 'FREE') {
                     const totalScans = subscription?.totalScans || 0;
-                    const maxTotalScans = subscription?.maxTotalScans || 15;
+                    const maxTotalScans = subscription?.maxTotalScans || 10;
                     return totalScans < maxTotalScans;
                 }
                 return true; // PLUS and PRO have unlimited
@@ -33,7 +33,7 @@ export const useFeatureGate = () => {
     const getLimit = (limit: Limit): number => {
         switch (limit) {
             case 'LIFETIME_SCANS':
-                return subscription?.maxTotalScans || 15;
+                return subscription?.maxTotalScans || 10;
             case 'DAILY_SCANS':
                 return subscription?.maxDailyScans || Infinity;
             case 'DAILY_OPTIMIZATIONS':
@@ -47,7 +47,7 @@ export const useFeatureGate = () => {
         switch (limit) {
             case 'LIFETIME_SCANS':
                 const totalScans = subscription?.totalScans || 0;
-                const maxTotalScans = subscription?.maxTotalScans || 15;
+                const maxTotalScans = subscription?.maxTotalScans || 10;
                 return totalScans >= maxTotalScans;
             case 'DAILY_SCANS':
                 const dailyScans = subscription?.dailyScans || 0;

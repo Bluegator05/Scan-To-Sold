@@ -29,7 +29,7 @@ const ADMIN_EMAILS = ['bluegator05@gmail.com', 'apple_test@scantosold.com'];
 // Tier limits configuration
 const TIER_LIMITS = {
   FREE: {
-    totalScans: 15,
+    totalScans: 10,
     dailyScans: Infinity,
     dailyOptimizations: 3
   },
@@ -50,7 +50,7 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
   const defaultStatus: SubscriptionStatus = {
     tier: 'FREE',
     totalScans: 0,
-    maxTotalScans: 15,
+    maxTotalScans: 10,
     dailyScans: 0,
     maxDailyScans: Infinity,
     dailyOptimizations: 0,
@@ -121,7 +121,7 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
       maxDailyScans: limits.dailyScans,
       dailyOptimizations: needsReset ? 0 : (data.daily_optimizations_count || 0),
       maxDailyOptimizations: limits.dailyOptimizations,
-      showSoftWarning: tier === 'FREE' && (data.total_scans || 0) >= 10 && (data.total_scans || 0) < 15,
+      showSoftWarning: tier === 'FREE' && (data.total_scans || 0) >= 7 && (data.total_scans || 0) < 10,
       stripeCustomerId: data.stripe_customer_id
     };
 

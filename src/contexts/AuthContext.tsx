@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [subscription, setSubscription] = useState<SubscriptionStatus>({
     tier: 'FREE',
     totalScans: 0,
-    maxTotalScans: 15,
+    maxTotalScans: 10,
     dailyScans: 0,
     maxDailyScans: Infinity,
     dailyOptimizations: 0,
@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setSubscription({
             tier: 'FREE',
             totalScans: 0,
-            maxTotalScans: 15,
+            maxTotalScans: 10,
             dailyScans: 0,
             maxDailyScans: Infinity,
             dailyOptimizations: 0,
