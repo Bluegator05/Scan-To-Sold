@@ -133,6 +133,7 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
 
 // Increment usage on server (replaces localStorage)
 export const incrementUsage = async (featureType: 'scan' | 'optimization'): Promise<{ success: boolean; error?: string; data?: any }> => {
+  console.log('[incrementUsage] Starting increment for:', featureType);
   try {
     const { data, error } = await supabase.functions.invoke('track-usage', {
       body: {
@@ -141,18 +142,23 @@ export const incrementUsage = async (featureType: 'scan' | 'optimization'): Prom
       }
     });
 
+    console.log('[incrementUsage] Response:', { data, error });
+
     if (error) {
+      console.error('[incrementUsage] Supabase error:', error);
       return { success: false, error: error.message || 'Failed to increment usage' };
     }
 
     if (data?.error) {
+      console.error('[incrementUsage] Function returned error:', data);
       return { success: false, error: data.message, data };
     }
 
+    console.log('[incrementUsage] Success!', data);
     return { success: true, data };
 
   } catch (e: any) {
-    console.error("Failed to increment usage:", e);
+    console.error("[incrementUsage] Exception:", e);
     return { success: false, error: e.message || 'Unknown error' };
   }
 };

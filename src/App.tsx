@@ -688,10 +688,15 @@ function App() {
         setStatus(ScoutStatus.COMPLETE);
         if (user) {
             // Increment usage on server (non-blocking)
+            console.log('[DEBUG] Attempting to increment usage for user:', user.id);
             incrementUsage('scan').then(result => {
+                console.log('[DEBUG] incrementUsage result:', result);
                 if (result.success) {
+                    console.log('[DEBUG] Usage incremented successfully, refreshing subscription');
                     // Refresh subscription to get updated counts
                     refreshSubscription();
+                } else {
+                    console.warn('[DEBUG] Failed to increment usage:', result.error);
                 }
             }).catch(err => {
                 console.error('Failed to increment usage:', err);
