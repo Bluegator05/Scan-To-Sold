@@ -72,15 +72,18 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
 
   // 2. Try to fetch from server-side track-usage function
   try {
+    console.log('[getSubscriptionStatus] Fetching from track-usage function for user:', userId);
     const { data, error } = await supabase.functions.invoke('track-usage', {
       body: { action: 'check' }
     });
 
+    console.log('[getSubscriptionStatus] track-usage response:', { data, error });
+
     if (!error && data && !data.error) {
-      return {
+      const status = {
         tier: data.tier || 'FREE',
         totalScans: data.totalScans || 0,
-        maxTotalScans: data.maxTotalScans || 15,
+        maxTotalScans: data.maxTotalScans || 10,
         dailyScans: data.dailyScans || 0,
         maxDailyScans: data.maxDailyScans || Infinity,
         dailyOptimizations: data.dailyOptimizations || 0,
@@ -88,21 +91,26 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
         showSoftWarning: data.showSoftWarning || false,
         stripeCustomerId: data.stripeCustomerId
       };
+      console.log('[getSubscriptionStatus] Returning from track-usage:', status);
+      return status;
     }
   } catch (e) {
-    console.warn('track-usage function not available, falling back to database query');
+    console.warn('[getSubscriptionStatus] track-usage function not available, falling back to database query', e);
   }
 
   // 3. Fallback: Query database directly
   try {
+    console.log('[getSubscriptionStatus] Querying database directly for user:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('tier, total_scans, total_optimizations, daily_scans_count, daily_optimizations_count, last_reset_date, stripe_customer_id')
       .eq('id', userId)
       .single();
 
+    console.log('[getSubscriptionStatus] Database query result:', { data, error });
+
     if (error || !data) {
-      console.error('Failed to fetch profile from database:', error);
+      console.error('[getSubscriptionStatus] Failed to fetch profile from database:', error);
       return defaultStatus;
     }
 
@@ -113,7 +121,7 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
     const today = new Date().toISOString().split('T')[0];
     const needsReset = data.last_reset_date !== today;
 
-    return {
+    const status = {
       tier,
       totalScans: data.total_scans || 0,
       maxTotalScans: limits.totalScans,
@@ -124,9 +132,11 @@ export const getSubscriptionStatus = async (userId?: string, email?: string): Pr
       showSoftWarning: tier === 'FREE' && (data.total_scans || 0) >= 7 && (data.total_scans || 0) < 10,
       stripeCustomerId: data.stripe_customer_id
     };
+    console.log('[getSubscriptionStatus] Returning from database:', status);
+    return status;
 
   } catch (e) {
-    console.error("Failed to fetch subscription from database", e);
+    console.error("[getSubscriptionStatus] Failed to fetch subscription from database", e);
     return defaultStatus;
   }
 };
