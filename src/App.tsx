@@ -2820,7 +2820,18 @@ function App() {
                             <SearchIcon size={20} />
                         </button>
                         <button
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => {
+                                // Check paywall BEFORE opening file picker
+                                if (!canAccess('AI_SCAN')) {
+                                    setIsPaywallOpen(true);
+                                    return;
+                                }
+                                // Show soft warning if approaching limit
+                                if (subscription.showSoftWarning && !isSoftWarningOpen) {
+                                    setIsSoftWarningOpen(true);
+                                }
+                                fileInputRef.current?.click();
+                            }}
                             className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-400 hover:border-blue-400/50 transition-all"
                         >
                             <Upload size={20} />
