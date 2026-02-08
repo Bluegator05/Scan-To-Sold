@@ -2695,12 +2695,23 @@ function App() {
                 </div>
 
                 {/* AI SCAN Mode Indicator */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl">
                         <Zap size={16} className="text-blue-400" />
                         <span className="text-sm font-bold text-blue-400 uppercase tracking-wider">AI Scan</span>
                     </div>
                 </div>
+
+                {/* Scan Counter - Only show for FREE tier */}
+                {subscription.tier === 'FREE' && (
+                    <div className="mb-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900/50 border border-yellow-500/30 rounded-xl">
+                            <span className="text-xs font-mono text-yellow-400">
+                                {subscription.totalScans || 0} / {subscription.maxTotalScans || 10} scans used
+                            </span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Bulk Mode Toggle */}
                 <div className="mb-8">
