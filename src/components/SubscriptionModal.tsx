@@ -78,10 +78,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                                 <h3 className="text-slate-400 font-mono text-xs uppercase font-bold mb-2">Starter</h3>
                                 <div className="text-3xl font-bold text-white mb-1">$0 <span className="text-sm font-normal text-slate-500">/mo</span></div>
                                 <p className="text-xs text-slate-500">For hobbyists.</p>
+                                {subscription.tier === 'FREE' && (
+                                    <div className="mt-2 text-xs text-yellow-500 font-mono">
+                                        {subscription.totalScans || 0} / {subscription.maxTotalScans || 15} scans used
+                                    </div>
+                                )}
                             </div>
                             <div className="w-full h-px bg-slate-800 mb-6"></div>
                             <ul className="space-y-3 flex-1">
-                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Unlimited Scans (Lens Mode)</li>
+                                <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 15 Lifetime Scans</li>
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> 3 Image Optimizations / Day</li>
                                 <li className="text-xs text-slate-300 flex items-center gap-2"><Check size={14} /> Basic Inventory</li>
                                 <li className="text-xs text-slate-600 flex items-center gap-2"><X size={14} /> No AI Magic Description</li>

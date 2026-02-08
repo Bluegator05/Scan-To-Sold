@@ -23,70 +23,169 @@ const PRICE_ID_PLUS = "price_REPLACE_WITH_PLUS_ID";
 
 // ---------------------
 
-const SCAN_LIMIT_KEY = 'sts_scan_limit_';
-
 // Hardcoded Admin Emails (Temporary Override)
 const ADMIN_EMAILS = ['bluegator05@gmail.com', 'apple_test@scantosold.com'];
 
-export const getDailyUsage = (): number => {
-  const today = new Date().toLocaleDateString();
-  const key = `${SCAN_LIMIT_KEY}${today}`;
-  const count = localStorage.getItem(key);
-  return count ? parseInt(count, 10) : 0;
+// Tier limits configuration
+const TIER_LIMITS = {
+  FREE: {
+    totalScans: 15,
+    dailyScans: Infinity,
+    dailyOptimizations: 3
+  },
+  PLUS: {
+    totalScans: Infinity,
+    dailyScans: Infinity,
+    dailyOptimizations: 20
+  },
+  PRO: {
+    totalScans: Infinity,
+    dailyScans: Infinity,
+    dailyOptimizations: Infinity
+  }
 };
 
-export const incrementDailyUsage = (): number => {
-  const today = new Date().toLocaleDateString();
-  const key = `${SCAN_LIMIT_KEY}${today}`;
-  const current = getDailyUsage();
-  const newCount = current + 1;
-  localStorage.setItem(key, newCount.toString());
-  return newCount;
-};
-
-// Now fetches from Database (Profiles Table)
+// Fetch subscription status from server (replaces localStorage)
 export const getSubscriptionStatus = async (userId?: string, email?: string): Promise<SubscriptionStatus> => {
   const defaultStatus: SubscriptionStatus = {
     tier: 'FREE',
-    scansToday: getDailyUsage(),
-    maxDailyScans: 3
+    totalScans: 0,
+    maxTotalScans: 15,
+    dailyScans: 0,
+    maxDailyScans: Infinity,
+    dailyOptimizations: 0,
+    maxDailyOptimizations: 3,
+    showSoftWarning: false
   };
 
   // 1. Admin Override Check
   if (email && ADMIN_EMAILS.includes(email.toLowerCase())) {
-    return { ...defaultStatus, tier: 'PRO', maxDailyScans: Infinity };
+    return {
+      ...defaultStatus,
+      tier: 'PRO',
+      maxTotalScans: Infinity,
+      maxDailyOptimizations: Infinity
+    };
   }
 
   if (!userId) return defaultStatus;
 
-  // 2. Database Check
+  // 2. Try to fetch from server-side track-usage function
+  try {
+    const { data, error } = await supabase.functions.invoke('track-usage', {
+      body: { action: 'check' }
+    });
+
+    if (!error && data && !data.error) {
+      return {
+        tier: data.tier || 'FREE',
+        totalScans: data.totalScans || 0,
+        maxTotalScans: data.maxTotalScans || 15,
+        dailyScans: data.dailyScans || 0,
+        maxDailyScans: data.maxDailyScans || Infinity,
+        dailyOptimizations: data.dailyOptimizations || 0,
+        maxDailyOptimizations: data.maxDailyOptimizations || 3,
+        showSoftWarning: data.showSoftWarning || false,
+        stripeCustomerId: data.stripeCustomerId
+      };
+    }
+  } catch (e) {
+    console.warn('track-usage function not available, falling back to database query');
+  }
+
+  // 3. Fallback: Query database directly
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('tier, stripe_customer_id')
+      .select('tier, total_scans, total_optimizations, daily_scans_count, daily_optimizations_count, last_reset_date, stripe_customer_id')
       .eq('id', userId)
       .single();
 
     if (error || !data) {
+      console.error('Failed to fetch profile from database:', error);
       return defaultStatus;
     }
 
-    const tier = (data.tier as SubscriptionTier) || 'FREE';
+    const tier = (data.tier as 'FREE' | 'PLUS' | 'PRO') || 'FREE';
+    const limits = TIER_LIMITS[tier];
 
-    let maxScans = 3;
-    if (tier === 'PLUS') maxScans = 20;
-    if (tier === 'PRO') maxScans = Infinity;
+    // Check if we need to reset daily counters
+    const today = new Date().toISOString().split('T')[0];
+    const needsReset = data.last_reset_date !== today;
 
     return {
-      tier: tier,
-      scansToday: getDailyUsage(),
-      maxDailyScans: maxScans,
+      tier,
+      totalScans: data.total_scans || 0,
+      maxTotalScans: limits.totalScans,
+      dailyScans: needsReset ? 0 : (data.daily_scans_count || 0),
+      maxDailyScans: limits.dailyScans,
+      dailyOptimizations: needsReset ? 0 : (data.daily_optimizations_count || 0),
+      maxDailyOptimizations: limits.dailyOptimizations,
+      showSoftWarning: tier === 'FREE' && (data.total_scans || 0) >= 10 && (data.total_scans || 0) < 15,
       stripeCustomerId: data.stripe_customer_id
     };
 
   } catch (e) {
-    console.error("Failed to fetch subscription", e);
+    console.error("Failed to fetch subscription from database", e);
     return defaultStatus;
+  }
+};
+
+// Increment usage on server (replaces localStorage)
+export const incrementUsage = async (featureType: 'scan' | 'optimization'): Promise<{ success: boolean; error?: string; data?: any }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('track-usage', {
+      body: {
+        action: 'increment',
+        featureType
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message || 'Failed to increment usage' };
+    }
+
+    if (data?.error) {
+      return { success: false, error: data.message, data };
+    }
+
+    return { success: true, data };
+
+  } catch (e: any) {
+    console.error("Failed to increment usage:", e);
+    return { success: false, error: e.message || 'Unknown error' };
+  }
+};
+
+// Check if user can perform action (without incrementing)
+export const canPerformAction = async (featureType: 'scan' | 'optimization'): Promise<{ allowed: boolean; reason?: string; showSoftWarning?: boolean }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('track-usage', {
+      body: { action: 'check' }
+    });
+
+    if (error || !data) {
+      return { allowed: true }; // Fail open
+    }
+
+    if (featureType === 'scan') {
+      const allowed = data.canScan !== false;
+      return {
+        allowed,
+        reason: allowed ? undefined : `You've reached your scan limit. Please upgrade.`,
+        showSoftWarning: data.showSoftWarning
+      };
+    } else {
+      const allowed = data.canOptimize !== false;
+      return {
+        allowed,
+        reason: allowed ? undefined : `You've reached your daily optimization limit.`
+      };
+    }
+
+  } catch (e) {
+    console.error("Failed to check action permission:", e);
+    return { allowed: true }; // Fail open
   }
 };
 

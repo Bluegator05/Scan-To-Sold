@@ -25,7 +25,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<SubscriptionStatus>({ tier: 'FREE', scansToday: 0, maxDailyScans: 3 });
+  const [subscription, setSubscription] = useState<SubscriptionStatus>({
+    tier: 'FREE',
+    totalScans: 0,
+    maxTotalScans: 15,
+    dailyScans: 0,
+    maxDailyScans: Infinity,
+    dailyOptimizations: 0,
+    maxDailyOptimizations: 3,
+    showSoftWarning: false
+  });
 
   const refreshSubscription = async () => {
     if (user) {
@@ -99,7 +108,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          setSubscription({ tier: 'FREE', scansToday: 0, maxDailyScans: 3 });
+          setSubscription({
+            tier: 'FREE',
+            totalScans: 0,
+            maxTotalScans: 15,
+            dailyScans: 0,
+            maxDailyScans: Infinity,
+            dailyOptimizations: 0,
+            maxDailyOptimizations: 3,
+            showSoftWarning: false
+          });
         }
 
         // If onAuthStateChange fires, Supabase has likely finished processing the initial state/URL

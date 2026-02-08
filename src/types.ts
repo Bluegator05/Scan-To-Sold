@@ -158,8 +158,13 @@ export type SubscriptionTier = 'FREE' | 'PLUS' | 'PRO';
 
 export interface SubscriptionStatus {
   tier: SubscriptionTier;
-  scansToday: number;
-  maxDailyScans: number;
+  totalScans: number;              // NEW: Lifetime scans
+  maxTotalScans: number;           // NEW: Lifetime limit (15 for FREE)
+  dailyScans: number;              // NEW: Today's scans
+  maxDailyScans: number;           // Daily scan limit
+  dailyOptimizations: number;      // NEW: Today's optimizations
+  maxDailyOptimizations: number;   // NEW: Daily optimization limit
+  showSoftWarning?: boolean;       // NEW: Show warning at 10/15 scans
   renewsAt?: string;
   stripeCustomerId?: string;
 }

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Scanner from './components/Scanner';
 import ProfitCalculator from './components/ProfitCalculator';
 import PricingModal from './components/SubscriptionModal';
+import PaywallModal from './components/PaywallModal';
+import SoftWarningModal from './components/SoftWarningModal';
 import SettingsModal from './components/SettingsModal';
 import FeedbackModal from './components/FeedbackModal';
 import StatsView from './components/StatsView';
@@ -21,7 +23,7 @@ import { useTheme } from './contexts/ThemeContext';
 import AuthScreen from './components/AuthScreen';
 import ResearchScreen from './components/ResearchScreen';
 import StoreOptimizer from './components/StoreOptimizer';
-import { incrementDailyUsage } from './services/paymentService';
+import { incrementUsage } from './services/paymentService';
 import { checkEbayConnection, extractEbayId, fetchEbayItemDetails, searchEbayByImage, searchEbayComps, fetchMarketData, getEbayPolicies, getSellThroughData, API_BASE_URL } from './services/ebayService';
 
 const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_BASE_URL;
@@ -161,6 +163,8 @@ function App() {
     const [storageUnits, setStorageUnits] = useState<StorageUnit[]>([]);
 
     const [isPricingOpen, setIsPricingOpen] = useState(false);
+    const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+    const [isSoftWarningOpen, setIsSoftWarningOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -682,7 +686,18 @@ function App() {
         setEditedTitle(cleanedTitle);
         setItemCondition(result.condition || 'USED');
         setStatus(ScoutStatus.COMPLETE);
-        if (user) incrementDailyUsage();
+        if (user) {
+            // Increment usage on server (non-blocking)
+            incrementUsage('scan').then(result => {
+                if (result.success) {
+                    // Refresh subscription to get updated counts
+                    refreshSubscription();
+                }
+            }).catch(err => {
+                console.error('Failed to increment usage:', err);
+                // Don't block the scan if usage tracking fails
+            });
+        }
     };
 
     const handleUsePrice = (match: any) => {
@@ -905,8 +920,13 @@ function App() {
         // Enforce Paywall (Only for AI Scout Mode)
         if (cameraMode === 'SCOUT' && !canAccess('AI_SCAN')) {
             setStatus(ScoutStatus.IDLE);
-            setIsPricingOpen(true);
+            setIsPaywallOpen(true);
             return;
+        }
+
+        // Show soft warning at 10/15 scans for FREE tier
+        if (cameraMode === 'SCOUT' && subscription.showSoftWarning && !isSoftWarningOpen) {
+            setIsSoftWarningOpen(true);
         }
 
         // --- NUCLEAR WATCHDOG (FAILSAVE) ---
@@ -3146,6 +3166,19 @@ function App() {
         <div className={`${theme} fixed inset-0 flex flex-col overflow-hidden bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-300`}>
             {/* Modals remain the same... */}
             <PricingModal isOpen={isPricingOpen} onClose={() => setIsPricingOpen(false)} onSuccess={refreshSubscription} />
+            <PaywallModal
+                isOpen={isPaywallOpen}
+                onClose={() => setIsPaywallOpen(false)}
+                scansUsed={subscription.totalScans || 0}
+                maxScans={subscription.maxTotalScans || 15}
+            />
+            <SoftWarningModal
+                isOpen={isSoftWarningOpen}
+                onClose={() => setIsSoftWarningOpen(false)}
+                scansUsed={subscription.totalScans || 0}
+                maxScans={subscription.maxTotalScans || 15}
+                onUpgrade={() => { setIsSoftWarningOpen(false); setIsPricingOpen(true); }}
+            />
             <SettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => {
